@@ -17,7 +17,14 @@ const DEG = Math.PI / 180;
 
 function params() {
   if (typeof window === "undefined") return new URLSearchParams();
-  return new URLSearchParams(window.location.search);
+  const p = new URLSearchParams(window.location.search);
+  // Hosts that only pass a plain #name (e.g. the preview link) can use #stats, #tune, #sample, #en, #low, #medium, #high.
+  const h = window.location.hash.replace(/^#/, "");
+  if (h === "stats" || h === "tune") p.set(h, "1");
+  else if (h === "sample") p.set("area", "plav-sample");
+  else if (h === "en") p.set("lang", "en");
+  else if (h === "low" || h === "medium" || h === "high") p.set("q", h);
+  return p;
 }
 
 export type PerfSample = { fps: number; ms: number; calls: number; tris: number; dpr: number; quality: Quality; renderer: string };

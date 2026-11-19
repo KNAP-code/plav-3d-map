@@ -438,6 +438,7 @@ def build(area_id: str):
         "context": {"x0": ctx.x0, "y0": ctx.y0, "nx": cn, "ny": cn, "step": cg, "base": ctx_base, "scale": 10,
                     "file": "terrain_context.bin", "cover": "cover_context.png", "coreSink": 4.0},
         "extent": {"halfW": r1(half_w), "halfH": r1(half_h)},
+        "treesFile": "trees.bin",
         "stats": {**stats, "trees": int(len(tree_arr)), "roads": len(roads), "water": len(water_out),
                   "minarets": len(minarets)},
         "landmarks": landmarks,

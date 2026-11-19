@@ -14,6 +14,7 @@ export type AreaMeta = {
   landmarks: { name: string; x: number; y: number; cls: string | null }[];
   estimates: Record<string, string>;
   sources: { overture_release: string; attribution: string[] };
+  treesFile?: string;
 };
 
 export type Building = {
@@ -90,7 +91,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
     tick(bin(`${base}/${meta.context.file}`)),
     tick(fetch(`${base}/buildings.json`).then((r) => r.text())),
     tick(fetch(`${base}/vectors.json`).then((r) => r.text())),
-    tick(bin(`${base}/trees.bin`)),
+    tick(bin(`${base}/${meta.treesFile ?? "trees.bin"}`)),
     tick(img(`${base}/${meta.core.cover}`)),
     tick(img(`${base}/${meta.context.cover}`)),
   ]);
