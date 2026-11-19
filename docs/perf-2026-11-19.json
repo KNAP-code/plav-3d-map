@@ -1,0 +1,78 @@
+[
+ {
+  "device": "Pixel 7",
+  "quality": "medium",
+  "cpuThrottle": 4,
+  "firstFrameMs": 3821,
+  "wallMs": 15891,
+  "transferGzipMB": 1.41,
+  "rawMB": 3.3,
+  "gzipByTypeMB": {
+   "other": 0,
+   "js": 0.58,
+   "data": 0.82
+  },
+  "drawCalls": 30,
+  "trianglesK": 952,
+  "dpr": 1.6,
+  "jsHeapMB": 60,
+  "swiftshaderFps": 0.7
+ },
+ {
+  "device": "Pixel 7",
+  "quality": "low",
+  "cpuThrottle": 4,
+  "firstFrameMs": 3528,
+  "wallMs": 12902,
+  "transferGzipMB": 1.41,
+  "rawMB": 3.3,
+  "gzipByTypeMB": {
+   "other": 0,
+   "js": 0.58,
+   "data": 0.82
+  },
+  "drawCalls": 19,
+  "trianglesK": 774,
+  "dpr": 1.2,
+  "jsHeapMB": 77,
+  "swiftshaderFps": 0.8
+ },
+ {
+  "device": "iPhone 13",
+  "quality": "medium",
+  "cpuThrottle": 4,
+  "firstFrameMs": 3922,
+  "wallMs": 16817,
+  "transferGzipMB": 1.41,
+  "rawMB": 3.3,
+  "gzipByTypeMB": {
+   "other": 0,
+   "js": 0.58,
+   "data": 0.82
+  },
+  "drawCalls": 30,
+  "trianglesK": 952,
+  "dpr": 1.6,
+  "jsHeapMB": 97,
+  "swiftshaderFps": 0.6
+ },
+ {
+  "device": "iPhone 13",
+  "quality": "low",
+  "cpuThrottle": 4,
+  "firstFrameMs": 3500,
+  "wallMs": 13776,
+  "transferGzipMB": 1.41,
+  "rawMB": 3.3,
+  "gzipByTypeMB": {
+   "other": 0,
+   "js": 0.58,
+   "data": 0.82
+  },
+  "drawCalls": 19,
+  "trianglesK": 774,
+  "dpr": 1.2,
+  "jsHeapMB": 50,
+  "swiftshaderFps": 0.9
+ }
+]
