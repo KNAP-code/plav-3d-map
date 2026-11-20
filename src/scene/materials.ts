@@ -258,12 +258,13 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
     fragColor: detail ? /* glsl */ `
       gWin = 0.0;
       float nFl = floor(vFl + 0.5);
+      float nSeed = floor(fract(vSt) * 512.0 + 0.5); // quantised: interpolation noise must not reseed the hash per pixel
       if (vPart < 0.5) {
         float fl = floor(vW.y);
         vec2 c = fract(vW);
         vec2 fw = max(fwidth(vW), vec2(1e-4));
-        float kind = mod(floor(vSt), 4.0);
-        bool shop = floor(vSt) >= 4.0;
+        float kind = mod(floor(vSt + 0.001), 4.0);
+        bool shop = floor(vSt + 0.001) >= 4.0;
         bool ground = fl > nFl - 1.5;
         // window rectangle per layout: x half-margin, y range (y runs downward from the eave)
         float wx = 0.33, wy0 = 0.30, wy1 = 0.76;
@@ -283,7 +284,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         diffuseColor.rgb *= mix(1.0, 0.82, step(nFl, vW.y));
         diffuseColor.rgb *= mix(1.0, 0.9, step(0.0, vW.y) * step(nFl - 0.12, vW.y) * (1.0 - step(nFl, vW.y)));
         // night: about 45% of windows lit, chosen per window from the building seed
-        float r = h21(vec2(floor(vW.x * (kind > 1.5 && kind < 2.5 ? 2.0 : 1.0)) + fract(vSt) * 97.0, fl + fract(vSt) * 53.0));
+        float r = h21(vec2(floor(vW.x * (kind > 1.5 && kind < 2.5 ? 2.0 : 1.0)) + nSeed * 0.19, fl + nSeed * 0.11));
         gWin = win * step(r, 0.45 + (shop && ground ? 0.4 : 0.0)) * (0.75 + 0.5 * fract(r * 13.0));
       } else {
         float row = fract(vW.y / uSpacing);
@@ -293,9 +294,10 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
       }
     ` : /* glsl */ `
       float nFl = floor(vFl + 0.5);
+      float nSeed = floor(fract(vSt) * 512.0 + 0.5); // quantised: interpolation noise must not reseed the hash per pixel
       // far LOD: average tone of the window grid / tile rows instead of the pattern
       diffuseColor.rgb *= vPart < 0.5 ? mix(0.82, 0.9, step(vW.y, nFl) * step(0.0, vW.y)) : (1.0 - uContrast * 0.35);
-      gWin = vPart < 0.5 ? step(0.0, vW.y) * step(vW.y, nFl - 1.0) * 0.16 * step(0.4, h21(floor(vW) + fract(vSt) * 97.0)) : 0.0;
+      gWin = vPart < 0.5 ? step(0.0, vW.y) * step(vW.y, nFl - 1.0) * 0.16 * step(0.4, h21(floor(vW) + nSeed * 0.19)) : 0.0;
     `,
     fragEmissive: /* glsl */ `
       if (uNight > 0.001) {
