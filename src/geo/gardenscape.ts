@@ -15,7 +15,7 @@ export function yardGeometry(d: AreaData) {
   if (!d.gardens) return new THREE.BufferGeometry();
   const h = groundOf(d);
   // close to the base grass: a hint of a mown yard, not a patch
-  const lawns = ["#87b94f", "#85b64e", "#89bb52", "#86b850"].map((c) => new THREE.Color(c));
+  const lawns = ["#8dad62", "#8aa95f", "#90b065", "#8bab60"].map((c) => new THREE.Color(c));
   d.gardens.yards.forEach((y, i) => {
     const c = lawns[Math.floor(hash(i, 3) * lawns.length)];
     // yards are small (≤ 30 m): plain triangulation, a little higher above the ground instead of cutting into cells

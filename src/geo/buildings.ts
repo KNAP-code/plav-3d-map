@@ -96,7 +96,7 @@ const BLOCK_WALLS = ["#d8d2c8", "#e5d6be", "#cdd3d0", "#e9e0cf", "#c9b9ab", "#ec
  * Every choice is a deterministic hash of the building id, so the same house always looks the same.
  */
 const METAL_ROOFS = ["#6e5446", "#7f4a3c", "#5c6656", "#6a6d70", "#8c5a46", "#585c62", "#7a6a5c"];
-const TILE_ROOFS = ["#d9826a", "#cf7760", "#e39278", "#c56f5a", "#d88a70", "#bf7462"];
+const TILE_ROOFS = ["#c9724f", "#bd6748", "#d38160", "#b55f46", "#c87a56", "#a95b44"];
 const CONC_ROOFS = ["#8c8a86", "#7d7b78", "#9a948c"];
 const PLASTER = ["#efe9dd", "#f2ead6", "#e9dfc9", "#ece4d2", "#f4efe4", "#e6dccb", "#efe2c4", "#f0e6d8", "#f0dcaa", "#efcfb0", "#dfe3d2", "#e7d3c8", "#e9d9a8", "#d9d4c6"];
 const BARN_WALLS = ["#7a5a40", "#6c4f39", "#80624a", "#5f4a38"];

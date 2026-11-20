@@ -366,6 +366,10 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
           float streak = step(0.0, wy1 + 0.04 - c.y) * 0.0 + (1.0 - smoothstep(0.0, 0.25, c.y - wy1)) * step(wy1, c.y) * inX * 0.06;
           diffuseColor.rgb *= 1.0 - damp - streak;
         }
+        // soft occlusion: darker under the eaves and towards the ground (contact shadow of the street / yard)
+        float eaveAo = 1.0 - smoothstep(0.0, 0.22, vW.y);
+        float baseAo = smoothstep(nFl - 0.55, nFl + 0.05, vW.y);
+        diffuseColor.rgb *= 1.0 - 0.16 * eaveAo * step(0.0, vW.y) - 0.12 * baseAo;
         // plinth: darker base course below the ground-floor windows
         diffuseColor.rgb *= mix(1.0, 0.82, step(nFl, vW.y));
         diffuseColor.rgb *= mix(1.0, 0.9, step(0.0, vW.y) * step(nFl - 0.12, vW.y) * (1.0 - step(nFl, vW.y)));
@@ -400,7 +404,8 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
       if (uNight > 0.001) {
         float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
         // night grading: roofs go to a neutral blue-grey (red tiles under blue moonlight read as magenta otherwise)
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(0.82, 0.86, 1.0), uNight * (vPart > 0.5 ? 0.95 : 0.6));
+        // (graded only after sunset: at dusk the roofs keep their warm colour)
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(0.82, 0.86, 1.0), smoothstep(0.3, 1.0, uNight) * (vPart > 0.5 ? 0.95 : 0.6));
         vec3 warm = mix(vec3(1.0, 0.7, 0.36), vec3(0.75, 0.85, 1.0), step(0.88, fract(gWin * 7.31)));
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }

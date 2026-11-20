@@ -6,7 +6,7 @@ import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData, type Building } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
 import { AUDIT_COLORS, AuditLayer, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
-import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
+import { Controls, Effects, PlainRender, Sun, flyTo, type TimeOfDay } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
 import { T, type Lang } from "./i18n";
@@ -30,6 +30,7 @@ function params() {
     else if (h === "bench") p.set("bench", "300");
     else if (h === "review") p.set("review", "1");
     else if (h === "night") p.set("night", "1");
+    else if (h === "sunset") p.set("sunset", "1");
     else if (h === "data") p.set("est", "0");
   }
   return p;
@@ -116,7 +117,7 @@ export default function Viewer() {
   const review = q.has("review");
   // render scripts only (?closeup=1&place=key@buildingId): show a not-yet-placed landmark model on a stand-in footprint
   if (q.get("closeup") === "1") for (const p of (q.get("place") ?? "").split(",")) { const [k, id] = p.split("@"); if (k && id) placeStandIn(k, id); }
-  const [night, setNight] = useState(q.has("night"));
+  const [tod, setTod] = useState<TimeOfDay>(q.has("night") ? 2 : q.has("sunset") ? 1 : 0);
   const [traffic, setTraffic] = useState(!off.has("traffic"));
   // estimated details (sidewalks, house details, gardens, headstones); ?est=0 / #data shows verified data only
   const [estimates, setEstimates] = useState(q.get("est") !== "0");
@@ -244,7 +245,7 @@ export default function Viewer() {
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} estimates={estimates} />}
             {estimates && !off.has("gardens") && <Gardens data={data} quality={quality} />}
           </Suspense>
-          <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} night={night} />
+          <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} tod={tod} />
           <Controls data={data} controlsRef={controls} hud={hudRefs} onReady={onControlsReady} />
           {off.has("post") ? <PlainRender /> : <Effects style={style} quality={quality} ao={!off.has("ao")} tilt={!off.has("tilt")} />}
           {adaptive && <AdaptiveQuality tier={quality} onStepDown={stepDown} controls={controls} />}
@@ -257,7 +258,7 @@ export default function Viewer() {
         <Hud
           data={data} lang={lang} setLang={setLang} quality={quality} setQuality={setQuality}
           northRef={northRef} elevRef={elevRef} chips={chips}
-          night={night} setNight={setNight} traffic={traffic} setTraffic={setTraffic}
+          tod={tod} setTod={setTod} traffic={traffic} setTraffic={setTraffic}
           estimates={estimates} setEstimates={setEstimates}
           onZoom={onZoom} onHome={onHome} onRotate={onRotate} onNorth={onNorth} onChip={onChip}
         />

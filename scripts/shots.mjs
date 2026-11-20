@@ -15,7 +15,19 @@ const town = [
   "suburb|q=high&off=tilt&cam=-700,760,170,160,58",
   "night|q=high&off=tilt&night=1&cam=150,-150,1100,40,50",
 ];
-const views = process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
+// VIEWS=atmos: accuracy + atmosphere brief (aerial, centre close-ups, sunset, night; same cameras before and after)
+const atmos = [
+  "aerial|q=high&off=tilt&cam=-150,0,3600,15,48",
+  "centre|q=high&off=tilt&cam=200,-150,260,-120,55",
+  "centre-street|q=high&off=tilt&cam=283,-240,90,320,52",
+  "centre-houses|q=high&off=tilt&cam=120,-330,120,215,58",
+  "northeast|q=high&off=tilt&cam=250,950,520,205,55",
+  "sunset|q=high&off=tilt&sunset=1&cam=150,-150,1100,40,50",
+  "sunset-centre|q=high&off=tilt&sunset=1&cam=200,-150,260,-120,55",
+  "night|q=high&off=tilt&night=1&cam=150,-150,1100,40,50",
+  "night-centre|q=high&off=tilt&night=1&cam=200,-150,260,-120,55",
+];
+const views = process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",

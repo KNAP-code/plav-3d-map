@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CameraControls } from "@react-three/drei";
 import CameraControlsImpl from "camera-controls";
-import { EffectComposer, EffectPass, RenderPass, SMAAEffect, TiltShiftEffect, ToneMappingEffect, ToneMappingMode, KernelSize } from "postprocessing";
+import { BrightnessContrastEffect, EffectComposer, EffectPass, HueSaturationEffect, RenderPass, SMAAEffect, TiltShiftEffect, ToneMappingEffect, ToneMappingMode, KernelSize, VignetteEffect } from "postprocessing";
 import { N8AOPostPass } from "n8ao";
 import type { AreaData } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
@@ -20,15 +20,22 @@ const DEG = Math.PI / 180;
  * - high: a 4096² map fitted around the view, re-rendered once each time the camera comes to rest.
  * Measured: the old follow-the-target map re-rendered on ~95% of moving frames.
  */
-export function Sun({ data, style, quality, controls, follow = true, enabled = true, night = false }: { data: AreaData; style: StyleConfig; quality: Quality; controls: React.RefObject<CameraControlsImpl | null>; follow?: boolean; enabled?: boolean; night?: boolean }) {
+/** Light direction from azimuth (clockwise from north; scene north = -Z) and elevation, in degrees. */
+const sunDir = (azDeg: number, elDeg: number, out = new THREE.Vector3()) => {
+  const az = azDeg * DEG, el = elDeg * DEG;
+  return out.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
+};
+
+/** Time of day: 0 = day (afternoon), 1 = sunset, 2 = night. */
+export type TimeOfDay = 0 | 1 | 2;
+
+export function Sun({ data, style, quality, controls, follow = true, enabled = true, tod = 0 }: { data: AreaData; style: StyleConfig; quality: Quality; controls: React.RefObject<CameraControlsImpl | null>; follow?: boolean; enabled?: boolean; tod?: TimeOfDay }) {
   const light = useRef<THREE.DirectionalLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
   const { gl, scene, invalidate } = useThree();
-  const dir = useMemo(() => {
-    const az = style.sun.azimuthDeg * DEG, el = style.sun.elevationDeg * DEG;
-    // azimuth measured clockwise from north; scene north = -Z
-    return new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
-  }, [style.sun.azimuthDeg, style.sun.elevationDeg]);
+  // current light direction; DayNight moves it between the day, sunset and (moon) night directions
+  const dir = useMemo(() => sunDir(style.sun.azimuthDeg, style.sun.elevationDeg), [style.sun.azimuthDeg, style.sun.elevationDeg]);
+  const lastFit = useRef<[number, number, number, number] | null>(null);
   const size = quality === "high" ? 4096 : 2048;
   const tracking = quality === "high" && follow;
   // height range of everything that can cast a shadow (terrain + tallest buildings / minarets)
@@ -41,6 +48,7 @@ export function Sun({ data, style, quality, controls, follow = true, enabled = t
     const pts = Array.from({ length: 8 }, () => new THREE.Vector3());
     /** Fit the light camera tightly around the box [cx±hx] × [cz±hz] in light space and request one shadow render. */
     return (l: THREE.DirectionalLight, cx: number, cz: number, hx: number, hz: number) => {
+      lastFit.current = [cx, cz, hx, hz];
       const cy = (hRange[0] + hRange[1]) / 2;
       l.position.set(cx, cy, cz).addScaledVector(dir, 3000);
       l.target.position.set(cx, cy, cz);
@@ -105,13 +113,14 @@ export function Sun({ data, style, quality, controls, follow = true, enabled = t
     <>
       <directionalLight ref={light} color={style.sun.color} intensity={style.sun.intensity} castShadow={enabled} />
       <hemisphereLight ref={hemi} args={[style.ambient.sky, style.ambient.ground, style.ambient.intensity]} />
-      <DayNight style={style} night={night} light={light} hemi={hemi} />
+      <DayNight style={style} tod={tod} light={light} hemi={hemi} dir={dir}
+        refit={() => { const l = light.current, f = lastFit.current; if (l && f && enabled) fit(l, ...f); }} />
     </>
   );
 }
 
 /**
- * Post-processing per tier (all keep the tilt-shift miniature look):
+ * Post-processing per tier (all keep the tilt-shift miniature look and the colour grade):
  * - high: N8AO ambient occlusion + tilt-shift + tone mapping + SMAA
  * - medium: tilt-shift + tone mapping, 2× MSAA on the scene pass (no AO, no SMAA)
  * - low: tilt-shift (smaller kernel) + tone mapping, no anti-aliasing pass
@@ -135,10 +144,15 @@ export function Effects({ style, quality, ao = true, tilt = true }: { style: Sty
     if (style.post.tiltShift && tilt)
       effects.push(new TiltShiftEffect({ offset: 0.0, rotation: 0, focusArea: style.post.tiltFocus, feather: style.post.tiltFeather, kernelSize: quality === "high" ? KernelSize.SMALL : KernelSize.VERY_SMALL, resolutionScale: quality === "low" ? 0.35 : 0.5 }));
     effects.push(new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }));
+    // gentle grade (same merged pass, all tiers): a touch less saturation, a touch more contrast, soft vignette
+    const g = style.grade;
+    if (g.saturation) effects.push(new HueSaturationEffect({ saturation: g.saturation }));
+    if (g.contrast || g.brightness) effects.push(new BrightnessContrastEffect({ contrast: g.contrast, brightness: g.brightness }));
+    if (g.vignette > 0) effects.push(new VignetteEffect({ offset: 0.32, darkness: g.vignette }));
     if (quality === "high") effects.push(new SMAAEffect());
     comp.addPass(new EffectPass(camera, ...effects));
     return comp;
-  }, [gl, scene, camera, style.post, quality, ao, tilt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gl, scene, camera, style.post, style.grade, quality, ao, tilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const prev = gl.toneMapping;
@@ -230,41 +244,62 @@ export function flyTo(c: CameraControlsImpl, data: AreaData, style: StyleConfig,
 }
 
 /**
- * Day/night blend: eases SCENE.uNight (read by every patched material: lit windows, road light pools,
- * lamps, car lights) and the sun/ambient/fog colours over ~1.6 s. Only renders frames while blending.
+ * Day → sunset → night blend. One value s (0 day, 1 sunset, 2 night) eases towards the chosen time of day over
+ * ~2 s per step. It drives SCENE.uNight (lit windows, road light pools, lamps, car lights: a few lights already at
+ * sunset), the sun / moon colour, intensity and direction (low western sun at sunset, long shadows), the ambient
+ * light and the haze. Frames are rendered only while blending; the shadow map is refitted on each of those frames.
  */
-function DayNight({ style, night, light, hemi }: { style: StyleConfig; night: boolean; light: React.RefObject<THREE.DirectionalLight | null>; hemi: React.RefObject<THREE.HemisphereLight | null> }) {
-  const { scene, invalidate } = useThree();
+function DayNight({ style, tod, light, hemi, dir, refit }: { style: StyleConfig; tod: TimeOfDay; light: React.RefObject<THREE.DirectionalLight | null>; hemi: React.RefObject<THREE.HemisphereLight | null>; dir: THREE.Vector3; refit: () => void }) {
+  const { scene, invalidate, camera, controls } = useThree();
+  // haze is measured from the camera's own distance to what it looks at: a close-up stays clear, the whole-town
+  // aerial gets only a gentle depth haze at the far edge instead of a uniform veil
+  const fogBase = useRef<[number, number]>([style.sky.fogNear, style.sky.fogFar]);
+  useFrame(() => {
+    if (!(scene.fog instanceof THREE.Fog)) return;
+    const cc = controls as unknown as CameraControlsImpl | null;
+    const d = cc && typeof cc.distance === "number" ? cc.distance : camera.position.length();
+    scene.fog.near = fogBase.current[0] + d * 0.9;
+    scene.fog.far = fogBase.current[1] + d * 1.8;
+  }, -1);
   const c = useMemo(() => ({
-    sunD: new THREE.Color(style.sun.color), sunN: new THREE.Color(style.night.moon),
-    skyD: new THREE.Color(style.ambient.sky), skyN: new THREE.Color(style.night.sky),
-    gndD: new THREE.Color(style.ambient.ground), gndN: new THREE.Color(style.night.ground),
-    fogD: new THREE.Color(style.sky.fog), fogN: new THREE.Color(style.night.fog),
+    sun: [new THREE.Color(style.sun.color), new THREE.Color(style.dusk.sun), new THREE.Color(style.night.moon)],
+    sky: [new THREE.Color(style.ambient.sky), new THREE.Color(style.dusk.sky), new THREE.Color(style.night.sky)],
+    gnd: [new THREE.Color(style.ambient.ground), new THREE.Color(style.dusk.ground), new THREE.Color(style.night.ground)],
+    fog: [new THREE.Color(style.sky.fog), new THREE.Color(style.dusk.fog), new THREE.Color(style.night.fog)],
+    dirs: [sunDir(style.sun.azimuthDeg, style.sun.elevationDeg), sunDir(style.dusk.azimuthDeg, style.dusk.elevationDeg),
+      // moonlight keeps a high direction so night shadows stay short and soft
+      sunDir(style.sun.azimuthDeg - 40, 52)],
   }), [style]);
-  // a page opened in night mode starts at night (no fade on load)
-  const t = useRef(night ? 1 : SCENE.uNight.value);
-  useEffect(() => { invalidate(); }, [night, invalidate]);
-  const apply = (k: number) => {
-    SCENE.uNight.value = k;
+  // a page opened at sunset or night starts there (no fade on load)
+  const t = useRef<number>(tod);
+  useEffect(() => { invalidate(); }, [tod, invalidate]);
+  const lerp3 = (a: number, b: number, d: number, s: number) => (s <= 1 ? THREE.MathUtils.lerp(a, b, s) : THREE.MathUtils.lerp(b, d, s - 1));
+  const col3 = (out: THREE.Color, k: THREE.Color[], s: number) => (s <= 1 ? out.lerpColors(k[0], k[1], s) : out.lerpColors(k[1], k[2], s - 1));
+  const apply = (s: number) => {
+    SCENE.uNight.value = s <= 1 ? style.dusk.lights * s : THREE.MathUtils.lerp(style.dusk.lights, 1, s - 1);
     const l = light.current, h = hemi.current;
-    if (l) { l.color.lerpColors(c.sunD, c.sunN, k); l.intensity = THREE.MathUtils.lerp(style.sun.intensity, style.night.moonIntensity, k); }
-    if (h) { h.color.lerpColors(c.skyD, c.skyN, k); h.groundColor.lerpColors(c.gndD, c.gndN, k); h.intensity = THREE.MathUtils.lerp(style.ambient.intensity, style.night.ambient, k); }
-    if (scene.background instanceof THREE.Color) scene.background.lerpColors(c.fogD, c.fogN, k);
+    if (l) {
+      col3(l.color, c.sun, s);
+      l.intensity = lerp3(style.sun.intensity, style.dusk.intensity, style.night.moonIntensity, s);
+      if (s <= 1) dir.lerpVectors(c.dirs[0], c.dirs[1], s).normalize(); else dir.lerpVectors(c.dirs[1], c.dirs[2], s - 1).normalize();
+    }
+    if (h) { col3(h.color, c.sky, s); col3(h.groundColor, c.gnd, s); h.intensity = lerp3(style.ambient.intensity, style.dusk.ambient, style.night.ambient, s); }
+    if (scene.background instanceof THREE.Color) col3(scene.background, c.fog, s);
     if (scene.fog instanceof THREE.Fog) {
-      scene.fog.color.lerpColors(c.fogD, c.fogN, k);
-      scene.fog.near = THREE.MathUtils.lerp(style.sky.fogNear, style.night.fogNear, k);
-      scene.fog.far = THREE.MathUtils.lerp(style.sky.fogFar, style.night.fogFar, k);
+      col3(scene.fog.color, c.fog, s);
+      fogBase.current = [lerp3(style.sky.fogNear, style.dusk.fogNear, style.night.fogNear, s), lerp3(style.sky.fogFar, style.dusk.fogFar, style.night.fogFar, s)];
     }
   };
+  // ease within each step (smoothstep on the fractional part) so day→sunset→night has no visible kinks
+  const eased = (v: number) => { const i = Math.min(Math.floor(v), 1), f = v - i; return i + f * f * (3 - 2 * f); };
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
-    const target = night ? 1 : 0;
-    if (t.current === target) return;
-    t.current = target > t.current ? Math.min(target, t.current + dt / 1.6) : Math.max(target, t.current - dt / 1.6);
-    const k = t.current * t.current * (3 - 2 * t.current); // smoothstep easing
-    apply(k);
+    if (t.current === tod) return;
+    t.current = tod > t.current ? Math.min(tod, t.current + dt / 2.0) : Math.max(tod, t.current - dt / 1.2);
+    apply(eased(t.current));
+    refit();
     invalidate();
   });
-  useEffect(() => { apply(t.current * t.current * (3 - 2 * t.current)); }, [c]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { apply(eased(t.current)); refit(); }, [c]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }

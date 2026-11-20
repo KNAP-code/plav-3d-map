@@ -28,21 +28,28 @@ export type StyleConfig = {
   camera: { fov: number; startPolarDeg: number; startAzimuthDeg: number; startDistance: number };
   /** Night mode targets (moonlight from the sun's direction, dark-blue ambient); lights come from emissive materials. */
   night: { fog: string; fogNear: number; fogFar: number; moon: string; moonIntensity: number; sky: string; ground: string; ambient: number };
+  /** Sunset targets (the middle of the day → sunset → night cycle): low warm sun, rosy haze, the first lights on. */
+  dusk: { sun: string; intensity: number; azimuthDeg: number; elevationDeg: number; sky: string; ground: string; ambient: number; fog: string; fogNear: number; fogFar: number; lights: number };
+  /** Final colour grade (post): saturation and contrast offsets, vignette darkness (0 = off). */
+  grade: { saturation: number; contrast: number; brightness: number; vignette: number };
 };
 
 /** Default look: warm tabletop miniature, tuned against the Sarajevo.mapa.ba phone screenshots. */
 export const plavWarm: StyleConfig = {
   name: "plav-warm",
-  sky: { top: "#bcd3e6", horizon: "#eef0ea", fog: "#e6ebe8", fogNear: 1800, fogFar: 9000 },
-  sun: { color: "#ffedd2", intensity: 3.2, azimuthDeg: 215, elevationDeg: 41, shadowSoftness: 2.5 },
-  ambient: { sky: "#dde8f5", ground: "#b4a98e", intensity: 1.3 },
+  // warm, soft late-afternoon light from the south-west; pale warm haze that thickens with distance
+  sky: { top: "#bcd3e6", horizon: "#efeee6", fog: "#e3e7e6", fogNear: 1400, fogFar: 8200 },
+  sun: { color: "#ffe6c4", intensity: 2.95, azimuthDeg: 232, elevationDeg: 33, shadowSoftness: 3.0 },
+  ambient: { sky: "#d8e1ea", ground: "#bcac90", intensity: 1.5 },
   ground: {
-    grass: "#84b84e", grassDark: "#6ea545", forestFloor: "#4f8a39", dirt: "#c6b08a", built: "#b9a98c",
+    // mountain-meadow greens (less lime than before), warmer dry patches
+    grass: "#8eab62", grassDark: "#6f9150", forestFloor: "#4f7542", dirt: "#c4ab82", built: "#b8a688",
     mottle: 0.5, mottleScale: 0.075,
-    context: "#93ae74", contextForest: "#5d8547", contextRock: "#b5ad9e",
+    context: "#9aab80", contextForest: "#5a7a4b", contextRock: "#b3aa98",
   },
   walls: ["#efe7d9", "#ecd9a8", "#e9c9a5", "#e5d6be", "#d6c9ba", "#c9b9ab", "#b4a69c", "#e9dcc2", "#f1e3b5", "#d9bfb6", "#cdbfb5", "#a59a92", "#e3d3b8", "#c2b4a8", "#f3eee6", "#d8d2c8"],
-  roofs: ["#e8937b", "#de8068", "#efa08a", "#d47462", "#c86d5f", "#f0b29c", "#b98478", "#9b8f94", "#8d939e", "#e48f72", "#d9876f", "#a97a72"],
+  // terracotta clay tile (warmer, less pink) with some brown and grey painted sheet roofs
+  roofs: ["#cf7a58", "#c56d4e", "#d88a64", "#bb6448", "#b8604a", "#e0987a", "#a8705e", "#8f8a88", "#7f8590", "#cc7e5c", "#c47658", "#94695a"],
   window: { glass: "#474b55", frame: "#f3efe6", bayWidth: 3.1, floorHeight: 2.9 },
   roof: { pitchDeg: 30, overhang: 0.55, tileSpacing: 0.45, tileContrast: 0.26 },
   roads: {
@@ -51,11 +58,13 @@ export const plavWarm: StyleConfig = {
   },
   overlays: { pitch: "#6fa84a", cemetery: "#93b466", paving: "#b9b3a9", playground: "#c9a97c", park: "#86b65a" },
   water: { color: "#5b9aa6", deep: "#3f7c8c", shore: "#9cc3c2", roughness: 0.18 },
-  trees: { leaf: ["#6ea94a", "#5f9b3f", "#80b552", "#4f8a3a", "#8cbd5c"], conifer: ["#3f7a3f", "#356e3b", "#4a8545"], trunk: "#7a5b43", size: 1.0 },
+  trees: { leaf: ["#6c9a4c", "#5c8a43", "#7ba456", "#4f7d3f", "#87ab5f"], conifer: ["#3e6e40", "#35643c", "#497a47"], trunk: "#7a5b43", size: 1.0 },
   minaret: { color: "#f4f1ea", cap: "#7f8c95" },
   post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: true, tiltFocus: 0.62, tiltFeather: 0.3, tiltBlur: 1, exposure: 1.0 },
   camera: { fov: 28, startPolarDeg: 40, startAzimuthDeg: 28, startDistance: 420 },
-  night: { fog: "#0e1626", fogNear: 1200, fogFar: 6500, moon: "#9db2e6", moonIntensity: 0.22, sky: "#22314f", ground: "#12151c", ambient: 0.38 },
+  night: { fog: "#0e1626", fogNear: 1200, fogFar: 6500, moon: "#9db2e6", moonIntensity: 0.3, sky: "#26365a", ground: "#14171f", ambient: 0.46 },
+  dusk: { sun: "#ffb47a", intensity: 2.8, azimuthDeg: 258, elevationDeg: 14, sky: "#cfcadc", ground: "#9a8774", ambient: 1.2, fog: "#ecc9a8", fogNear: 1000, fogFar: 7000, lights: 0.22 },
+  grade: { saturation: -0.2, contrast: 0.06, brightness: 0.02, vignette: 0.28 },
 };
 
 /** Alternative for comparison: cooler alpine light, more slate roofs. */

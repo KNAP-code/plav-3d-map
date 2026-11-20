@@ -2,6 +2,7 @@
 import { memo, useState } from "react";
 import type { AreaData } from "@/data/load";
 import type { Quality } from "@/scene/World";
+import type { TimeOfDay } from "@/scene/Rig";
 import { T, type Lang } from "./i18n";
 
 export type Chip = { label: string; x: number; y: number; distance?: number; azimuth?: number; polar?: number; lift?: number };
@@ -13,6 +14,7 @@ const I = {
   rotate: <><path d="M19 12a7 7 0 1 1-2.05-4.95" /><path d="M19 4v4h-4" /></>,
   layers: <><path d="m12 4 8 4-8 4-8-4z" /><path d="m4 12 8 4 8-4" /><path d="m4 16 8 4 8-4" /></>,
   chevron: <path d="m9 6 6 6-6 6" />,
+  sunset: <path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 6.5v3M5.2 9.7l2 2M18.8 9.7l-2 2M7 21.5h10" />,
   moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
   car: <><path d="M5 16V11l2-4h10l2 4v5z" /><path d="M5 11h14" /><circle cx="8" cy="16.5" r="1.5" /><circle cx="16" cy="16.5" r="1.5" /></>,
@@ -23,7 +25,7 @@ const Icon = ({ d }: { d: React.ReactNode }) => (
 
 export const Hud = memo(function Hud(props: {
   data: AreaData; lang: Lang; setLang: (l: Lang) => void; quality: Quality; setQuality: (q: Quality) => void;
-  night: boolean; setNight: (n: boolean) => void; traffic: boolean; setTraffic: (t: boolean) => void;
+  tod: TimeOfDay; setTod: (t: TimeOfDay) => void; traffic: boolean; setTraffic: (t: boolean) => void;
   estimates: boolean; setEstimates: (e: boolean) => void;
   northRef: React.RefObject<SVGSVGElement | null>; elevRef: React.RefObject<HTMLSpanElement | null>; chips: Chip[];
   onZoom: (f: number) => void; onHome: () => void; onRotate: () => void; onNorth: () => void; onChip: (c: Chip) => void;
@@ -66,7 +68,8 @@ export const Hud = memo(function Hud(props: {
         <button title={L.zoomOut} onClick={() => props.onZoom(0.66)}><Icon d={I.minus} /></button>
         <button title={L.home} onClick={props.onHome}><Icon d={I.home} /></button>
         <button title={L.rotate} onClick={props.onRotate}><Icon d={I.rotate} /></button>
-        <button title={props.night ? L.day : L.night} onClick={() => props.setNight(!props.night)} aria-pressed={props.night}><Icon d={props.night ? I.sun : I.moon} /></button>
+        {/* cycles day → sunset → night; the icon shows what the next press gives */}
+        <button title={[L.sunset, L.night, L.day][props.tod]} onClick={() => props.setTod(((props.tod + 1) % 3) as TimeOfDay)} aria-pressed={props.tod > 0}><Icon d={[I.sunset, I.moon, I.sun][props.tod]} /></button>
         <button title={L.traffic} onClick={() => props.setTraffic(!props.traffic)} aria-pressed={props.traffic} className={props.traffic ? "" : "off"}><Icon d={I.car} /></button>
         <button title={props.estimates ? L.estOn : L.estOff} onClick={() => props.setEstimates(!props.estimates)} aria-pressed={props.estimates} className={`txt ${props.estimates ? "" : "off"}`}>≈</button>
         <button title={L.quality} onClick={() => setQuality(nextQ[quality])} className="txt">{qLabel[quality]}</button>
