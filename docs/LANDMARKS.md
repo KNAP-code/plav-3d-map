@@ -47,11 +47,27 @@ Estimated (needs visual verification):
 
 It is in Vojno Selo (the owner confirmed this), outside the central prototype area. It is kept for the municipality-wide scope.
 
-## Procedural houses (all estimated, deterministic per building id)
+## Procedural houses (all estimates, deterministic per building id)
 
-Roof pitch and overhang by building type, window layout (grid, tall, paired, band, shop ground floor), bay width,
-small colour variation, a chimney on most pitched roofs, and a plinth band. No balconies were added, because no data or
-references support them for individual buildings.
+Footprints and positions are the real OSM/Overture ones and are never changed. Everything below is an estimate,
+because OSM has no roof, facade or balcony data for Plav.
+
+- Building type:
+  - traditional Plav house: about 30% of 1-2 storey houses of 45-220 m², with a rubble-stone ground floor, white upper floor, small square windows with shutters, steep hipped or half-hipped roof with deep eaves, and a darker roof
+  - house: everything else under 4 storeys
+  - apartment block: 4+ storeys, or 3 storeys over 260 m²
+- Roof type: hip, gable, half-hip (Krüppelwalm) or flat; about 30% of blocks are flat. Roofs on irregular footprints follow the footprint, which gives complex roofs on L-shaped buildings.
+- Pitch and overhang depend on the building type.
+- Facade: window layout (grid, tall, paired, wide band, shopfront), window size varies per building, light window surrounds, and shutters on traditional houses and about 30% of other houses.
+- Wall and roof colours come from separate palettes for traditional houses, houses and blocks.
+- Details: an entrance (door, lintel, step, and a canopy on modern houses) on the wall facing the nearest street. Balconies on about half of the 2-3 storey houses (wooden on traditional houses) and on most blocks; there are none on shops. Chimneys on most pitched roofs.
+- Details are a separate mesh per tile. It is drawn only near the camera (650 m on high, 420 m on medium, never on low) and casts no shadow.
+
+## Streets (estimates vs mapped)
+
+- Mapped, at their mapped positions (`pipeline/furniture.py`): 2 benches, 9 public fountains or drinking taps, 2 bus stops, 4 parking signs, 2 information boards, and 3 walls or retaining walls.
+- No pedestrian crossings or road signs are mapped inside the prototype area, so none are drawn.
+- Sidewalks with kerbs (1.7 m) on tertiary and larger streets are an ESTIMATE, because OSM has no sidewalk tags here. They stop short of junctions. The `off=street` URL parameter hides them.
 
 ## Roads, streetlights, traffic
 

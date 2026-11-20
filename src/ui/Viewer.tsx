@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { Buildings, Landmarks, Minarets, Roads, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
+import { Buildings, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { landmarkFocus } from "@/geo/landmarks";
@@ -147,6 +147,7 @@ export default function Viewer() {
             {!off.has("water") && <Water data={data} style={style} />}
             {!off.has("roads") && <Roads data={data} style={style} />}
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
+            {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} />}
             {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
             {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}

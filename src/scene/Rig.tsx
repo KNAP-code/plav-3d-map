@@ -186,12 +186,12 @@ export function Controls({ data, controlsRef, hud, onReady }: {
     c.touches.two = A.TOUCH_DOLLY_ROTATE;
     c.touches.three = A.TOUCH_ROTATE;
     c.dollyToCursor = true;
-    c.smoothTime = 0.35;
-    c.draggingSmoothTime = 0.12;
-    c.minDistance = 70;
+    c.smoothTime = 0.28;
+    c.draggingSmoothTime = 0.08;
+    c.minDistance = 40;
     c.maxDistance = Math.max(halfW, halfH) * 3.2;
     c.minPolarAngle = 12 * DEG;
-    c.maxPolarAngle = 66 * DEG;
+    c.maxPolarAngle = 72 * DEG;
     c.setBoundary(new THREE.Box3(new THREE.Vector3(-halfW, -200, -halfH), new THREE.Vector3(halfW, 800, halfH)));
     c.boundaryEnclosesCamera = false;
     onReady?.();
@@ -239,7 +239,8 @@ function DayNight({ style, night, light, hemi }: { style: StyleConfig; night: bo
     gndD: new THREE.Color(style.ambient.ground), gndN: new THREE.Color(style.night.ground),
     fogD: new THREE.Color(style.sky.fog), fogN: new THREE.Color(style.night.fog),
   }), [style]);
-  const t = useRef(SCENE.uNight.value);
+  // a page opened in night mode starts at night (no fade on load)
+  const t = useRef(night ? 1 : SCENE.uNight.value);
   useEffect(() => { invalidate(); }, [night, invalidate]);
   const apply = (k: number) => {
     SCENE.uNight.value = k;

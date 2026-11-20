@@ -9,6 +9,7 @@ import { buildBuildingTile } from "@/geo/buildings";
 import { overlaysGeometry, roadsGeometry, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
 import { carGeometry, minaretGeometry, streetlightGeometry, treeGeometries, treeSets, type TreeSet } from "@/geo/props";
 import { streetlights } from "@/geo/roads";
+import { furnitureGeometry, sidewalksGeometry } from "@/geo/street";
 import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
 import { SCENE, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
@@ -18,13 +19,14 @@ export type Quality = "high" | "medium" | "low";
 
 /** Per-tier level-of-detail settings (the one place to tune the presets). */
 export const TIERS: Record<Quality, {
-  terrainStride: number; contextStride: number; buildingNear: number; treeDensity: number; treeFar: number;
+  terrainStride: number; contextStride: number; buildingNear: number; treeDensity: number; treeFar: number; detailNear: number;
 }> = {
   // buildingNear: tiles closer than this (m, camera to tile sphere) use the window/tile-pattern shader
+  // detailNear: balconies/entrances (separate mesh per tile) drawn only for tiles closer than this; 0 = never
   // treeFar: beyond this distance only every 2nd tree in a tile is drawn (tiny on screen there)
-  high: { terrainStride: 1, contextStride: 1, buildingNear: 1400, treeDensity: 1, treeFar: 1600 },
-  medium: { terrainStride: 1, contextStride: 2, buildingNear: 900, treeDensity: 1, treeFar: 1100 },
-  low: { terrainStride: 2, contextStride: 2, buildingNear: 600, treeDensity: 2, treeFar: 800 },
+  high: { terrainStride: 1, contextStride: 1, buildingNear: 1400, treeDensity: 1, treeFar: 1600, detailNear: 650 },
+  medium: { terrainStride: 1, contextStride: 2, buildingNear: 900, treeDensity: 1, treeFar: 1100, detailNear: 420 },
+  low: { terrainStride: 2, contextStride: 2, buildingNear: 600, treeDensity: 2, treeFar: 800, detailNear: 0 },
 };
 
 function useDispose(items: { dispose: () => void }[]) {
@@ -84,13 +86,16 @@ export function Buildings({ data, style, quality, provisional = true }: { data: 
       buckets[j * n + i].push(b);
     }
     bump("geometryBuilds");
-    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style));
+    const road = roadLookup(data);
+    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road));
   }, [data, skip, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const mNear = useMemo(() => buildingMaterial(style, true), [style]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
-  useDispose(geos);
+  useDispose(useMemo(() => geos.flatMap((g) => [g.main, g.details]), [geos]));
   useDispose(useMemo(() => [mNear, mFar], [mNear, mFar]));
   const group = useRef<THREE.Group>(null);
+  const details = useRef<THREE.Group>(null);
+  const detailNear = TIERS[quality].detailNear;
   const { camera } = useThree();
   useFrame(() => {
     const g = group.current;
@@ -101,10 +106,59 @@ export function Buildings({ data, style, quality, provisional = true }: { data: 
       const want = d < near ? mNear : mFar;
       if (m.material !== want) m.material = want;
     }
+    // small details only near the camera (distance-based visibility; they do not cast shadows)
+    for (const m of (details.current?.children ?? []) as THREE.Mesh[]) {
+      const s = m.geometry.boundingSphere!;
+      m.visible = camera.position.distanceTo(s.center) - s.radius < detailNear;
+    }
   });
   return (
-    <group ref={group}>
-      {geos.map((g, i) => <mesh key={i} geometry={g} material={mNear} castShadow receiveShadow />)}
+    <>
+      <group ref={group}>
+        {geos.map((g, i) => <mesh key={i} geometry={g.main} material={mNear} castShadow receiveShadow />)}
+      </group>
+      {detailNear > 0 && (
+        <group ref={details}>
+          {geos.map((g, i) => <mesh key={i} geometry={g.details} material={mNear} receiveShadow />)}
+        </group>
+      )}
+    </>
+  );
+}
+
+/** Nearest road point (car roads and residential streets, not footpaths) to a position, within 60 m; grid-indexed. */
+function roadLookup(data: AreaData) {
+  const cell = 30, grid = new Map<string, [number, number][]>();
+  for (const r of data.roads) {
+    if (/foot|path|steps|track|cycle|pedestrian|bridleway/.test(r.c)) continue;
+    for (let i = 0; i < r.pts.length - 1; i++) {
+      const [x1, y1] = r.pts[i], [x2, y2] = r.pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 4));
+      for (let k = 0; k < n; k++) {
+        const x = x1 + ((x2 - x1) * k) / n, y = y1 + ((y2 - y1) * k) / n, key = `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+        let a = grid.get(key); if (!a) grid.set(key, (a = [])); a.push([x, y]);
+      }
+    }
+  }
+  return (x: number, y: number): [number, number] | null => {
+    const gx = Math.floor(x / cell), gy = Math.floor(y / cell);
+    let best = 60 * 60, out: [number, number] | null = null;
+    for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) for (const p of grid.get(`${gx + i},${gy + j}`) ?? []) {
+      const d = (p[0] - x) ** 2 + (p[1] - y) ** 2; if (d < best) { best = d; out = p; }
+    }
+    return out;
+  };
+}
+
+/** Sidewalks with kerbs on main streets (estimate) and mapped street furniture/walls: two draw calls, receive shadows only. */
+export function StreetDetails({ data, style }: { data: AreaData; style: StyleConfig }) {
+  const sw = useMemo(() => sidewalksGeometry(data, style), [data, style]);
+  const fu = useMemo(() => furnitureGeometry(data), [data]);
+  const m = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide }), []);
+  useDispose(useMemo(() => [sw, fu, m], [sw, fu, m]));
+  return (
+    <group>
+      <mesh geometry={sw} material={m} receiveShadow />
+      {fu.getAttribute("position").count > 0 && <mesh geometry={fu} material={m} castShadow receiveShadow />}
     </group>
   );
 }

@@ -209,11 +209,11 @@ export function roadMaterial(style: StyleConfig) {
         // night: warm pools under the (decorative) streetlights, which stand at uLamp/2 + k*uLamp
         float lit = step(0.1, fract(vK + 0.001));
         float d = (fract(vRd.x / uLamp - 0.5) - 0.5) * uLamp;
-        gPool = lit * exp(-d * d / 60.0) * (0.75 + 0.25 * (1.0 - abs(vRd.y - 0.5) * 2.0));
+        gPool = lit * exp(-d * d / 32.0) * (0.75 + 0.25 * (1.0 - abs(vRd.y - 0.5) * 2.0));
       }
     `,
     fragEmissive: /* glsl */ `
-      if (uNight > 0.001) totalEmissiveRadiance += vec3(1.0, 0.62, 0.3) * (gPool * 0.32 + 0.012) * uNight;
+      if (uNight > 0.001) totalEmissiveRadiance += vec3(1.0, 0.62, 0.3) * (gPool * 0.3 + 0.006) * uNight;
     `,
   }, "roads-v2");
 }
@@ -263,21 +263,50 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float fl = floor(vW.y);
         vec2 c = fract(vW);
         vec2 fw = max(fwidth(vW), vec2(1e-4));
-        float kind = mod(floor(vSt + 0.001), 4.0);
-        bool shop = floor(vSt + 0.001) >= 4.0;
+        float sv = floor(vSt + 0.001);
+        float kind = mod(sv, 4.0);
+        bool shop = mod(floor(sv / 4.0), 2.0) > 0.5;
+        bool trad = sv >= 7.5;
         bool ground = fl > nFl - 1.5;
+        // per-building window size variation (from the quantised seed)
+        float js = h21(vec2(nSeed, 7.0)) - 0.5;
         // window rectangle per layout: x half-margin, y range (y runs downward from the eave)
-        float wx = 0.33, wy0 = 0.30, wy1 = 0.76;
+        float wx = 0.33 + js * 0.08, wy0 = 0.30 + js * 0.06, wy1 = 0.76;
         float cx = c.x;
-        if (kind > 2.5) { wx = 0.10; wy0 = 0.36; wy1 = 0.72; }                    // band: wide windows (blocks)
+        if (kind > 2.5) { wx = 0.10 + js * 0.06; wy0 = 0.36; wy1 = 0.72; }          // band: wide windows (blocks)
         else if (kind > 1.5) { cx = fract(c.x * 2.0); wx = 0.24; wy0 = 0.28; }       // paired windows
-        else if (kind > 0.5) { wx = 0.36; wy0 = 0.20; wy1 = 0.80; }                 // tall windows
-        if (ground) { wy0 = 0.16; if (shop) { wx = 0.08; wy0 = 0.10; wy1 = 0.84; cx = c.x; } }
+        else if (kind > 0.5) { wx = 0.36 + js * 0.04; wy0 = 0.20; wy1 = 0.80; }     // tall windows
+        if (trad) { wx = 0.36; wy0 = 0.30; wy1 = 0.70; }                             // traditional: small square windows
+        if (ground) { wy0 = trad ? 0.34 : 0.16; if (shop) { wx = 0.08; wy0 = 0.10; wy1 = 0.84; cx = c.x; } }
         float fx = kind > 1.5 && kind < 2.5 && !(ground && shop) ? fw.x * 2.0 : fw.x;
         float inX = smoothstep(wx - fx, wx + fx, cx) * (1.0 - smoothstep(1.0 - wx - fx, 1.0 - wx + fx, cx));
         float inY = smoothstep(wy0 - fw.y, wy0 + fw.y, c.y) * (1.0 - smoothstep(wy1 - fw.y, wy1 + fw.y, c.y));
-        inX *= 1.0 - smoothstep(0.12, 0.3, fx);
+        float fade = 1.0 - smoothstep(0.12, 0.3, fx);
+        inX *= fade;
         float valid = step(0.0, vW.y) * step(fl, nFl - 1.0);
+        // light window surround (frame) just outside the glass
+        float fr = 0.035;
+        float oX = smoothstep(wx - fr - fx, wx - fr + fx, cx) * (1.0 - smoothstep(1.0 - wx + fr - fx, 1.0 - wx + fr + fx, cx));
+        float oY = smoothstep(wy0 - fr * 1.4 - fw.y, wy0 - fr * 1.4 + fw.y, c.y) * (1.0 - smoothstep(wy1 + fr * 2.2 - fw.y, wy1 + fr * 2.2 + fw.y, c.y));
+        float frame = oX * oY * valid * fade * (shop && ground ? 0.0 : 1.0);
+        // shutters beside the windows: traditional houses and ~30% of other houses (not blocks, not shopfronts)
+        bool shut = (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < 0.3)) && !(shop && ground) && kind < 1.5;
+        float sw = (wx - fr) * 0.75;
+        float sX = (smoothstep(wx - fr - sw - fx, wx - fr - sw + fx, cx) * (1.0 - smoothstep(wx - fr - fx, wx - fr + fx, cx)))
+                 + (smoothstep(1.0 - wx + fr - fx, 1.0 - wx + fr + fx, cx) * (1.0 - smoothstep(1.0 - wx + fr + sw - fx, 1.0 - wx + fr + sw + fx, cx)));
+        float shutter = shut ? sX * oY * valid * fade : 0.0;
+        vec3 shutC = h21(vec2(nSeed, 5.0)) < 0.5 ? vec3(0.36, 0.25, 0.17) : vec3(0.32, 0.4, 0.33);
+        // traditional houses: rubble-stone ground floor up to the first-floor line
+        if (trad && vW.y >= 0.0 && fl > nFl - 1.5) {
+          vec2 sp = vec2(vW.x * 5.0, vW.y * 9.0);
+          float row = floor(sp.y);
+          float n = h21(vec2(floor(sp.x + 0.5 * row + h21(vec2(row, 1.0))), row));
+          vec2 f2 = fract(vec2(sp.x + 0.5 * row, sp.y));
+          float joint = smoothstep(0.0, 0.12, f2.x) * smoothstep(0.0, 0.16, f2.y);
+          diffuseColor.rgb = mix(vec3(0.55, 0.52, 0.47), vec3(0.74, 0.7, 0.63), n) * mix(0.72, 1.0, joint);
+        }
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.94, 0.9), clamp(frame - inX * inY, 0.0, 1.0) * 0.85);
+        diffuseColor.rgb = mix(diffuseColor.rgb, shutC, shutter);
         float win = inX * inY * valid;
         diffuseColor.rgb = mix(diffuseColor.rgb, uGlass, win * 0.92);
         // plinth: darker base course below the ground-floor windows
@@ -285,7 +314,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         diffuseColor.rgb *= mix(1.0, 0.9, step(0.0, vW.y) * step(nFl - 0.12, vW.y) * (1.0 - step(nFl, vW.y)));
         // night: about 45% of windows lit, chosen per window from the building seed
         float r = h21(vec2(floor(vW.x * (kind > 1.5 && kind < 2.5 ? 2.0 : 1.0)) + nSeed * 0.19, fl + nSeed * 0.11));
-        gWin = win * step(r, 0.45 + (shop && ground ? 0.4 : 0.0)) * (0.75 + 0.5 * fract(r * 13.0));
+        gWin = win * step(r, 0.36 + (shop && ground ? 0.25 : 0.0)) * (0.7 + 0.45 * fract(r * 13.0)) * (shop && ground ? 0.7 : 1.0);
       } else {
         float row = fract(vW.y / uSpacing);
         float line = smoothstep(0.0, 0.18, row) * (1.0 - smoothstep(0.82, 1.0, row) * 0.4);
@@ -302,12 +331,13 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
     fragEmissive: /* glsl */ `
       if (uNight > 0.001) {
         float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(0.8, 0.85, 1.0), uNight * 0.6);
-        vec3 warm = mix(vec3(1.0, 0.72, 0.38), vec3(0.75, 0.85, 1.0), step(0.85, fract(gWin * 7.31)));
-        totalEmissiveRadiance += warm * gWin * uNight * 1.6;
+        // night grading: roofs go to a neutral blue-grey (red tiles under blue moonlight read as magenta otherwise)
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(0.82, 0.86, 1.0), uNight * (vPart > 0.5 ? 0.95 : 0.6));
+        vec3 warm = mix(vec3(1.0, 0.7, 0.36), vec3(0.75, 0.85, 1.0), step(0.88, fract(gWin * 7.31)));
+        totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v3" : "building-far-v3");
+  }, detail ? "building-near-v4" : "building-far-v4");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */

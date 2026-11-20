@@ -48,6 +48,8 @@ export type AreaData = {
   water: Water[];
   streams: Stream[];
   overlays: Overlay[];
+  /** mapped street furniture (benches, fountains, bus stops, parking signs...) and walls; empty if not exported */
+  furniture: { points: { k: string; x: number; y: number }[]; walls: { k: string; pts: [number, number][] }[] };
   trees: Float32Array; // x, y, scale, kind
   bytes: number;
 };
@@ -102,6 +104,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const meta: AreaMeta = await metaR.json();
   let done = 0;
   const tick = <T,>(p: Promise<T>) => p.then((v) => { done++; onProgress?.(done / 7); return v; });
+  const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const [coreBuf, ctxBuf, bjs, vjs, treeBuf, coverCore, coverContext] = await Promise.all([
     tick(bin(`${base}/${meta.core.file}`)),
     tick(bin(`${base}/${meta.context.file}`)),
@@ -121,7 +124,9 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const context = decode(ctxBuf, meta.context);
   const b = JSON.parse(bjs);
   const v = JSON.parse(vjs);
+  const furniture = (await furnP) ?? { points: [], walls: [] };
   return {
+    furniture,
     meta, core, context, coverCore, coverContext,
     datum: meta.core.base,
     buildings: b.buildings, minarets: b.minarets,

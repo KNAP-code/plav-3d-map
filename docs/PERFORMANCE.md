@@ -75,3 +75,18 @@ Same benchmark and machine (SwiftShader, Pixel 7 emulation, 30 frames), with tra
 The new content adds 2–4 draw calls (landmarks, streetlights, cars, glow halos only at night) and about 50 k triangles.
 Frame time is within run-to-run noise. Traffic needs frames to animate, so while it is on the idle view redraws at about 30 fps
 (full rate during interaction). Traffic is off on Low, can be switched off in the HUD, and pauses while the tab is hidden.
+
+
+## Visual upgrade (2026-11-20)
+
+Headless Chromium uses SwiftShader (a CPU renderer) with Pixel 7 emulation, rendering 20 frames per run. These are relative numbers only, not phone FPS.
+Raw data is in `docs/perf-upgrade-2026-11-20.json`.
+
+| tier | p50 frame before → after | draw calls | triangles |
+|---|---|---|---|
+| low | 158 → 158 ms | 24 → 25 | 255k → 262k |
+| medium | 418 → 446 ms (+7%) | 24 → 27 | 330k → 360k |
+| high | 923 → 971 ms (+5%) | 36 → 40 | 447k → 492k |
+
+The added cost is the near-camera detail meshes (balconies and entrances) on medium and high, which low never draws, plus the sidewalk and furniture meshes (two draw calls).
+The JS heap (50-92 MB) varied between runs with garbage-collection timing, so it is not comparable.
