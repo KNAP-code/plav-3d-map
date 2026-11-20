@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { AreaData } from "@/data/load";
 import type { Quality } from "@/scene/World";
 import { T, type Lang } from "./i18n";
@@ -18,12 +18,12 @@ const Icon = ({ d }: { d: React.ReactNode }) => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 );
 
-export function Hud(props: {
+export const Hud = memo(function Hud(props: {
   data: AreaData; lang: Lang; setLang: (l: Lang) => void; quality: Quality; setQuality: (q: Quality) => void;
-  view: { azimuth: number; elevation: number }; chips: Chip[];
+  northRef: React.RefObject<SVGSVGElement | null>; elevRef: React.RefObject<HTMLSpanElement | null>; chips: Chip[];
   onZoom: (f: number) => void; onHome: () => void; onRotate: () => void; onNorth: () => void; onChip: (c: Chip) => void;
 }) {
-  const { data, lang, setLang, quality, setQuality, view, chips } = props;
+  const { data, lang, setLang, quality, setQuality, chips } = props;
   const L = T[lang];
   const [open, setOpen] = useState(false);
   const s = data.meta.stats;
@@ -65,12 +65,12 @@ export function Hud(props: {
 
       <div className="panel foot">
         <button className="north" title={L.north} onClick={props.onNorth}>
-          <svg viewBox="0 0 24 24" width="16" height="16" style={{ transform: `rotate(${(view.azimuth * 180) / Math.PI}deg)` }}>
+          <svg ref={props.northRef} viewBox="0 0 24 24" width="16" height="16">
             <path d="M12 2 18 20 12 16 6 20z" fill="currentColor" />
           </svg>
           N
         </button>
-        <span>≈ {Math.round(view.elevation)} {L.masl}</span>
+        <span>≈ <span ref={props.elevRef}>{Math.round(data.datum)}</span> {L.masl}</span>
         <button className="link" onClick={() => setOpen(true)}>© OpenStreetMap</button>
       </div>
 
@@ -81,4 +81,4 @@ export function Hud(props: {
       </div>
     </>
   );
-}
+});

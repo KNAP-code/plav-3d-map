@@ -2,8 +2,17 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { AreaData } from "@/data/load";
 
-/** Low-poly "toy" tree parts, unit scale (≈ 8–9 m tall). */
-export function treeParts() {
+/** Low-poly "toy" trees: crown + trunk merged into one geometry per type (one draw call each). */
+export function treeGeometries(trunkColor: string) {
+  const tc = new THREE.Color(trunkColor);
+  const paint = (g: THREE.BufferGeometry, c: THREE.Color | null) => {
+    const n = g.getAttribute("position").count, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { col[i * 3] = c ? c.r : 1; col[i * 3 + 1] = c ? Math.min(c.g, 0.95) : 1; col[i * 3 + 2] = c ? c.b : 1; }
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    g.deleteAttribute("uv");
+    return g;
+  };
+  const ni = (g: THREE.BufferGeometry) => (g.index ? g.toNonIndexed() : g);
   const crown = new THREE.DodecahedronGeometry(2.8, 0);
   crown.scale(1, 0.92, 1);
   crown.translate(0, 5.0, 0);
@@ -13,39 +22,62 @@ export function treeParts() {
   c1.translate(0, 3.6, 0);
   const c2 = new THREE.ConeGeometry(1.7, 3.6, 7);
   c2.translate(0, 5.9, 0);
-  const conifer = mergeGeometries([c1.index ? c1.toNonIndexed() : c1, c2.index ? c2.toNonIndexed() : c2])!;
   const ctrunk = new THREE.CylinderGeometry(0.2, 0.28, 1.8, 5, 1, true);
   ctrunk.translate(0, 0.9, 0);
-  const crownN = crown.index ? crown.toNonIndexed() : crown;
-  crownN.computeVertexNormals();
+  const leaf = mergeGeometries([paint(ni(crown), null), paint(ni(trunk), tc)])!;
+  const conifer = mergeGeometries([paint(ni(c1), null), paint(ni(c2), null), paint(ni(ctrunk), tc)])!;
+  leaf.computeVertexNormals();
   conifer.computeVertexNormals();
-  return { crown: crownN, trunk, conifer, ctrunk };
+  return { leaf, conifer };
 }
 
-export type TreeInstances = { leaf: THREE.Matrix4[]; leafCol: THREE.Color[]; con: THREE.Matrix4[]; conCol: THREE.Color[] };
+/** Tree instances grouped into square tiles so they can be frustum-culled and thinned by distance. */
+export type TreeSet = {
+  matrices: Float32Array; colors: Float32Array; count: number;
+  tiles: { start: number; end: number; box: THREE.Box3; cx: number; cz: number }[];
+};
 
-export function treeInstances(d: AreaData, leaf: string[], conifer: string[], size: number, density = 1): TreeInstances {
-  const out: TreeInstances = { leaf: [], leafCol: [], con: [], conCol: [] };
+export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: number, tile = 256): { leaf: TreeSet; conifer: TreeSet } {
   const t = d.trees;
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
-  const up = new THREE.Vector3(0, 1, 0);
   const lc = leaf.map((c) => new THREE.Color(c));
   const cc = conifer.map((c) => new THREE.Color(c));
+  const { halfW, halfH } = d.meta.extent;
+  const nx = Math.ceil((2 * halfW) / tile), ny = Math.ceil((2 * halfH) / tile);
+  type Item = { k: number; tile: number; x: number; y: number; z: number; sc: number; kind: number };
+  const items: Item[] = [];
   for (let i = 0; i < t.length; i += 4) {
-    const k = i / 4;
-    const hash = ((k * 2654435761) >>> 0) / 4294967296;
-    if (hash > density) continue;
-    const x = t[i], y = t[i + 1], sc = t[i + 2] * size, kind = t[i + 3];
-    p.set(x, d.core.at(x, y) - d.datum - 0.25, -y);
-    q.setFromAxisAngle(up, hash * Math.PI * 2);
-    s.set(sc, sc * (0.9 + ((k * 7919) % 100) / 500), sc);
-    m.compose(p, q, s);
-    const col = (kind >= 1 ? cc : lc)[(k * 31) % (kind >= 1 ? cc.length : lc.length)].clone();
-    col.offsetHSL(0, 0, (hash - 0.5) * 0.06);
-    if (kind >= 1) { out.con.push(m.clone()); out.conCol.push(col); }
-    else { out.leaf.push(m.clone()); out.leafCol.push(col); }
+    const x = t[i], y = t[i + 1];
+    const tx = Math.min(nx - 1, Math.max(0, Math.floor((x + halfW) / tile)));
+    const ty = Math.min(ny - 1, Math.max(0, Math.floor((y + halfH) / tile)));
+    items.push({ k: i / 4, tile: ty * nx + tx, x, y, z: d.core.at(x, y) - d.datum - 0.25, sc: t[i + 2] * size, kind: t[i + 3] });
   }
-  return out;
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  const build = (list: Item[], pal: THREE.Color[]): TreeSet => {
+    list.sort((a, b) => a.tile - b.tile || a.k - b.k);
+    const matrices = new Float32Array(list.length * 16), colors = new Float32Array(list.length * 3);
+    const tiles: TreeSet["tiles"] = [];
+    const col = new THREE.Color();
+    list.forEach((it, i) => {
+      const hash = ((it.k * 2654435761) >>> 0) / 4294967296;
+      p.set(it.x, it.z, -it.y);
+      q.setFromAxisAngle(up, hash * Math.PI * 2);
+      s.set(it.sc, it.sc * (0.9 + ((it.k * 7919) % 100) / 500), it.sc);
+      m.compose(p, q, s).toArray(matrices, i * 16);
+      col.copy(pal[(it.k * 31) % pal.length]).offsetHSL(0, 0, (hash - 0.5) * 0.06);
+      colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
+      const last = tiles[tiles.length - 1];
+      if (!last || (list[i - 1] && list[i - 1].tile !== it.tile)) {
+        tiles.push({ start: i, end: i + 1, box: new THREE.Box3(new THREE.Vector3(it.x - 4, it.z, -it.y - 4), new THREE.Vector3(it.x + 4, it.z + 10, -it.y + 4)), cx: 0, cz: 0 });
+      } else {
+        last.end = i + 1;
+        last.box.expandByPoint(new THREE.Vector3(it.x - 4, it.z, -it.y - 4)).expandByPoint(new THREE.Vector3(it.x + 4, it.z + 10, -it.y + 4));
+      }
+    });
+    for (const tl of tiles) { const c = tl.box.getCenter(new THREE.Vector3()); tl.cx = c.x; tl.cz = c.z; }
+    return { matrices, colors, count: list.length, tiles };
+  };
+  return { leaf: build(items.filter((i) => i.kind < 1), lc), conifer: build(items.filter((i) => i.kind >= 1), cc) };
 }
 
 /** Stylised minaret (pencil type common in the region): shaft, balcony, cone cap. */

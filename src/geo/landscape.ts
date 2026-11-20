@@ -8,19 +8,21 @@ export function makeSampler(d: AreaData) {
   return (x: number, y: number) => (d.core.contains(x, y) ? d.core.at(x, y) : d.context.at(x, y));
 }
 
-/** Grid mesh for a heightfield, with an optional downward skirt on the border. */
-export function terrainGeometry(hf: Heightfield, datum: number, skirt = 0): THREE.BufferGeometry {
-  const { x0, y0, nx, ny, step } = hf.g;
+/** Grid mesh for a heightfield, with an optional downward skirt on the border. stride > 1 skips samples (LOD). */
+export function terrainGeometry(hf: Heightfield, datum: number, skirt = 0, stride = 1): THREE.BufferGeometry {
+  const { x0, y0, nx: NX, ny: NY, step } = hf.g;
+  const pick = (n: number) => { const a: number[] = []; for (let i = 0; i < n - 1; i += stride) a.push(i); a.push(n - 1); return a; };
+  const xs = pick(NX), ys = pick(NY), nx = xs.length, ny = ys.length;
   const pos = new Float32Array(nx * ny * 3);
   const uv = new Float32Array(nx * ny * 2);
   for (let j = 0; j < ny; j++)
     for (let i = 0; i < nx; i++) {
-      const k = j * nx + i;
-      pos[k * 3] = x0 + i * step;
-      pos[k * 3 + 1] = hf.h[k] - datum;
-      pos[k * 3 + 2] = -(y0 + j * step);
-      uv[k * 2] = i / (nx - 1);
-      uv[k * 2 + 1] = j / (ny - 1);
+      const k = j * nx + i, si = xs[i], sj = ys[j];
+      pos[k * 3] = x0 + si * step;
+      pos[k * 3 + 1] = hf.h[sj * NX + si] - datum;
+      pos[k * 3 + 2] = -(y0 + sj * step);
+      uv[k * 2] = si / (NX - 1);
+      uv[k * 2 + 1] = sj / (NY - 1);
     }
   const idx: number[] = [];
   for (let j = 0; j < ny - 1; j++)
@@ -53,6 +55,34 @@ export function terrainGeometry(hf: Heightfield, datum: number, skirt = 0): THRE
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
+}
+
+/**
+ * Split an indexed mesh into n×n tiles by triangle centroid. Tiles share the vertex attributes
+ * (uploaded once) and only own an index + bounding sphere, so the renderer can frustum-cull them.
+ */
+export function splitTiles(g: THREE.BufferGeometry, n: number): THREE.BufferGeometry[] {
+  const p = g.getAttribute("position") as THREE.BufferAttribute, idx = g.index!.array;
+  g.computeBoundingBox();
+  const bb = g.boundingBox!, w = bb.max.x - bb.min.x || 1, d = bb.max.z - bb.min.z || 1;
+  const buckets: number[][] = Array.from({ length: n * n }, () => []);
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    const cx = (p.getX(a) + p.getX(b) + p.getX(c)) / 3, cz = (p.getZ(a) + p.getZ(b) + p.getZ(c)) / 3;
+    const i = Math.min(n - 1, Math.floor(((cx - bb.min.x) / w) * n)), j = Math.min(n - 1, Math.floor(((cz - bb.min.z) / d) * n));
+    buckets[j * n + i].push(a, b, c);
+  }
+  const v = new THREE.Vector3();
+  return buckets.filter((b) => b.length).map((b) => {
+    const t = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(g.attributes)) t.setAttribute(name, attr);
+    t.setIndex(new THREE.BufferAttribute(p.count > 65535 ? new Uint32Array(b) : new Uint16Array(b), 1));
+    const box = new THREE.Box3();
+    for (const k of b) box.expandByPoint(v.fromBufferAttribute(p, k));
+    t.boundingBox = box;
+    t.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+    return t;
+  });
 }
 
 const ROAD_KIND: Record<string, number> = {

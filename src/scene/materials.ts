@@ -1,12 +1,51 @@
 import * as THREE from "three";
 import type { StyleConfig } from "@/style/presets";
 
+/**
+ * Noise: one tileable 256² fbm texture generated once on the CPU. Shaders sample it instead of
+ * evaluating 4-octave value noise per pixel (measured as a large share of terrain fill cost).
+ */
 const NOISE = /* glsl */ `
+uniform sampler2D uNoise;
 float h21(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
-float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f);
-  return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
-float fbm(vec2 p){ float a=0.5, s=0.0; for(int i=0;i<4;i++){ s+=a*vnoise(p); p*=2.03; a*=0.5; } return s; }
+float fbm(vec2 p){ return texture2D(uNoise, p * 0.125).r; }
 `;
+
+let noiseTex: THREE.DataTexture | null = null;
+export function noiseTexture() {
+  if (noiseTex) return noiseTex;
+  const N = 256, data = new Uint8Array(N * N * 4);
+  const lattice = (period: number, seed: number) => {
+    const g = new Float32Array(period * period);
+    let s = seed;
+    for (let i = 0; i < g.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; g[i] = s / 4294967296; }
+    return g;
+  };
+  const octaves = [8, 16, 32, 64].map((p, i) => ({ p, g: lattice(p, 1234 + i * 97), a: 0.5 / 2 ** i }));
+  const sm = (t: number) => t * t * (3 - 2 * t);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      let v = 0;
+      for (const { p, g, a } of octaves) {
+        const fx = (x / N) * p, fy = (y / N) * p;
+        const ix = Math.floor(fx), iy = Math.floor(fy), tx = sm(fx - ix), ty = sm(fy - iy);
+        const i0 = ix % p, i1 = (ix + 1) % p, j0 = iy % p, j1 = (iy + 1) % p;
+        const a0 = g[j0 * p + i0] * (1 - tx) + g[j0 * p + i1] * tx;
+        const a1 = g[j1 * p + i0] * (1 - tx) + g[j1 * p + i1] * tx;
+        v += a * (a0 * (1 - ty) + a1 * ty);
+      }
+      const k = (y * N + x) * 4;
+      data[k] = data[k + 1] = data[k + 2] = Math.round(Math.min(1, v) * 255);
+      data[k + 3] = 255;
+    }
+  noiseTex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  noiseTex.wrapS = noiseTex.wrapT = THREE.RepeatWrapping;
+  noiseTex.magFilter = THREE.LinearFilter;
+  noiseTex.minFilter = THREE.LinearMipmapLinearFilter;
+  noiseTex.generateMipmaps = true;
+  noiseTex.needsUpdate = true;
+  return noiseTex;
+}
 
 type Patch = {
   uniforms?: Record<string, THREE.IUniform>;
@@ -18,7 +57,7 @@ type Patch = {
 
 function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
   m.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, p.uniforms ?? {});
+    Object.assign(shader.uniforms, { uNoise: { value: noiseTexture() } }, p.uniforms ?? {});
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${p.vertexHead ?? ""}`)
       .replace("#include <begin_vertex>", `#include <begin_vertex>\n${p.vertexMain ?? ""}`);
@@ -176,4 +215,64 @@ export function waterMaterial(style: StyleConfig) {
       }
     `,
   }, "water-v1");
+}
+
+/**
+ * Walls and roofs in one material (aPart: 0 wall, 1 roof) so a building tile is one draw call.
+ * detail=false is the distance LOD: same colours, no window/tile pattern (cheaper fragment shader).
+ */
+export function buildingMaterial(style: StyleConfig, detail: boolean) {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, side: THREE.DoubleSide });
+  return patch(m, {
+    uniforms: {
+      uGlass: { value: c3(style.window.glass) },
+      uSpacing: { value: style.roof.tileSpacing }, uContrast: { value: style.roof.tileContrast },
+    },
+    vertexHead: "attribute vec2 aUv; attribute float aFloors; attribute float aPart; varying vec2 vW; varying float vFl; varying float vPart;",
+    vertexMain: "vW = aUv; vFl = aFloors; vPart = aPart;",
+    fragHead: "uniform vec3 uGlass; uniform float uSpacing; uniform float uContrast; varying vec2 vW; varying float vFl; varying float vPart;",
+    fragColor: detail ? /* glsl */ `
+      if (vPart < 0.5) {
+        float fl = floor(vW.y);
+        vec2 c = fract(vW);
+        vec2 fw = max(fwidth(vW), vec2(1e-4));
+        bool ground = fl > vFl - 1.5;
+        float wx = ground ? 0.31 : 0.33; float wy0 = ground ? 0.16 : 0.30; float wy1 = 0.76;
+        float inX = smoothstep(wx - fw.x, wx + fw.x, c.x) * (1.0 - smoothstep(1.0 - wx - fw.x, 1.0 - wx + fw.x, c.x));
+        float inY = smoothstep(wy0 - fw.y, wy0 + fw.y, c.y) * (1.0 - smoothstep(wy1 - fw.y, wy1 + fw.y, c.y));
+        inX *= 1.0 - smoothstep(0.12, 0.3, fw.x);
+        float valid = step(0.0, vW.y) * step(fl, vFl - 1.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uGlass, inX * inY * valid * 0.92);
+        diffuseColor.rgb *= mix(1.0, 0.82, step(vFl, vW.y));
+      } else {
+        float row = fract(vW.y / uSpacing);
+        float line = smoothstep(0.0, 0.18, row) * (1.0 - smoothstep(0.82, 1.0, row) * 0.4);
+        float n = h21(floor(vec2(vW.x / (uSpacing*0.85), vW.y / uSpacing)));
+        diffuseColor.rgb *= mix(1.0 - uContrast, 1.0, line) * mix(0.95, 1.05, n);
+      }
+    ` : /* glsl */ `
+      // far LOD: average tone of the window grid / tile rows instead of the pattern
+      diffuseColor.rgb *= vPart < 0.5 ? mix(0.82, 0.9, step(vW.y, vFl) * step(0.0, vW.y)) : (1.0 - uContrast * 0.35);
+    `,
+  }, detail ? "building-near-v2" : "building-far-v2");
+}
+
+/** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */
+export function treeMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true });
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace("#include <color_vertex>", /* glsl */ `
+      #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+        vColor.xyz = vec3( 1.0 );
+      #endif
+      #ifdef USE_COLOR
+        vColor.xyz *= color.rgb;
+      #endif
+      #ifdef USE_INSTANCING_COLOR
+        if (color.g > 0.99) vColor.xyz *= instanceColor.xyz;
+      #endif
+    `);
+  };
+  m.customProgramCacheKey = () => "tree-v2";
+  return m;
 }

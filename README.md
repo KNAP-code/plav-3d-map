@@ -20,7 +20,12 @@ Useful URL parameters:
 | Parameter | Effect |
 |---|---|
 | `?area=plav-sample` | the small čaršija sample (348 buildings) instead of the full prototype area |
-| `?stats=1` | fps, draw calls, triangles, GPU name, first-frame time |
+| `?stats=1` / `#stats` | fps while moving, p95 frame time, draw calls, triangles, DPR, tier, GPU |
+| `?bench=300` / `#bench` | fixed camera flight, prints frame-time percentiles |
+| `?q=low\|medium\|high` / `#low` … | force a quality tier (disables adaptive quality) |
+| `?dpr=1.5` | force device pixel ratio |
+| `?off=trees,shadows,post,ao,tilt,terrain,water,roads,buildings` | switch subsystems off for profiling |
+| `?debug=1` | enable WebGL shader error checks |
 | `?q=high\|medium\|low` | force a quality tier (default: high on desktop, medium on touch devices, steps down automatically if fps drops) |
 | `?style=warm\|alpine` | style preset |
 | `?tune=1` | live style panel (sun, roof pitch, colours, AO, tilt-shift) with "copy JSON" |
@@ -49,5 +54,5 @@ src/geo/             geometry builders: buildings + roofs, roads, water, terrain
 src/scene/           R3F components, materials (procedural windows, roof tiles, ground), lights, post-processing, camera
 src/style/presets.ts all visual tokens
 src/ui/              viewer, HUD, BS/EN text, tuning panel
-scripts/             screenshot and performance measurement (Playwright)
+scripts/             screenshot and performance measurement (Playwright); see docs/PERFORMANCE.md
 ```

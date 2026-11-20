@@ -45,5 +45,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .loading .bar > div { height: 100%; background: var(--ui-accent); transition: width .2s; }
 .stats { position: absolute; z-index: 3; left: var(--gutter); top: calc(96px + env(safe-area-inset-top)); background: rgba(0,0,0,.72); color: #d9f99d;
   font: 12px/1.4 ui-monospace, Menlo, monospace; padding: 8px 10px; border-radius: 8px; pointer-events: none; max-width: 70vw; }
-.stats .gpu { color: #9ca3af; font-size: 10px; }
+.stats { white-space: pre-wrap; }
+.stats.bench { top: auto; bottom: calc(120px + env(safe-area-inset-bottom)); color: #fde68a; pointer-events: auto; user-select: text; }
 @media (min-width: 900px) { .title, .sheet { right: auto; width: 420px; } }

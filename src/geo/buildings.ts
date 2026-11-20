@@ -47,7 +47,11 @@ function roofFaces(kind: "hip" | "gable", L: number, W: number): { planes: Plane
 
 const evalP = (p: Plane, s: number, t: number) => p.a * s + p.b * t + p.c;
 
-export type BuildingMeshes = { walls: THREE.BufferGeometry; roofs: THREE.BufferGeometry; count: number };
+export type BuildingMeshes = {
+  walls: THREE.BufferGeometry; roofs: THREE.BufferGeometry; count: number;
+  /** Per building: [index in input list, wall vertex start, wall vertex end, roof vertex start, roof vertex end]. */
+  ranges: Int32Array;
+};
 
 export function buildBuildings(list: Building[], datum: number, style: StyleConfig): BuildingMeshes {
   const W = { pos: [] as number[], col: [] as number[], uv: [] as number[], fl: [] as number[] };
@@ -60,8 +64,13 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
   const white = new THREE.Color("#f2eee6");
   const flatCol = new THREE.Color("#b0aaa1");
   const bay = style.window.bayWidth, fh = style.window.floorHeight;
+  const ranges = new Int32Array(list.length * 5);
 
-  for (const b of list) {
+  for (let bi = 0; bi < list.length; bi++) {
+    const b = list[bi];
+    ranges[bi * 5] = bi;
+    ranges[bi * 5 + 1] = W.pos.length / 3;
+    ranges[bi * 5 + 3] = R.pos.length / 3;
     let ring = b.fp as P2[];
     if (ring.length < 3) continue;
     if (signedArea(ring) < 0) ring = [...ring].reverse();
@@ -134,6 +143,8 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
       }
     }
 
+    ranges[bi * 5 + 2] = W.pos.length / 3;
+    ranges[bi * 5 + 3] = R.pos.length / 3;
     // ---- roof
     const pushRoof = (x: number, y: number, z: number, u: number, v: number) => {
       R.pos.push(x, z, -y);
@@ -143,6 +154,7 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
     if (isFlat) {
       const tris = triangulate(ring);
       for (const [x, y] of tris) pushRoof(x, y, eave + 0.25, x, y);
+      ranges[bi * 5 + 4] = R.pos.length / 3;
       continue;
     }
     const outline = offsetRing(ring, ov).map(toST);
@@ -158,6 +170,7 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
         pushRoof(x, y, z, f.axis === "s" ? st[0] : st[1], d / cosP);
       }
     }
+    ranges[bi * 5 + 4] = R.pos.length / 3;
   }
 
   const walls = new THREE.BufferGeometry();
@@ -174,7 +187,34 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
   roofs.computeVertexNormals();
   walls.computeBoundingSphere();
   roofs.computeBoundingSphere();
-  return { walls, roofs, count: list.length };
+  return { walls, roofs, count: list.length, ranges };
+}
+
+/**
+ * One geometry per tile: walls and roofs merged (aPart 0 = wall, 1 = roof) so a tile is a single
+ * draw call. `ranges` keeps per-building vertex spans for future picking/selection.
+ */
+export function buildBuildingTile(list: Building[], datum: number, style: StyleConfig) {
+  const { walls, roofs, ranges } = buildBuildings(list, datum, style);
+  const nw = walls.getAttribute("position").count, nr = roofs.getAttribute("position").count;
+  const g = new THREE.BufferGeometry();
+  const cat = (name: string, size: number, roofDefault: number) => {
+    const out = new Float32Array((nw + nr) * size);
+    out.set((walls.getAttribute(name) as THREE.BufferAttribute).array as Float32Array, 0);
+    const r = roofs.getAttribute(name) as THREE.BufferAttribute | undefined;
+    if (r) out.set(r.array as Float32Array, nw * size);
+    else out.fill(roofDefault, nw * size);
+    g.setAttribute(name, new THREE.BufferAttribute(out, size));
+  };
+  cat("position", 3, 0); cat("normal", 3, 0); cat("color", 3, 0); cat("aUv", 2, 0); cat("aFloors", 1, 0);
+  const part = new Float32Array(nw + nr); part.fill(1, nw);
+  g.setAttribute("aPart", new THREE.BufferAttribute(part, 1));
+  walls.dispose(); roofs.dispose();
+  for (let i = 0; i < ranges.length; i += 5) { ranges[i + 3] += nw; ranges[i + 4] += nw; }
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  g.userData.ranges = ranges;
+  return g;
 }
 
 /** Make every roof triangle face upward (triangulation order depends on clip results). */
