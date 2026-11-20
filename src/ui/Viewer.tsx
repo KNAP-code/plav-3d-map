@@ -8,7 +8,7 @@ import { PRESETS, type StyleConfig } from "@/style/presets";
 import { AUDIT_COLORS, AuditLayer, Buildings, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
-import { landmarkFocus } from "@/geo/landmarks";
+import { LANDMARKS, landmarkFocus } from "@/geo/landmarks";
 import { T, type Lang } from "./i18n";
 import { AdaptiveQuality, Bench, StatsProbe, bump, formatBench, type BenchResult } from "./perf";
 import dynamic from "next/dynamic";
@@ -154,9 +154,16 @@ export default function Viewer() {
     // Redžepagića kula: position confirmed by the project owner (OSM way 221505346); camera looks at the door face
     const kula = landmarkFocus(data, "Redžepagića kula", 25);
     if (kula) out.splice(1, 0, { label: "Redžepagića kula", x: kula.x, y: kula.y, distance: 80, azimuth: kula.azimuth, polar: 72, lift: 7 });
+    // modelled landmarks: camera looks at the entrance side
     const seen = new Set<string>();
+    const models = Object.values(LANDMARKS).filter((d) => d.chip && !d.provisional);
+    for (const def of models) {
+      const f = landmarkFocus(data, def.name, 30);
+      if (f) { out.push({ label: def.chip!.label, x: f.x, y: f.y, distance: 85, azimuth: f.azimuth, polar: 66, lift: 6 }); seen.add(def.chip!.label); }
+    }
     for (const m of data.meta.landmarks) {
-      if (seen.has(m.name) || out.length > 8) continue;
+      if (models.some((d) => d.chip!.match.test(m.name))) continue;
+      if (seen.has(m.name) || out.length > 9) continue;
       if (!/džamija|Opština|Dom kulture|Pijaca|Sultanija|Pošta|sud/i.test(m.name)) continue;
       seen.add(m.name);
       out.push({ label: m.name, x: m.x, y: m.y, distance: 220 });

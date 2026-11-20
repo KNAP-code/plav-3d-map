@@ -90,7 +90,7 @@ def main():
         references="2 photos supplied by the project owner (entrance end, side). Missing: rear (qibla) wall, minaret top close-up.",
         model="built (provisional: eave height, pitch, rear wall estimated)")
     fp = footprint("7ab32b00")
-    add(id="sultanija", name="Sultanija (Carska) džamija", kind="mosque", footprint=fp,
+    add(id="sultanija", name="Sultanija džamija", kind="mosque", footprint=fp,
         meta=meta_place("sultanija", fp["centroid"]), minaret=minaret("sultanija"),
         confidence="VERIFIED",
         evidence="OSM building named 'Sultanija' + OSM minaret node 'Sultanija' + Meta place within 2 m. Built 1907 (avlija.me, Wikipedia list).",

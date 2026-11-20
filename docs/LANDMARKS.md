@@ -43,6 +43,12 @@ Estimated (needs visual verification):
   - the rear face, which has no photo
   - exact sizes of the erkers and windows
 
+## Sultanija, Redžepagića džamija, Šabovića džamija (2026-11-20)
+
+Modelled from the Tourist Organisation Plav texts and the OSM footprints. No photos were available, so roof shapes,
+proportions, window layouts and minaret forms are estimates. See docs/ARCHITECTURE_REFERENCES.md for each attribute's confidence.
+The Carska (Imperial) mosque is the Stara džamija (plavto.me), not Sultanija.
+
 ## Šehidska džamija
 
 It is in Vojno Selo (the owner confirmed this), outside the central prototype area. It is kept for the municipality-wide scope.
