@@ -79,6 +79,8 @@ export const FACADE = { grid: 0, tall: 1, paired: 2, band: 3 } as const;
 /** Palettes by building type (all estimates; no facade colour data exists for Plav). */
 const TRAD_WALLS = ["#f3eee6", "#efe9df", "#ebe4d6", "#f1ece2"];
 const TRAD_ROOFS = ["#7a5b4c", "#6e6460", "#85604f", "#5f5a58", "#8f6a55"];
+const OUT_WALLS = ["#a8977f", "#9c9184", "#b3a58f", "#8f8476"];
+const OUT_ROOFS = ["#7a716a", "#6f665f", "#857a70", "#8a6f60"];
 const BLOCK_WALLS = ["#d8d2c8", "#e5d6be", "#cdd3d0", "#e9e0cf", "#c9b9ab", "#ecd9a8", "#d9cfc2", "#e3c8b3", "#c4c9cc"];
 
 /**
@@ -92,8 +94,10 @@ export function variation(b: Building, style: StyleConfig) {
   const small = area < 60 || b.floors <= 1;
   const h = (k: string) => hash01(b.id, k);
   const sacred = b.cls === "mosque" || b.cls === "church";
+  // small machine-detected footprints (< 30 m²): plain single-storey shed, garage or barn, no windows or details
+  const outb = b.kind === "outbuilding";
   // traditional Plav house: 1-2 storeys, stone ground floor, white upper floor, steep roof with deep eaves
-  const trad = !block && !sacred && b.floors <= 2 && area >= 45 && area < 220 && h("trad") < 0.3;
+  const trad = !outb && !block && !sacred && b.floors <= 2 && area >= 45 && area < 220 && h("trad") < 0.3;
   let roof: RoofKind = b.roof === "flat" ? "flat" : b.roof === "gable" ? "gable" : "hip";
   if (roof !== "flat" && !sacred) {
     const r = h("rt");
@@ -111,15 +115,15 @@ export function variation(b: Building, style: StyleConfig) {
   const facade = block ? (r < 0.6 ? FACADE.band : FACADE.grid) : small ? (r < 0.7 ? FACADE.grid : FACADE.tall) : r < 0.45 ? FACADE.grid : r < 0.75 ? FACADE.tall : FACADE.paired;
   const shop = !small && !trad && b.floors >= 2 && (b.cls === "commercial" || b.cls === "retail" || h("s") < 0.12);
   const bay = style.window.bayWidth * (trad ? 1.1 : 0.85 + h("b") * 0.35);
-  const chimney = !block && roof !== "flat" && area > 35 && h("c") < 0.8;
+  const chimney = !outb && !block && roof !== "flat" && area > 35 && h("c") < 0.8;
   // balconies on upper floors (estimates): most blocks, half of 2-3 storey houses, wooden ones on some traditional houses
-  const balcony = !sacred && b.floors >= 2 && !shop && (block ? h("bal") < 0.75 : trad ? h("bal") < 0.45 : h("bal") < 0.5);
-  const entrance = !sacred && area >= 35;
-  const wallPick = trad ? TRAD_WALLS[Math.floor(h("wc") * TRAD_WALLS.length)] : block ? BLOCK_WALLS[Math.floor(h("wc") * BLOCK_WALLS.length)] : null;
-  const roofPick = trad ? TRAD_ROOFS[Math.floor(h("rc") * TRAD_ROOFS.length)] : null;
+  const balcony = !outb && !sacred && b.floors >= 2 && !shop && (block ? h("bal") < 0.75 : trad ? h("bal") < 0.45 : h("bal") < 0.5);
+  const entrance = !outb && !sacred && area >= 40;
+  const wallPick = outb ? OUT_WALLS[Math.floor(h("wc") * OUT_WALLS.length)] : trad ? TRAD_WALLS[Math.floor(h("wc") * TRAD_WALLS.length)] : block ? BLOCK_WALLS[Math.floor(h("wc") * BLOCK_WALLS.length)] : null;
+  const roofPick = outb ? OUT_ROOFS[Math.floor(h("rc") * OUT_ROOFS.length)] : trad ? TRAD_ROOFS[Math.floor(h("rc") * TRAD_ROOFS.length)] : null;
   const rail = trad ? "#6b4a33" : h("rl2") < 0.55 ? "#efeeea" : h("rl2") < 0.85 ? "#55595f" : "#8a6a4e";
   return {
-    pitch, overhang, facade, shop, bay, chimney, roof, trad, block, balcony, entrance, wallPick, roofPick, rail,
+    pitch, overhang, facade, shop, bay, chimney, roof, trad, block, balcony, entrance, wallPick, roofPick, rail, outb,
     seed: h("seed"), light: (h("l") - 0.5) * 0.07, roofLight: (h("rl") - 0.5) * 0.08,
   };
 }
@@ -127,7 +131,10 @@ export function variation(b: Building, style: StyleConfig) {
 /** Optional lookup: nearest road point to (x, y), used to put entrances on the street side. */
 export type RoadLookup = (x: number, y: number) => P2 | null;
 
-export function buildBuildings(list: Building[], datum: number, style: StyleConfig, road?: RoadLookup): BuildingMeshes {
+/** Optional colour override per building (geographic audit view); null keeps the normal colours. */
+export type Tint = (b: Building) => string | null;
+
+export function buildBuildings(list: Building[], datum: number, style: StyleConfig, road?: RoadLookup, tint?: Tint): BuildingMeshes {
   const W = { pos: [] as number[], col: [] as number[], uv: [] as number[], fl: [] as number[], st: [] as number[] };
   // small details (balconies, entrances): separate mesh, only drawn near the camera
   const D = { pos: [] as number[], col: [] as number[], uv: [] as number[], fl: [] as number[], st: [] as number[] };
@@ -160,11 +167,12 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
     const sacred = b.cls === "mosque" || b.cls === "church";
     const vr = variation(b, style);
     const isFlat = vr.roof === "flat";
-    const wc = (sacred ? white : vr.wallPick ? new THREE.Color(vr.wallPick) : wallCols[b.v % wallCols.length]).clone().offsetHSL(0, 0, vr.light);
-    const rc = (isFlat ? flatCol : vr.roofPick ? new THREE.Color(vr.roofPick) : roofCols[(b.v * 7 + 3) % roofCols.length]).clone().offsetHSL(0, 0, vr.roofLight);
+    const tc = tint?.(b);
+    const wc = tc ? new THREE.Color(tc) : (sacred ? white : vr.wallPick ? new THREE.Color(vr.wallPick) : wallCols[b.v % wallCols.length]).clone().offsetHSL(0, 0, vr.light);
+    const rc = tc ? new THREE.Color(tc).multiplyScalar(0.8) : (isFlat ? flatCol : vr.roofPick ? new THREE.Color(vr.roofPick) : roofCols[(b.v * 7 + 3) % roofCols.length]).clone().offsetHSL(0, 0, vr.roofLight);
     const tan = Math.tan((vr.pitch * Math.PI) / 180), cosP = Math.cos((vr.pitch * Math.PI) / 180);
     const ov = vr.overhang, bay = vr.bay;
-    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + (vr.trad ? 8 : 0) + vr.seed * 0.999;
+    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + (vr.trad ? 8 : 0) + (vr.outb ? 16 : 0) + vr.seed * 0.999;
 
     const L = Lfull / 2 + ov, Wd = Wfull / 2 + ov;
     const planes = isFlat ? [] : roofPlanes(vr.roof, L, Wd);
@@ -415,8 +423,8 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
  * One geometry per tile: walls and roofs merged (aPart 0 = wall, 1 = roof) so a tile is a single
  * draw call. `ranges` keeps per-building vertex spans for future picking/selection.
  */
-export function buildBuildingTile(list: Building[], datum: number, style: StyleConfig, road?: RoadLookup) {
-  const { walls, roofs, details, ranges } = buildBuildings(list, datum, style, road);
+export function buildBuildingTile(list: Building[], datum: number, style: StyleConfig, road?: RoadLookup, tint?: Tint) {
+  const { walls, roofs, details, ranges } = buildBuildings(list, datum, style, road, tint);
   const nw = walls.getAttribute("position").count, nr = roofs.getAttribute("position").count;
   const g = new THREE.BufferGeometry();
   const cat = (name: string, size: number, roofDefault: number) => {

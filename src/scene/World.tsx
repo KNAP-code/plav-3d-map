@@ -70,7 +70,14 @@ export function Terrain({ data, style, quality }: { data: AreaData; style: Style
  * Footprints are unchanged; every building stays in the scene. Per-building vertex spans are
  * kept in geometry.userData.ranges for selection.
  */
-export function Buildings({ data, style, quality, provisional = true }: { data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean }) {
+/** Audit view colours: green OSM, blue Microsoft ML, light blue ML outbuilding, orange OSM overlapping a street, purple = height from source. */
+export const AUDIT_COLORS = { osm: "#3fae64", ms: "#4f86d9", outbuilding: "#7cc7d6", osmOnStreet: "#f29d38", heightSrc: "#9b6ad6", removed: "#e0453a", gap: "#d6338f" };
+const auditTint = (b: Building) =>
+  b.hSrc !== "estimated" ? AUDIT_COLORS.heightSrc
+  : b.src === "osm" ? ((b.onStreet ?? 0) >= 0.15 ? AUDIT_COLORS.osmOnStreet : AUDIT_COLORS.osm)
+  : b.kind === "outbuilding" ? AUDIT_COLORS.outbuilding : AUDIT_COLORS.ms;
+
+export function Buildings({ data, style, quality, provisional = true, audit = false }: { data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean }) {
   const near = TIERS[quality].buildingNear;
   const skip = useMemo(() => landmarkReplacements(data, { provisional }).ids, [data, provisional]);
   const geos = useMemo(() => {
@@ -87,8 +94,8 @@ export function Buildings({ data, style, quality, provisional = true }: { data: 
     }
     bump("geometryBuilds");
     const road = roadLookup(data);
-    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road));
-  }, [data, skip, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, audit ? auditTint : undefined));
+  }, [data, skip, audit, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const mNear = useMemo(() => buildingMaterial(style, true), [style]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
   useDispose(useMemo(() => geos.flatMap((g) => [g.main, g.details]), [geos]));
@@ -147,6 +154,38 @@ function roadLookup(data: AreaData) {
     }
     return out;
   };
+}
+
+/**
+ * Developer geographic-audit overlay (#audit): footprints removed by the reconciliation rules (red outlines on the
+ * ground) and 50 m cells that ESA WorldCover classes as built-up but that contain no mapped footprint (magenta).
+ */
+export function AuditLayer({ data, gaps }: { data: AreaData; gaps: { x: number; y: number }[] }) {
+  const g = useMemo(() => {
+    const pos: number[] = [], col: number[] = [];
+    const h = (x: number, y: number) => (d => d.core.contains(x, y) ? d.core.atTri(x, y) : d.context.at(x, y))(data) - data.datum + 0.6;
+    const red = new THREE.Color(AUDIT_COLORS.removed), mag = new THREE.Color(AUDIT_COLORS.gap);
+    const push = (x: number, y: number, c: THREE.Color) => { pos.push(x, h(x, y), -y); col.push(c.r, c.g, c.b); };
+    for (const r of data.removed) {
+      // outline as a 0.6 m wide band just inside the footprint, plus a fill fan
+      const fp = r.fp, n = fp.length;
+      let cx = 0, cy = 0; for (const [x, y] of fp) { cx += x; cy += y; } cx /= n; cy /= n;
+      for (let i = 0; i < n; i++) { const a = fp[i], b = fp[(i + 1) % n]; push(cx, cy, red); push(a[0], a[1], red); push(b[0], b[1], red); }
+    }
+    for (const c of gaps) {
+      const s = 24;
+      const q = [[c.x - s, c.y - s], [c.x + s, c.y - s], [c.x + s, c.y + s], [c.x - s, c.y + s]];
+      for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) { push(q[i][0], q[i][1], mag); push(q[j][0], q[j][1], mag); push(q[k][0], q[k][1], mag); }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    geo.computeBoundingSphere();
+    return geo;
+  }, [data, gaps]);
+  const m = useMemo(() => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }), []);
+  useDispose(useMemo(() => [g, m], [g, m]));
+  return <mesh geometry={g} material={m} renderOrder={5} />;
 }
 
 /** Sidewalks with kerbs on main streets (estimate) and mapped street furniture/walls: two draw calls, receive shadows only. */

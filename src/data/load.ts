@@ -22,6 +22,10 @@ export type Building = {
   fp: [number, number][]; g0: number; g1: number; eave: number; floors: number;
   hSrc: string; roof: "hip" | "gable" | "flat"; roofSrc: string;
   obb: [number, number, number, number, number]; v: number;
+  /** "outbuilding": small machine-detected footprint shown as a plain single-storey shed */
+  kind?: string;
+  /** share of the footprint lying on a mapped street carriageway (audit) */
+  onStreet?: number;
 };
 export type Minaret = { x: number; y: number; g: number; height: number };
 export type Road = {
@@ -42,6 +46,8 @@ export type AreaData = {
   coverCore: HTMLImageElement;
   coverContext: HTMLImageElement;
   buildings: Building[];
+  /** source footprints left out by the reconciliation rules (shown only in the #audit view) */
+  removed: { id: string; src: string; reason: string; fp: [number, number][] }[];
   minarets: Minaret[];
   roads: Road[];
   crossings: [number, number][];
@@ -129,7 +135,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
     furniture,
     meta, core, context, coverCore, coverContext,
     datum: meta.core.base,
-    buildings: b.buildings, minarets: b.minarets,
+    buildings: b.buildings, removed: b.removed ?? [], minarets: b.minarets,
     roads: v.roads, crossings: v.crossings ?? [], water: v.water, streams: v.streams, overlays: v.overlays,
     trees: new Float32Array(treeBuf),
     bytes: coreBuf.byteLength + ctxBuf.byteLength + bjs.length + vjs.length + treeBuf.byteLength,

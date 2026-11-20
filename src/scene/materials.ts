@@ -266,7 +266,8 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float sv = floor(vSt + 0.001);
         float kind = mod(sv, 4.0);
         bool shop = mod(floor(sv / 4.0), 2.0) > 0.5;
-        bool trad = sv >= 7.5;
+        bool trad = mod(floor(sv / 8.0), 2.0) > 0.5;
+        bool outb = sv >= 15.5;
         bool ground = fl > nFl - 1.5;
         // per-building window size variation (from the quantised seed)
         float js = h21(vec2(nSeed, 7.0)) - 0.5;
@@ -283,7 +284,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float inY = smoothstep(wy0 - fw.y, wy0 + fw.y, c.y) * (1.0 - smoothstep(wy1 - fw.y, wy1 + fw.y, c.y));
         float fade = 1.0 - smoothstep(0.12, 0.3, fx);
         inX *= fade;
-        float valid = step(0.0, vW.y) * step(fl, nFl - 1.0);
+        float valid = step(0.0, vW.y) * step(fl, nFl - 1.0) * (outb ? 0.0 : 1.0);
         // light window surround (frame) just outside the glass
         float fr = 0.035;
         float oX = smoothstep(wx - fr - fx, wx - fr + fx, cx) * (1.0 - smoothstep(1.0 - wx + fr - fx, 1.0 - wx + fr + fx, cx));
@@ -343,7 +344,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v5" : "building-far-v5");
+  }, detail ? "building-near-v6" : "building-far-v6");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */

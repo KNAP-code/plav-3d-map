@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { Buildings, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
+import { AUDIT_COLORS, AuditLayer, Buildings, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { landmarkFocus } from "@/geo/landmarks";
@@ -20,15 +20,47 @@ function params() {
   if (typeof window === "undefined") return new URLSearchParams();
   const p = new URLSearchParams(window.location.search);
   // Hosts that only pass a plain #name (e.g. the preview link) can use #stats, #tune, #sample, #en, #low, #medium, #high.
-  const h = window.location.hash.replace(/^#/, "");
-  if (h === "stats" || h === "tune") p.set(h, "1");
-  else if (h === "sample") p.set("area", "plav-sample");
-  else if (h === "en") p.set("lang", "en");
-  else if (h === "low" || h === "medium" || h === "high") p.set("q", h);
-  else if (h === "bench") p.set("bench", "300");
-  else if (h === "review") p.set("review", "1");
-  else if (h === "night") p.set("night", "1");
+  // several flags can be combined: #audit,osm or #night&high
+  for (const h of window.location.hash.replace(/^#/, "").split(/[,&+]/).filter(Boolean)) {
+    if (h === "stats" || h === "tune" || h === "audit" || h === "osm") p.set(h, "1");
+    else if (h === "sample") p.set("area", "plav-sample");
+    else if (h === "en") p.set("lang", "en");
+    else if (h === "low" || h === "medium" || h === "high") p.set("q", h);
+    else if (h === "bench") p.set("bench", "300");
+    else if (h === "review") p.set("review", "1");
+    else if (h === "night") p.set("night", "1");
+  }
   return p;
+}
+
+type AuditInfo = { summary: Record<string, any>; gaps: { x: number; y: number; lat: number; lon: number }[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+/** Developer audit panel: legend and counts from public/data/<area>/audit.json (pipeline/audit_buildings.py). */
+function AuditPanel({ info, osmOnly, shown }: { info: AuditInfo | null; osmOnly: boolean; shown: number }) {
+  const s = info?.summary;
+  const row = (c: string, t: string) => <div><span style={{ display: "inline-block", width: 12, height: 12, background: c, marginRight: 6, borderRadius: 2, verticalAlign: -1 }} />{t}</div>;
+  return (
+    <div className="stats" style={{ top: 96, left: 12, right: "auto", maxWidth: 330, whiteSpace: "normal", lineHeight: 1.45 }}>
+      <b>Geographic audit</b> {osmOnly ? "(OSM only)" : ""}<br />
+      {s ? <>
+        Overture {s.release}: {s.raw_in_area} source footprints ({s.raw_by_source.osm} OSM, {s.raw_by_source.ms} Microsoft ML)<br />
+        Shown: {shown} · removed {s.not_shown_raw} ({Object.entries(s.removed_by_reason ?? {}).map(([k, v]) => `${v} ${k}`).join(", ")})<br />
+        Duplicates shown: {s.duplicates_shown} · invented: {s.procedural_invented}<br />
+        Height from source: {s.height_from_source} · position check max {s.position_check_m?.max} m<br />
+        Coverage of WorldCover built-up 50 m cells: {s.coverage?.pct}% ({s.coverage?.osm_only_pct}% with OSM alone), {s.coverage?.gap_cells} gap cells<br />
+      </> : "loading audit.json…"}
+      <div style={{ marginTop: 6 }}>
+        {row(AUDIT_COLORS.osm, "OpenStreetMap footprint")}
+        {row(AUDIT_COLORS.ms, "Microsoft ML footprint")}
+        {row(AUDIT_COLORS.outbuilding, "ML footprint < 30 m², shown as outbuilding")}
+        {row(AUDIT_COLORS.osmOnStreet, "OSM footprint overlapping a street (review)")}
+        {row(AUDIT_COLORS.heightSrc, "height from source data")}
+        {row(AUDIT_COLORS.removed, "removed: tiny ML / ML on street")}
+        {row(AUDIT_COLORS.gap, "built-up land with no footprint")}
+        <div style={{ opacity: 0.75, marginTop: 4 }}>Landmarks keep their own models. All heights and roofs not marked purple are estimates.</div>
+      </div>
+    </div>
+  );
 }
 
 export default function Viewer() {
@@ -63,9 +95,15 @@ export default function Viewer() {
   const t0 = useRef(performance.now());
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
 
+  // #osm: only human-mapped OpenStreetMap footprints (Microsoft ML detections hidden); #audit: geographic audit view
+  const osmOnly = q.has("osm"), audit = q.has("audit");
+  const [auditInfo, setAuditInfo] = useState<AuditInfo | null>(null);
   useEffect(() => {
-    loadArea(`./data/${areaId}`, setProgress).then(setData).catch((e) => setError(String(e)));
-  }, [areaId]);
+    loadArea(`./data/${areaId}`, setProgress)
+      .then((d) => setData(osmOnly ? { ...d, buildings: d.buildings.filter((b) => b.src === "osm") } : d))
+      .catch((e) => setError(String(e)));
+    if (audit) fetch(`./data/${areaId}/audit.json`).then((r) => r.json()).then((a) => setAuditInfo({ summary: a.summary, gaps: a.gaps ?? [] })).catch(() => {});
+  }, [areaId, osmOnly, audit]);
 
   const chips: Chip[] = useMemo(() => {
     if (!data) return [];
@@ -149,7 +187,8 @@ export default function Viewer() {
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
             {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} />}
             {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
-            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} />}
+            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit} />}
+            {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
             {!off.has("buildings") && !off.has("landmarks") && <Landmarks data={data} provisional={review} />}
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} />}
@@ -172,6 +211,7 @@ export default function Viewer() {
         />
       )}
       {showStats && <div className="stats" ref={statsEl} />}
+      {audit && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} />}
       {bench && <div className="stats bench">{formatBench(bench)}{"\n"}first frame {firstFrameMs ? (firstFrameMs / 1000).toFixed(1) : "?"} s</div>}
       {q.has("tune") && <Tune style={style} setStyle={setStyle} />}
     </div>

@@ -454,6 +454,35 @@ def build(area_id: str):
     tree_arr.tofile(out / "trees.bin")
     print(f"  trees: {len(tree_arr)} (from {len(px)} WorldCover tree pixels)")
 
+    # ---------- building reconciliation (geographic accuracy rules v2, see docs/BUILDING_AUDIT.md)
+    # OpenStreetMap footprints are always kept (human-mapped). Microsoft ML footprints are machine-detected from
+    # imagery: dropped when tiny (< 15 m², usually fragments) or when >= 15% of the footprint lies on a mapped street
+    # carriageway (the detection conflicts with a human-mapped street). ML footprints under 30 m² are shown as
+    # single-storey outbuildings. Nothing is moved, reshaped or added.
+    widths = {"secondary": 7.5, "tertiary": 6.5, "residential": 5.2, "unclassified": 4.8, "living_street": 4.5,
+              "service": 3.6, "pedestrian": 4.0}
+    street_geoms = [shapely.LineString(rd["pts"]).buffer(widths.get(rd["c"], 3.5) / 2, cap_style="flat")
+                    for rd in roads if rd["c"] in widths and not rd.get("bridge") and not rd.get("tunnel") and len(rd["pts"]) >= 2]
+    st_tree = shapely.STRtree(street_geoms)
+    kept, removed = [], []
+    for b, poly in zip(buildings, bpolys):
+        on_street = sum(poly.intersection(street_geoms[k]).area for k in st_tree.query(poly)) / max(poly.area, 1e-6)
+        b["onStreet"] = round(on_street, 2)
+        if b["src"] == "ms" and poly.area < 15:
+            removed.append({"id": b["id"], "src": b["src"], "reason": "tiny_ml", "fp": b["fp"]}); continue
+        if b["src"] == "ms" and on_street >= 0.15:
+            removed.append({"id": b["id"], "src": b["src"], "reason": "ml_on_street", "fp": b["fp"]}); continue
+        if b["src"] == "ms" and poly.area < 30 and b["hSrc"] == "estimated":
+            b["kind"] = "outbuilding"; b["floors"] = 1; b["eave"] = 2.6
+            b["roof"] = "gable" if b["roof"] != "flat" else "flat"
+        kept.append(b)
+    stats["removed_tiny_ml"] = sum(1 for r in removed if r["reason"] == "tiny_ml")
+    stats["removed_ml_on_street"] = sum(1 for r in removed if r["reason"] == "ml_on_street")
+    stats["outbuildings_ml"] = sum(1 for b in kept if b.get("kind") == "outbuilding")
+    stats["osm_on_street_kept"] = sum(1 for b in kept if b["src"] == "osm" and b["onStreet"] >= 0.15)
+    buildings = kept
+    print(f"  reconciliation: kept {len(kept)}, removed {len(removed)}, {stats}")
+
     # ---------- terrain binaries
     def save_heights(H, path, scale):
         base = math.floor(H.min()) - 1
@@ -472,7 +501,7 @@ def build(area_id: str):
     streams = [{"c": wl["class"], "n": wl["name"], "pts": coords_list(wl["geom"].simplify(0.5))}
                for wl in water_lines if wl["geom"].length > 2]
 
-    (out / "buildings.json").write_text(json.dumps({"rules": RULES_VERSION, "buildings": buildings, "minarets": minarets},
+    (out / "buildings.json").write_text(json.dumps({"rules": RULES_VERSION, "buildings": buildings, "removed": removed, "minarets": minarets},
                                                    ensure_ascii=False, separators=(",", ":")))
     (out / "vectors.json").write_text(json.dumps({"roads": roads, "crossings": crossings, "water": water_out, "streams": streams,
                                                   "overlays": overlays}, ensure_ascii=False, separators=(",", ":")))
