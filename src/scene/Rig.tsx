@@ -188,10 +188,12 @@ export function Controls({ data, controlsRef, hud, onReady }: {
     c.dollyToCursor = true;
     c.smoothTime = 0.28;
     c.draggingSmoothTime = 0.08;
-    c.minDistance = 40;
+    // ?closeup=1 (render scripts only): allow close, low cameras for landmark close-ups; normal controls are unchanged
+    const closeup = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("closeup") === "1";
+    c.minDistance = closeup ? 12 : 40;
     c.maxDistance = Math.max(halfW, halfH) * 3.2;
     c.minPolarAngle = 12 * DEG;
-    c.maxPolarAngle = 72 * DEG;
+    c.maxPolarAngle = (closeup ? 84 : 72) * DEG;
     c.setBoundary(new THREE.Box3(new THREE.Vector3(-halfW, -200, -halfH), new THREE.Vector3(halfW, 800, halfH)));
     c.boundaryEnclosesCamera = false;
     onReady?.();

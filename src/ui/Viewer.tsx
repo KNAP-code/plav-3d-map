@@ -230,7 +230,7 @@ export default function Viewer() {
             {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} onPick={audit ? setPicked : undefined} />}
             {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
-            {!off.has("buildings") && !off.has("landmarks") && <Landmarks data={data} provisional={review} />}
+            {!off.has("landmarks") && <Landmarks data={data} provisional={review} />}
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} />}
           </Suspense>
           <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} night={night} />

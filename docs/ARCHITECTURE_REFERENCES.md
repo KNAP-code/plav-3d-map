@@ -127,3 +127,18 @@ written fact.
 - Centar za kulturu "Husein Bašić" (Dom kulture), Pošta, Osnovni sud: no descriptions found; procedural, estimated.
 - Hotel Plavsko jezero: reopened in August 2026 after more than 30 years (plavto.me news); no architectural data.
 - Lead not yet read: the 2026 monograph "Plav – grad na jezeru" (announced on plav.me) may describe these buildings.
+
+## Reference photos to review (links; not opened from the build environment)
+- Sultanija: [plavto.me gallery](https://www.plavto.me/en/tourist-offer/sultanija-mosque/) (12+ photos),
+  [volimprokletije.art.blog](https://volimprokletije.art.blog/2020/12/21/dzamija-sultanija-u-plavu/) (9 photos by ef. Sead Jasavić),
+  [adrialine.me](https://www.adrialine.me/_en/sultanija_mosque.html) (incl. the dome),
+  [upoznajcrnugoru.com](https://upoznajcrnugoru.com/dzamija-sultanija-plav/).
+- Redžepagića džamija: [plavto.me gallery](https://www.plavto.me/en/tourist-offer/redzepagic-mosque/) (14+ photos),
+  [upoznajcrnugoru.com](https://upoznajcrnugoru.com/redzepagica-dzamija-plav/),
+  [bosnjaci.net](https://bosnjaci.net/prilog.php?pid=56490) (historical photo),
+  Dreamstime stock [1](https://www.dreamstime.com/view-old-mosque-redzepagica-plav-montenegro-image104678238), [2](https://www.dreamstime.com/stock-photo-mosque-plav-view-old-redzepagica-center-montenegro-image38891440) (titles say Redžepagića; identity unconfirmed).
+- Šabovića džamija: [plavto.me gallery](https://www.plavto.me/en/tourist-offer/sabovic-mosque/) (11 photos),
+  [bosnjaci.net](https://bosnjaci.net/prilog.php?pid=56490) (opening, 1900/01).
+- Stara džamija: owner's photos (used); [plavto.me gallery](https://www.plavto.me/en/tourist-offer/imperial-mosque/) (19+ incl. drone shots).
+- Redžepagića kula: owner's photos (used); [plavto.me gallery](https://www.plavto.me/en/tourist-offer/redzepagic-tower/).
+None of these galleries states a reuse licence. They are links for visual review, not material to copy.

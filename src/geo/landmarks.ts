@@ -163,13 +163,14 @@ const STARA: LandmarkDef = {
     "Entrance end and part of the long side built in dark timber (sofraluci) with ogee-shaped openings (photos; avlija.me: part stone, part wood)",
     "White plastered stone walls with tall round-arched windows and a grey plinth (photo 2)",
     "Wooden šadrvan (octagonal pavilion) in front of the mosque (photo 1; avlija.me)",
+    "Row of small windows across the timber front under the eaves; metal gutter and downpipe on the long side (owner's photos)",
     "Hünkâr/Careva mosque, Plav, 1471 (İbrahimgil & Kudumovic 2023): 8.22 × 9.58 m, height 4.64 m, rectangular plan with the minaret rising from the roof, original wooden mahfil",
     "Also called the Carska (Imperial) mosque: built 1471 in the walled old town, present form from the 18th century, ground floor and first floor, ashlar and wood, wooden sofa, wooden minaret 10 m rising from the roof (plavto.me)",
   ],
   estimated: [
     "Eave height 5.0 m and roof pitch 45°, measured from photo proportions",
     "Minaret height ~10 m above the ridge, from photo proportions (source gives 10 m without saying from where)",
-    "Length of the timber section along the side (≈40% of the side) and number of arched windows (4 per side)",
+    "Length of the timber section along the side (≈50% of the side, from photo 1) and the number of arched windows on the plaster part (3 per side; photo 1 shows at least 2)",
     "Exact position of the šadrvan in front of the entrance",
     "Rear (qibla) wall: no photo, modelled as plain plaster with two arched windows",
   ],
@@ -177,7 +178,7 @@ const STARA: LandmarkDef = {
     const plaster = C("#f1eee6"), plinth = C("#a9aaa6"), wood = C("#4a3426"), woodLight = C("#6b4c37"), beam = C("#3a281d");
     const shingle = C("#8b7a68"), glass = C("#33373d"), ogee = C("#e4ddcf");
     const eave = 5.0, pl = 1.3, tan = Math.tan((45 * Math.PI) / 180);
-    const front = L, woodEnd = L - (2 * L) * 0.4; // timber section from the front to 40% of the length
+    const front = L, woodEnd = L - (2 * L) * 0.5; // timber section from the front to half the length (owner's photo 1)
     // plinth all round
     B.panel(-L, -W, L, -W, -1, pl, plinth, K.stone); B.panel(L, -W, L, W, -1, pl, plinth, K.stone);
     B.panel(L, W, -L, W, -1, pl, plinth, K.stone); B.panel(-L, W, -L, -W, -1, pl, plinth, K.stone);
@@ -206,7 +207,7 @@ const STARA: LandmarkDef = {
         const u = ((i + 0.5) / n) * len, ds = (s1 - s0) / len, dt = (t1 - t0) / len;
         const cs = s0 + ds * u, ct = t0 + dt * u, off = 0.08;
         const ns = dt * off, nt = -ds * off;
-        const w = 0.55, z0 = 2.35, z1 = 2.75;
+        const w = 0.55, z0 = 2.6, z1 = 3.0;
         B.quad([cs - ds * w / 2 + ns, ct - dt * w / 2 + nt, z0], [cs + ds * w / 2 + ns, ct + dt * w / 2 + nt, z0],
           [cs + ds * w / 2 + ns, ct + dt * w / 2 + nt, z1], [cs - ds * w / 2 + ns, ct - dt * w / 2 + nt, z1], ogee);
         B.tri([cs - ds * w / 2 + ns, ct - dt * w / 2 + nt, z1], [cs + ds * w / 2 + ns, ct + dt * w / 2 + nt, z1], [cs + ns, ct + nt, z1 + 0.3], ogee, K.plain, [0, 0], [0, 0], [0, 0]);
@@ -215,22 +216,26 @@ const STARA: LandmarkDef = {
           [cs + ds * 0.45 + ns, ct + dt * 0.45 + nt, 4.4], [cs - ds * 0.45 + ns, ct - dt * 0.45 + nt, 4.4], glass, K.glass);
       }
     };
-    ogees(woodEnd, -W, front, -W, 3); ogees(front, W, woodEnd, W, 3);
-    ogees(front, -W, front, -W * 0.38, 2); ogees(front, W * 0.38, front, W, 2);
+    ogees(woodEnd, -W, front, -W, 4); ogees(front, W, woodEnd, W, 4);
+    ogees(front, -W, front, -W * 0.3, 3); ogees(front, W * 0.3, front, W, 3); // front: row of small windows across the width (owner's photo 2)
     // entrance: arched door in the middle of the front
     B.archWindow(front, -W, front, W, W, 1.3, pl - 0.6, 3.0, C("#2a1d14"), 0.09);
     // arched windows on the plaster part (4 per long side, 2 at the rear)
-    const nWin = 4, span = woodEnd + L;
+    const nWin = 3, span = woodEnd + L;
     for (let i = 0; i < nWin; i++) {
       const u = ((i + 0.5) / nWin) * span;
-      B.archWindow(-L, -W, woodEnd, -W, u, 0.85, 2.3, 4.1, glass);
-      B.archWindow(woodEnd, W, -L, W, span - u, 0.85, 2.3, 4.1, glass);
+      B.archWindow(-L, -W, woodEnd, -W, u, 0.7, 2.5, 4.0, glass);
+      B.archWindow(woodEnd, W, -L, W, span - u, 0.7, 2.5, 4.0, glass);
     }
     B.archWindow(-L, W, -L, -W, W * 0.6, 0.85, 2.3, 4.1, glass);
     B.archWindow(-L, W, -L, -W, W * 1.4, 0.85, 2.3, 4.1, glass);
     // roof
     const ov = 0.8;
     const ridge = B.hipRoof(L + ov, W + ov, eave - ov * tan * 0.3, tan, shingle);
+    // gutter along the eaves and a downpipe at the end of the timber section (owner's photo 1)
+    const gz = eave - ov * tan * 0.3 - 0.05, gut = C("#8d8f8f");
+    for (const t of [-(W + ov), W + ov]) B.box(-L - ov, L + ov, t - 0.06, t + 0.06, gz - 0.12, gz, gut, K.plain);
+    for (const t of [-W - 0.12, W + 0.12]) B.box(woodEnd - 0.06, woodEnd + 0.06, t - 0.05, t + 0.05, 0, gz, gut, K.plain, false);
     // minaret on the ridge axis near the entrance end
     const ms = L - 3.6, top = ridge + 8.4;
     B.frustum(ms, 0, 8, 0.82, 0.76, eave, top, woodLight, K.chevron, false, Math.PI / 8);
@@ -273,11 +278,11 @@ const KULA: LandmarkDef = {
     "Heights: stone 10 m, timber storey 2.6 m, roof rise 3.4 m (from photo proportions: stone face ≈1.2× as tall as wide; no survey)",
     "Which face is the front (door + roofed erker): the face towards the nearest street",
     "Rear face: no photo; modelled like the front without door or erker",
-    "Exact sizes of the erkers and windows (from photo proportions)",
+    "Exact sizes of the erkers and windows (from photo proportions; erkers enlarged on 2026-11-20 to hang about 1.5-2 m below the čardak as in both photos)",
     "Plinth course, threshold step, fascia board and rafter ends: plausible construction details, not distinct in the photos",
   ],
   build(B, { L, W }) {
-    const stone = C("#bdb3a3"), wood = C("#4a3426"), beam = C("#2f2118"), band = C("#b08a5e"), roof = C("#8f4c3a");
+    const stone = C("#ab9d88"), wood = C("#4a3426"), beam = C("#2f2118"), band = C("#b08a5e"), roof = C("#6f4a3c");
     const frame = C("#efe9de"), dark = C("#2a2420"), door = C("#5a4130"), glass = C("#3b3f45");
     const hs = 10.0, hw = 2.6, taper = 0.35, ov = 1.0;
     const p = (s: number, t: number, z: number) => [s, t, z] as V3;
@@ -300,7 +305,7 @@ const KULA: LandmarkDef = {
     const plinth = C("#a39a8c");
     B.box(-L - 0.12, L + 0.12, -W - 0.12, W + 0.12, -1, 0.55, plinth, K.stone, true);
     // quoins: dressed corner stones, alternating long/short on the two faces, following the taper
-    const quoin = C("#d2cabd");
+    const quoin = C("#c2b6a3");
     for (let k = 0, z = 0.55; z < hs - 0.3; k++, z += 0.6) {
       const f = (z + 0.3) / hs, cs = L - taper * f, ct = W - taper * f, a = k % 2 ? 0.95 : 0.55, b = k % 2 ? 0.55 : 0.95;
       for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -367,10 +372,10 @@ const KULA: LandmarkDef = {
       }
     };
     // front erker: left of centre, hanging well below the čardak, with its own roof
-    erker(Lt + 0.6, -Wt * 0.3, 0.6, 1.1, zt - 1.7, zt + 1.0, [1, 0], true);
+    erker(Lt + 0.65, -Wt * 0.3, 0.65, 1.4, zt - 2.0, zt + 1.0, [1, 0], true);
     // side erkers near the front corners, at the čardak level, hanging a little lower
-    erker(Lt * 0.45, -Wt - 0.55, 1.05, 0.55, zt - 0.6, zr - 0.15, [0, -1], false);
-    erker(Lt * 0.45, Wt + 0.55, 1.05, 0.55, zt - 0.6, zr - 0.15, [0, 1], false);
+    erker(Lt * 0.45, -Wt - 0.6, 1.25, 0.6, zt - 1.5, zr - 0.15, [0, -1], false);
+    erker(Lt * 0.45, Wt + 0.6, 1.25, 0.6, zt - 1.5, zr - 0.15, [0, 1], false);
     // steep hipped roof with deep eaves, finial rod
     const tan = 3.4 / (Math.min(Lt, Wt) + ov);
     const ridge = B.hipRoof(Lt + ov, Wt + ov, zr, tan, roof, K.shingle);
