@@ -40,7 +40,9 @@ const FLAG_TEXT: Record<string, string> = {
   overlap: "overlaps another footprint", odd_shape: "irregular or very elongated outline", large_ml: "large ML footprint (may merge several buildings)",
   isolated_ml: "ML footprint with no built-up land cover within 25 m", skewed_to_street: "rotated against the nearest street",
   on_street: "overlaps a mapped street", duplicate: "duplicate footprint", duplicate_ml_of_osm: "ML copy of an OSM building",
+  s2_vegetation: "Sentinel-2 2025 shows vegetation here (2% of OSM houses look like this too)", road_through: "an OSM road centreline runs through it",
 };
+const IMG_TEXT: Record<string, string> = { supported: "built surface visible", not_resolved: "too small or mixed to tell at 10 m", disagrees: "looks like vegetation" };
 const STATUS_TEXT: Record<string, string> = { osm_mapped: "OpenStreetMap (human-mapped)", ml_unverified: "Microsoft ML detection: unverified", landmark_verified: "landmark: position verified" };
 
 /** Developer audit panel: legend and counts from public/data/<area>/audit.json (pipeline/audit_buildings.py). */
@@ -57,6 +59,7 @@ function AuditPanel({ info, osmOnly, shown, picked, onNext }: { info: AuditInfo 
         Duplicates shown: {s.duplicates_shown} · invented: {s.procedural_invented}<br />
         Height from source: {s.height_from_source} · position check max {s.position_check_m?.max} m<br />
         Coverage of WorldCover built-up 50 m cells: {s.coverage?.pct}% ({s.coverage?.osm_only_pct}% with OSM alone), {s.coverage?.gap_cells} gap cells<br />
+        {s.s2 && <>Sentinel-2 2025 (10 m): {s.s2.shown.supported} built surface visible, {s.s2.shown.not_resolved} not resolvable, {s.s2.shown.disagrees} look like vegetation · {s.s2.isolated_resolved} WorldCover flags cleared<br /></>}
         <b>To review: {s.review_shown}</b> ({Object.entries(s.flags_shown ?? {}).map(([k, v]) => `${v} ${k}`).join(", ")})<br />
         <button onClick={onNext} style={{ marginTop: 4, pointerEvents: "auto" }}>Next building to review →</button>
       </> : "loading audit.json…"}
@@ -64,6 +67,7 @@ function AuditPanel({ info, osmOnly, shown, picked, onNext }: { info: AuditInfo 
         <div style={{ marginTop: 6, padding: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
           <b>{picked.name ?? "Building"}</b> · {STATUS_TEXT[e?.status ?? ""] ?? picked.src}<br />
           {e?.area ?? "?"} m² · {picked.floors} floor(s), height {picked.hSrc === "estimated" ? "estimated" : "from source"} · roof estimated<br />
+          {e?.img && <div>Sentinel-2 2025: {IMG_TEXT[e.img] ?? e.img}</div>}
           {e?.flags.length ? e.flags.map((f) => <div key={f}>⚠ {FLAG_TEXT[f] ?? f}</div>) : <div>no automatic flags</div>}
           {e?.osm && <a href={`https://www.openstreetmap.org/way/${e.osm.replace(/^w/, "").replace(/@.*/, "")}`} target="_blank" rel="noreferrer" style={{ color: "#9cd3ff", pointerEvents: "auto" }}>open in OpenStreetMap</a>}
           <div style={{ opacity: 0.6, fontSize: 11 }}>id {picked.id}</div>
@@ -130,7 +134,7 @@ export default function Viewer() {
       .then((d) => setData(osmOnly ? { ...d, buildings: d.buildings.filter((b) => b.src === "osm") } : d))
       .catch((e) => setError(String(e)));
     if (audit) fetch(`./data/${areaId}/audit.json`).then((r) => r.json()).then((a) => setAuditInfo({ summary: a.summary, gaps: a.gaps ?? [],
-      map: new Map((a.buildings as { id: string; shown: boolean; flags: string[]; status: string; osmRecord: string | null; area: number }[]).filter((b) => b.shown).map((b) => [b.id, { flags: b.flags, status: b.status, osm: b.osmRecord, area: b.area }])) })).catch(() => {});
+      map: new Map((a.buildings as { id: string; shown: boolean; flags: string[]; status: string; osmRecord: string | null; area: number; img?: string }[]).filter((b) => b.shown).map((b) => [b.id, { flags: b.flags, status: b.status, osm: b.osmRecord, area: b.area, img: b.img }])) })).catch(() => {});
   }, [areaId, osmOnly, audit]);
 
   // fly to the next building flagged for manual review (audit mode)

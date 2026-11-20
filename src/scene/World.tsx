@@ -75,8 +75,8 @@ export function Terrain({ data, style, quality }: { data: AreaData; style: Style
  */
 /** Audit view colours: green OSM, blue Microsoft ML, light blue ML outbuilding, orange OSM overlapping a street, purple = height from source. */
 export const AUDIT_COLORS = { review: "#f2c84b", osm: "#3fae64", ms: "#4f86d9", outbuilding: "#7cc7d6", osmOnStreet: "#f29d38", heightSrc: "#9b6ad6", removed: "#e0453a", gap: "#d6338f" };
-export type AuditEntry = { flags: string[]; status: string; osm: string | null; area: number };
-export const REVIEW_FLAGS = new Set(["overlap", "odd_shape", "large_ml", "isolated_ml", "skewed_to_street", "on_street", "duplicate", "duplicate_ml_of_osm"]);
+export type AuditEntry = { flags: string[]; status: string; osm: string | null; area: number; img?: string };
+export const REVIEW_FLAGS = new Set(["overlap", "odd_shape", "large_ml", "isolated_ml", "skewed_to_street", "on_street", "duplicate", "duplicate_ml_of_osm", "s2_vegetation", "road_through"]);
 export const needsReview = (e?: AuditEntry) => !!e && e.flags.some((f) => REVIEW_FLAGS.has(f));
 const auditTint = (b: Building, e?: AuditEntry) =>
   needsReview(e) ? AUDIT_COLORS.review
