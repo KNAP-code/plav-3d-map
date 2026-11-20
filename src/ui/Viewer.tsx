@@ -24,6 +24,7 @@ function params() {
   for (const h of window.location.hash.replace(/^#/, "").split(/[,&+]/).filter(Boolean)) {
     if (h === "stats" || h === "tune" || h === "audit" || h === "osm") p.set(h, "1");
     else if (h === "sample") p.set("area", "plav-sample");
+    else if (h === "centre") p.set("area", "plav-centre");
     else if (h === "en") p.set("lang", "en");
     else if (h === "low" || h === "medium" || h === "high") p.set("q", h);
     else if (h === "bench") p.set("bench", "300");
@@ -89,7 +90,7 @@ export default function Viewer() {
   const statsEl = useRef<HTMLDivElement>(null);
   const [bench, setBench] = useState<BenchResult | null>(null);
   const benchFrames = Number(q.get("bench") ?? 0);
-  const areaId = q.get("area") || "plav-centre";
+  const areaId = q.get("area") || "plav-town";
   const [style, setStyle] = useState<StyleConfig>(PRESETS[q.get("style") || "warm"] ?? PRESETS.warm);
   const [data, setData] = useState<AreaData | null>(null);
   const [progress, setProgress] = useState(0);

@@ -1,0 +1,201 @@
+{
+ "area": "plav-town",
+ "title": "Plav — town",
+ "bbox": [
+  19.918,
+  42.58,
+  19.967,
+  42.616
+ ],
+ "generated": "2026-11-20T16:54:29+00:00",
+ "crs": "EPSG:32634",
+ "origin": [
+  413245.0,
+  4716717.0
+ ],
+ "core": {
+  "x0": -2007.6514683931202,
+  "y0": -1997.1000000000756,
+  "nx": 503,
+  "ny": 501,
+  "step": 8,
+  "base": 900,
+  "scale": 100,
+  "file": "terrain_core.bin",
+  "cover": "cover_core.png"
+ },
+ "context": {
+  "x0": -9000,
+  "y0": -9000,
+  "nx": 301,
+  "ny": 301,
+  "step": 60,
+  "base": 805,
+  "scale": 10,
+  "file": "terrain_context.bin",
+  "cover": "cover_context.png",
+  "coreSink": 4.0
+ },
+ "extent": {
+  "halfW": 2007.7,
+  "halfH": 1997.1
+ },
+ "treesFile": "trees.bin",
+ "stats": {
+  "total": 3634,
+  "OpenStreetMap": 764,
+  "Microsoft ML Buildings": 2870,
+  "other": 0,
+  "height_from_osm": 8,
+  "height_estimated": 3626,
+  "roof_estimated": 3634,
+  "removed_tiny_ml": 81,
+  "removed_ml_on_street": 27,
+  "outbuildings_ml": 404,
+  "osm_on_street_kept": 7,
+  "trees": 110856,
+  "roads": 848,
+  "water": 45,
+  "minarets": 2
+ },
+ "landmarks": [
+  {
+   "name": "Bogajiće Džamija",
+   "x": 840.3,
+   "y": -1637.6,
+   "cls": "mosque"
+  },
+  {
+   "name": "Border Police Station",
+   "x": 449.1,
+   "y": 490.0,
+   "cls": null
+  },
+  {
+   "name": "Skepovic",
+   "x": 335.0,
+   "y": 331.1,
+   "cls": null
+  },
+  {
+   "name": "Pijaca Plav",
+   "x": 368.6,
+   "y": -89.2,
+   "cls": null
+  },
+  {
+   "name": "Redžepagića džamija",
+   "x": 304.2,
+   "y": -206.1,
+   "cls": "mosque"
+  },
+  {
+   "name": "Opština Plav",
+   "x": 149.4,
+   "y": -95.8,
+   "cls": "public"
+  },
+  {
+   "name": "Sultanija",
+   "x": 131.7,
+   "y": -66.0,
+   "cls": "mosque"
+  },
+  {
+   "name": "Osnovni sud",
+   "x": 124.5,
+   "y": -106.1,
+   "cls": null
+  },
+  {
+   "name": "Pošta Plav",
+   "x": 151.7,
+   "y": -141.0,
+   "cls": "post_office"
+  },
+  {
+   "name": "Stara džamija",
+   "x": 148.0,
+   "y": -169.8,
+   "cls": "mosque"
+  },
+  {
+   "name": "Sabovica",
+   "x": 121.9,
+   "y": -343.6,
+   "cls": "mosque"
+  },
+  {
+   "name": "Dom kulture Plav",
+   "x": 19.4,
+   "y": -47.5,
+   "cls": null
+  },
+  {
+   "name": "Abas",
+   "x": -846.1,
+   "y": 823.4,
+   "cls": null
+  },
+  {
+   "name": "Hotel Restoran Kamp “LakeViews” Plav",
+   "x": -979.4,
+   "y": 861.7,
+   "cls": null
+  },
+  {
+   "name": "Rooms Lida",
+   "x": -974.6,
+   "y": 904.4,
+   "cls": null
+  },
+  {
+   "name": "Hajro Sahmanovic",
+   "x": -275.0,
+   "y": -26.7,
+   "cls": "school"
+  },
+  {
+   "name": "Plavsko Jezero",
+   "x": -548.3,
+   "y": 153.9,
+   "cls": "hotel"
+  },
+  {
+   "name": "EKO",
+   "x": -471.6,
+   "y": 170.4,
+   "cls": null
+  },
+  {
+   "name": "Hostel Bear Hug",
+   "x": -463.7,
+   "y": 40.8,
+   "cls": null
+  },
+  {
+   "name": "Hala Sportova",
+   "x": -282.4,
+   "y": -65.8,
+   "cls": "school"
+  }
+ ],
+ "estimates": {
+  "rules": "estimate-rules-v2",
+  "building_height": "OSM height/levels when present, otherwise floors from footprint area (see DATA_SOURCES.md)",
+  "roof": "all roof shapes are estimated (no roof data in OSM for this area)",
+  "trees": "positions from ESA WorldCover 10 m tree-cover pixels, jittered inside each pixel; species and size are stylised",
+  "road_width": "by road class (OSM has no widths here)",
+  "minaret_height": "24 m stylised"
+ },
+ "sources": {
+  "overture_release": "2026-11-18.0",
+  "attribution": [
+   "© OpenStreetMap contributors (ODbL)",
+   "Microsoft Global ML Building Footprints via Overture Maps (ODbL)",
+   "Overture Maps Foundation",
+   "ESA WorldCover 10 m 2021 v200 (CC BY 4.0)",
+   "Copernicus DEM GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA"
+  ]
+ }
+}

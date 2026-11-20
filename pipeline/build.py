@@ -340,9 +340,12 @@ def build(area_id: str):
         if r["subtype"] not in ("road",):
             continue
         full = to_local(shapely.from_wkb(r["geometry"]), origin)
-        flags = set()
+        # road flags apply to a range of the segment ("between"); a 1 km street with a 15 m bridge is not a bridge
+        flag_ranges = []  # (flag, a0, a1)
         for f in r["road_flags"] or []:
-            flags.update(f.get("values") or [])
+            bw = f.get("between") or [0.0, 1.0]
+            for v in f.get("values") or []:
+                flag_ranges.append((v, float(bw[0]), float(bw[1])))
         surf = None
         for f in r["road_surface"] or []:
             if f.get("between") is None:
@@ -353,6 +356,15 @@ def build(area_id: str):
             if f.get("between") is None and ms.get("value"):
                 spd = ms["value"] * (1.609 if ms.get("unit") == "mph" else 1)
         cons = sorted([(c["at"], c["connector_id"]) for c in (r["connectors"] or [])])
+        # also cut where a bridge / tunnel range starts or ends (synthetic graph node, so routes stay connected)
+        have = {round(a, 6) for a, _ in cons}
+        for v, a0_, a1_ in flag_ranges:
+            if v not in ("is_bridge", "is_tunnel"):
+                continue
+            for a in (a0_, a1_):
+                if 1e-6 < a < 1 - 1e-6 and round(a, 6) not in have:
+                    cons.append((a, f"{r['id']}@{a:.6f}")); have.add(round(a, 6))
+        cons.sort()
         if not cons or cons[0][0] > 1e-6:
             cons = [(0.0, None)] + cons
         if cons[-1][0] < 1 - 1e-6:
@@ -361,6 +373,8 @@ def build(area_id: str):
             if a1 - a0 < 1e-6:
                 continue
             piece = shapely.ops.substring(full, a0, a1, normalized=True) if (a0 > 0 or a1 < 1) else full
+            mid = (a0 + a1) / 2
+            flags = {v for v, b0, b1 in flag_ranges if b0 - 1e-6 <= mid <= b1 + 1e-6}
             clipped = piece.intersection(core_rect)
             inside = piece.within(core_rect)
             for ls in lines_of(clipped):

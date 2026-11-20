@@ -1,16 +1,38 @@
 {
   "overture_release": "2026-11-18.0",
   "areas": {
+    "plav-town": {
+      "title": "Plav — town",
+      "bbox": [
+        19.918,
+        42.58,
+        19.967,
+        42.616
+      ],
+      "context_radius_m": 9000,
+      "core_grid_m": 8,
+      "context_grid_m": 60
+    },
     "plav-centre": {
       "title": "Plav — centre",
-      "bbox": [19.930, 42.590, 19.955, 42.606],
+      "bbox": [
+        19.93,
+        42.59,
+        19.955,
+        42.606
+      ],
       "context_radius_m": 7000,
       "core_grid_m": 6,
       "context_grid_m": 50
     },
     "plav-sample": {
       "title": "Plav — čaršija sample",
-      "bbox": [19.9418, 42.5945, 19.9468, 42.5985],
+      "bbox": [
+        19.9418,
+        42.5945,
+        19.9468,
+        42.5985
+      ],
       "context_radius_m": 3000,
       "core_grid_m": 4,
       "context_grid_m": 40

@@ -47,7 +47,8 @@ function coverTexture(img: HTMLImageElement) {
 export function Terrain({ data, style, quality }: { data: AreaData; style: StyleConfig; quality: Quality }) {
   const T = TIERS[quality];
   const core = useMemo(() => { bump("geometryBuilds"); return terrainGeometry(data.core, data.datum, 25, T.terrainStride); }, [data, T.terrainStride]);
-  const tiles = useMemo(() => splitTiles(core, 4), [core]);
+  // ~600 m terrain tiles so the renderer can cull most of a town-sized core
+  const tiles = useMemo(() => splitTiles(core, Math.max(4, Math.round((2 * data.meta.extent.halfW) / 600))), [core, data]);
   const ctx = useMemo(() => terrainGeometry(data.context, data.datum, 0, T.contextStride), [data, T.contextStride]);
   const covCore = useMemo(() => coverTexture(data.coverCore), [data]);
   const covCtx = useMemo(() => coverTexture(data.coverContext), [data]);
@@ -88,7 +89,7 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
   const near = TIERS[quality].buildingNear;
   const skip = useMemo(() => landmarkReplacements(data, { provisional }).ids, [data, provisional]);
   const geos = useMemo(() => {
-    const { halfW, halfH } = data.meta.extent, n = 4;
+    const { halfW, halfH } = data.meta.extent, n = Math.max(4, Math.round((2 * halfW) / 550)); // ~550 m building tiles
     const buckets: Building[][] = Array.from({ length: n * n }, () => []);
     for (const b of data.buildings) {
       if (skip.has(b.id)) continue;

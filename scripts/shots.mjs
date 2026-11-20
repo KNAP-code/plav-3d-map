@@ -4,7 +4,18 @@ import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
 const [base, outDir, prefix] = process.argv.slice(2);
 // VIEWS=landmarks selects the authentic-architecture set (camera at each modelled building's entrance side)
-const views = process.env.VIEWS === "landmarks" ? [
+// VIEWS=town: the whole-town set used from the city-wide batches on (same cameras before and after)
+const town = [
+  "town|q=high&off=tilt&cam=-150,0,3600,15,48",
+  "north|q=high&off=tilt&cam=-1150,1300,700,200,52",
+  "northeast|q=high&off=tilt&cam=250,950,520,205,55",
+  "south|q=high&off=tilt&cam=250,-1450,620,25,52",
+  "street|q=high&off=tilt&cam=283,-240,90,320,52",
+  "houses|q=high&off=tilt&cam=120,-330,120,215,58",
+  "suburb|q=high&off=tilt&cam=-700,760,170,160,58",
+  "night|q=high&off=tilt&night=1&cam=150,-150,1100,40,50",
+];
+const views = process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",
