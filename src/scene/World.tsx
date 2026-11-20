@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { AreaData, Building } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { buildBuildingTile } from "@/geo/buildings";
 import { overlaysGeometry, roadsGeometry, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
 import { minaretGeometry, treeGeometries, treeSets, type TreeSet } from "@/geo/props";
-import { buildingMaterial, roadMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
+import { buildingMaterial, landmarkMaterial, roadMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
+import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
 import { bump } from "@/ui/perf";
 
 export type Quality = "high" | "medium" | "low";
@@ -64,12 +66,14 @@ export function Terrain({ data, style, quality }: { data: AreaData; style: Style
  * Footprints are unchanged; every building stays in the scene. Per-building vertex spans are
  * kept in geometry.userData.ranges for selection.
  */
-export function Buildings({ data, style, quality }: { data: AreaData; style: StyleConfig; quality: Quality }) {
+export function Buildings({ data, style, quality, provisional = true }: { data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean }) {
   const near = TIERS[quality].buildingNear;
+  const skip = useMemo(() => landmarkReplacements(data, { provisional }).ids, [data, provisional]);
   const geos = useMemo(() => {
     const { halfW, halfH } = data.meta.extent, n = 4;
     const buckets: Building[][] = Array.from({ length: n * n }, () => []);
     for (const b of data.buildings) {
+      if (skip.has(b.id)) continue;
       let cx = 0, cy = 0;
       for (const [x, y] of b.fp) { cx += x; cy += y; }
       cx /= b.fp.length; cy /= b.fp.length;
@@ -79,7 +83,7 @@ export function Buildings({ data, style, quality }: { data: AreaData; style: Sty
     }
     bump("geometryBuilds");
     return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style));
-  }, [data, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data, skip, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const mNear = useMemo(() => buildingMaterial(style, true), [style]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
   useDispose(geos);
@@ -211,8 +215,22 @@ export function Trees({ data, style, quality }: { data: AreaData; style: StyleCo
   );
 }
 
-export function Minarets({ data, style }: { data: AreaData; style: StyleConfig }) {
-  const geos = useMemo(() => data.minarets.map((m) => ({ m, g: minaretGeometry(m.height) })), [data]);
+/** Hand-built landmark models on their real footprints (one draw call). */
+export function Landmarks({ data, provisional = true }: { data: AreaData; provisional?: boolean }) {
+  const geo = useMemo(() => {
+    const { parts } = landmarkGeometry(data, { provisional });
+    return parts.length ? mergeGeometries(parts) : null;
+  }, [data, provisional]);
+  const mat = useMemo(() => landmarkMaterial(), []);
+  useEffect(() => () => { geo?.dispose(); mat.dispose(); }, [geo, mat]);
+  return geo ? <mesh geometry={geo} material={mat} castShadow receiveShadow /> : null;
+}
+
+export function Minarets({ data, style, provisional = true }: { data: AreaData; style: StyleConfig; provisional?: boolean }) {
+  const geos = useMemo(() => {
+    const drop = landmarkReplacements(data, { provisional }).minarets;
+    return data.minarets.filter((_, i) => !drop.has(i)).map((m) => ({ m, g: minaretGeometry(m.height) }));
+  }, [data, provisional]);
   const body = useMemo(() => new THREE.MeshStandardMaterial({ color: style.minaret.color, roughness: 0.8 }), [style.minaret.color]);
   const cap = useMemo(() => new THREE.MeshStandardMaterial({ color: style.minaret.cap, roughness: 0.5, metalness: 0.2 }), [style.minaret.cap]);
   useDispose(useMemo(() => [body, cap, ...geos.flatMap(({ g }) => [g.body, g.cap])], [body, cap, geos]));

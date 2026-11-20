@@ -47,23 +47,29 @@ export function noiseTexture() {
   return noiseTex;
 }
 
+/** Scene-wide uniforms shared by every patched material (day/night blend; 0 = day, 1 = night). */
+export const SCENE = { uNight: { value: 0 } };
+
 type Patch = {
   uniforms?: Record<string, THREE.IUniform>;
   vertexHead?: string;
   vertexMain?: string;
   fragHead?: string;
   fragColor?: string;
+  /** runs after the emissive chunk: add to totalEmissiveRadiance (night lights) */
+  fragEmissive?: string;
 };
 
 function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
   m.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, { uNoise: { value: noiseTexture() } }, p.uniforms ?? {});
+    Object.assign(shader.uniforms, { uNoise: { value: noiseTexture() }, uNight: SCENE.uNight }, p.uniforms ?? {});
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${p.vertexHead ?? ""}`)
       .replace("#include <begin_vertex>", `#include <begin_vertex>\n${p.vertexMain ?? ""}`);
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${NOISE}\n${p.fragHead ?? ""}`)
-      .replace("#include <color_fragment>", `#include <color_fragment>\n${p.fragColor ?? ""}`);
+      .replace("#include <common>", `#include <common>\n${NOISE}\nuniform float uNight;\n${p.fragHead ?? ""}`)
+      .replace("#include <color_fragment>", `#include <color_fragment>\n${p.fragColor ?? ""}`)
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${p.fragEmissive ?? ""}`);
   };
   m.customProgramCacheKey = () => key;
   return m;
@@ -220,6 +226,8 @@ export function waterMaterial(style: StyleConfig) {
 /**
  * Walls and roofs in one material (aPart: 0 wall, 1 roof) so a building tile is one draw call.
  * detail=false is the distance LOD: same colours, no window/tile pattern (cheaper fragment shader).
+ * aStyle: floor() % 4 = window layout (grid, tall, paired, band), +4 = shop ground floor, fract = building seed.
+ * At night (uNight) a deterministic share of windows glows warm (some cool), as emissive light.
  */
 export function buildingMaterial(style: StyleConfig, detail: boolean) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, side: THREE.DoubleSide });
@@ -228,22 +236,39 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
       uGlass: { value: c3(style.window.glass) },
       uSpacing: { value: style.roof.tileSpacing }, uContrast: { value: style.roof.tileContrast },
     },
-    vertexHead: "attribute vec2 aUv; attribute float aFloors; attribute float aPart; varying vec2 vW; varying float vFl; varying float vPart;",
-    vertexMain: "vW = aUv; vFl = aFloors; vPart = aPart;",
-    fragHead: "uniform vec3 uGlass; uniform float uSpacing; uniform float uContrast; varying vec2 vW; varying float vFl; varying float vPart;",
+    vertexHead: "attribute vec2 aUv; attribute float aFloors; attribute float aPart; attribute float aStyle; varying vec2 vW; varying float vFl; varying float vPart; varying float vSt;",
+    vertexMain: "vW = aUv; vFl = aFloors; vPart = aPart; vSt = aStyle;",
+    fragHead: "uniform vec3 uGlass; uniform float uSpacing; uniform float uContrast; varying vec2 vW; varying float vFl; varying float vPart; varying float vSt; float gWin;",
     fragColor: detail ? /* glsl */ `
+      gWin = 0.0;
+      float nFl = floor(vFl + 0.5);
       if (vPart < 0.5) {
         float fl = floor(vW.y);
         vec2 c = fract(vW);
         vec2 fw = max(fwidth(vW), vec2(1e-4));
-        bool ground = fl > vFl - 1.5;
-        float wx = ground ? 0.31 : 0.33; float wy0 = ground ? 0.16 : 0.30; float wy1 = 0.76;
-        float inX = smoothstep(wx - fw.x, wx + fw.x, c.x) * (1.0 - smoothstep(1.0 - wx - fw.x, 1.0 - wx + fw.x, c.x));
+        float kind = mod(floor(vSt), 4.0);
+        bool shop = floor(vSt) >= 4.0;
+        bool ground = fl > nFl - 1.5;
+        // window rectangle per layout: x half-margin, y range (y runs downward from the eave)
+        float wx = 0.33, wy0 = 0.30, wy1 = 0.76;
+        float cx = c.x;
+        if (kind > 2.5) { wx = 0.10; wy0 = 0.36; wy1 = 0.72; }                    // band: wide windows (blocks)
+        else if (kind > 1.5) { cx = fract(c.x * 2.0); wx = 0.24; wy0 = 0.28; }       // paired windows
+        else if (kind > 0.5) { wx = 0.36; wy0 = 0.20; wy1 = 0.80; }                 // tall windows
+        if (ground) { wy0 = 0.16; if (shop) { wx = 0.08; wy0 = 0.10; wy1 = 0.84; cx = c.x; } }
+        float fx = kind > 1.5 && kind < 2.5 && !(ground && shop) ? fw.x * 2.0 : fw.x;
+        float inX = smoothstep(wx - fx, wx + fx, cx) * (1.0 - smoothstep(1.0 - wx - fx, 1.0 - wx + fx, cx));
         float inY = smoothstep(wy0 - fw.y, wy0 + fw.y, c.y) * (1.0 - smoothstep(wy1 - fw.y, wy1 + fw.y, c.y));
-        inX *= 1.0 - smoothstep(0.12, 0.3, fw.x);
-        float valid = step(0.0, vW.y) * step(fl, vFl - 1.0);
-        diffuseColor.rgb = mix(diffuseColor.rgb, uGlass, inX * inY * valid * 0.92);
-        diffuseColor.rgb *= mix(1.0, 0.82, step(vFl, vW.y));
+        inX *= 1.0 - smoothstep(0.12, 0.3, fx);
+        float valid = step(0.0, vW.y) * step(fl, nFl - 1.0);
+        float win = inX * inY * valid;
+        diffuseColor.rgb = mix(diffuseColor.rgb, uGlass, win * 0.92);
+        // plinth: darker base course below the ground-floor windows
+        diffuseColor.rgb *= mix(1.0, 0.82, step(nFl, vW.y));
+        diffuseColor.rgb *= mix(1.0, 0.9, step(0.0, vW.y) * step(nFl - 0.12, vW.y) * (1.0 - step(nFl, vW.y)));
+        // night: about 45% of windows lit, chosen per window from the building seed
+        float r = h21(vec2(floor(vW.x * (kind > 1.5 && kind < 2.5 ? 2.0 : 1.0)) + fract(vSt) * 97.0, fl + fract(vSt) * 53.0));
+        gWin = win * step(r, 0.45 + (shop && ground ? 0.4 : 0.0)) * (0.75 + 0.5 * fract(r * 13.0));
       } else {
         float row = fract(vW.y / uSpacing);
         float line = smoothstep(0.0, 0.18, row) * (1.0 - smoothstep(0.82, 1.0, row) * 0.4);
@@ -251,10 +276,18 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         diffuseColor.rgb *= mix(1.0 - uContrast, 1.0, line) * mix(0.95, 1.05, n);
       }
     ` : /* glsl */ `
+      float nFl = floor(vFl + 0.5);
       // far LOD: average tone of the window grid / tile rows instead of the pattern
-      diffuseColor.rgb *= vPart < 0.5 ? mix(0.82, 0.9, step(vW.y, vFl) * step(0.0, vW.y)) : (1.0 - uContrast * 0.35);
+      diffuseColor.rgb *= vPart < 0.5 ? mix(0.82, 0.9, step(vW.y, nFl) * step(0.0, vW.y)) : (1.0 - uContrast * 0.35);
+      gWin = vPart < 0.5 ? step(0.0, vW.y) * step(vW.y, nFl - 1.0) * 0.16 * step(0.4, h21(floor(vW) + fract(vSt) * 97.0)) : 0.0;
     `,
-  }, detail ? "building-near-v2" : "building-far-v2");
+    fragEmissive: /* glsl */ `
+      if (uNight > 0.001) {
+        vec3 warm = mix(vec3(1.0, 0.72, 0.38), vec3(0.75, 0.85, 1.0), step(0.85, fract(gWin * 7.31)));
+        totalEmissiveRadiance += warm * gWin * uNight * 1.6;
+      }
+    `,
+  }, detail ? "building-near-v3" : "building-far-v3");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */
@@ -275,4 +308,45 @@ export function treeMaterial() {
   };
   m.customProgramCacheKey = () => "tree-v2";
   return m;
+}
+
+/**
+ * Landmark models: vertex colours plus small procedural patterns by aKind
+ * (1 shingle rows, 2 vertical planks, 3 chevron shingles, 4 glass lit at night, 5 rough stone).
+ */
+export function landmarkMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+  return patch(m, {
+    vertexHead: "attribute vec2 aUv; attribute float aKind; varying vec2 vLu; varying float vLk;",
+    vertexMain: "vLu = aUv; vLk = aKind;",
+    fragHead: "varying vec2 vLu; varying float vLk; float gLm;",
+    fragColor: /* glsl */ `
+      gLm = 0.0;
+      {
+        float k = floor(vLk + 0.5);
+        vec2 fw = max(fwidth(vLu), vec2(1e-4));
+        if (k == 1.0) {            // shingle rows (0.35 m) with staggered joints
+          float row = fract(vLu.y / 0.35);
+          float jx = fract(vLu.x / 0.3 + 0.5 * floor(vLu.y / 0.35));
+          float line = smoothstep(0.0, 0.2, row) * mix(0.9, 1.0, smoothstep(0.0, 0.12, jx));
+          float n = h21(floor(vec2(vLu.x / 0.3, vLu.y / 0.35)));
+          diffuseColor.rgb *= mix(0.78, 1.0, line) * mix(0.9, 1.08, n);
+        } else if (k == 2.0) {     // vertical planks (0.22 m)
+          float p = fract(vLu.x / 0.22);
+          diffuseColor.rgb *= mix(0.8, 1.0, smoothstep(0.0, 0.12 + fw.x * 4.0, p)) * mix(0.92, 1.06, h21(vec2(floor(vLu.x / 0.22), 3.0)));
+        } else if (k == 3.0) {     // chevron (herringbone) shingles on the minaret
+          float c = fract((vLu.y + abs(fract(vLu.x / 0.8) - 0.5) * 0.9) / 0.32);
+          diffuseColor.rgb *= mix(0.72, 1.05, smoothstep(0.0, 0.35, c));
+        } else if (k == 5.0) {     // rubble stone
+          float n = fbm(vLu * 1.7) * 0.6 + h21(floor(vLu * vec2(2.4, 3.2))) * 0.4;
+          diffuseColor.rgb *= mix(0.82, 1.1, n);
+        } else if (k == 4.0) {
+          gLm = 1.0;
+        }
+      }
+    `,
+    fragEmissive: /* glsl */ `
+      if (uNight > 0.001) totalEmissiveRadiance += vec3(1.0, 0.74, 0.42) * gLm * uNight * 1.4;
+    `,
+  }, "landmark-v1");
 }

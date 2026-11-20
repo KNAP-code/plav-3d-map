@@ -53,17 +53,49 @@ export type BuildingMeshes = {
   ranges: Int32Array;
 };
 
+/** Deterministic hash of a building id + salt to [0, 1): same variation on every load. */
+export function hash01(id: string, salt: string) {
+  let h = 2166136261;
+  const s = id + salt;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Facade window layouts (shader reads floor(aStyle) % 4; +4 = shop ground floor; fraction = per-building seed). */
+export const FACADE = { grid: 0, tall: 1, paired: 2, band: 3 } as const;
+
+/**
+ * Deterministic architectural variation (all estimates, flagged in DATA_SOURCES.md):
+ * roof pitch and overhang by building type, window layout, bay width, colour jitter, chimneys.
+ */
+export function variation(b: Building, style: StyleConfig) {
+  const area = b.obb[3] * b.obb[4];
+  const block = b.floors >= 4 || (b.floors >= 3 && area > 260);
+  const small = area < 60 || b.floors <= 1;
+  const h = (k: string) => hash01(b.id, k);
+  const base = style.roof.pitchDeg;
+  // houses: steeper (traditional), blocks: shallow; gables a little steeper than hips
+  let pitch = block ? base - 10 + h("p") * 5 : small ? base + 2 + h("p") * 8 : base - 3 + h("p") * 9;
+  if (b.roof === "gable") pitch += 3;
+  const overhang = style.roof.overhang * (block ? 0.8 : 0.75 + h("o") * 0.6);
+  const r = h("f");
+  const facade = block ? (r < 0.6 ? FACADE.band : FACADE.grid) : small ? (r < 0.7 ? FACADE.grid : FACADE.tall) : r < 0.45 ? FACADE.grid : r < 0.75 ? FACADE.tall : FACADE.paired;
+  const shop = !small && b.floors >= 2 && (b.cls === "commercial" || b.cls === "retail" || h("s") < 0.12);
+  const bay = style.window.bayWidth * (0.85 + h("b") * 0.35);
+  const chimney = !block && b.roof !== "flat" && area > 35 && h("c") < 0.8;
+  return { pitch, overhang, facade, shop, bay, chimney, seed: h("seed"), light: (h("l") - 0.5) * 0.07, roofLight: (h("rl") - 0.5) * 0.08 };
+}
+
 export function buildBuildings(list: Building[], datum: number, style: StyleConfig): BuildingMeshes {
-  const W = { pos: [] as number[], col: [] as number[], uv: [] as number[], fl: [] as number[] };
+  const W = { pos: [] as number[], col: [] as number[], uv: [] as number[], fl: [] as number[], st: [] as number[] };
   const R = { pos: [] as number[], col: [] as number[], uv: [] as number[] };
-  const tan = Math.tan((style.roof.pitchDeg * Math.PI) / 180);
-  const cosP = Math.cos((style.roof.pitchDeg * Math.PI) / 180);
-  const ov = style.roof.overhang;
   const wallCols = style.walls.map((c) => new THREE.Color(c));
   const roofCols = style.roofs.map((c) => new THREE.Color(c));
   const white = new THREE.Color("#f2eee6");
   const flatCol = new THREE.Color("#b0aaa1");
-  const bay = style.window.bayWidth, fh = style.window.floorHeight;
+  const fh = style.window.floorHeight;
+  const chimCol = new THREE.Color("#a39c94");
   const ranges = new Int32Array(list.length * 5);
 
   for (let bi = 0; bi < list.length; bi++) {
@@ -85,8 +117,12 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
     const eave = eaveAbs - datum;
     const isFlat = b.roof === "flat";
     const sacred = b.cls === "mosque" || b.cls === "church";
-    const wc = sacred ? white : wallCols[b.v % wallCols.length];
-    const rc = isFlat ? flatCol : roofCols[(b.v * 7 + 3) % roofCols.length];
+    const vr = variation(b, style);
+    const wc = (sacred ? white : wallCols[b.v % wallCols.length]).clone().offsetHSL(0, 0, vr.light);
+    const rc = (isFlat ? flatCol : roofCols[(b.v * 7 + 3) % roofCols.length]).clone().offsetHSL(0, 0, vr.roofLight);
+    const tan = Math.tan((vr.pitch * Math.PI) / 180), cosP = Math.cos((vr.pitch * Math.PI) / 180);
+    const ov = vr.overhang, bay = vr.bay;
+    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + vr.seed * 0.999;
 
     const L = Lfull / 2 + ov, Wd = Wfull / 2 + ov;
     const { planes, faces } = isFlat ? { planes: [], faces: [] } : roofFaces(b.roof === "gable" ? "gable" : "hip", L, Wd);
@@ -104,6 +140,7 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
       W.col.push(wc.r, wc.g, wc.b);
       W.uv.push(u, (eave - z) / fh);
       W.fl.push(b.floors);
+      W.st.push(styleVal);
     };
     for (let i = 0; i < n; i++) {
       const pa = ring[i], pb = ring[(i + 1) % n];
@@ -143,6 +180,24 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
       }
     }
 
+    // chimney (estimate): small plastered box through the roof, off-centre along the ridge
+    if (vr.chimney && !isFlat) {
+      const cs = (hash01(b.id, "cx") - 0.5) * Math.max(Lfull - 3, 0) * 0.6, ct = (hash01(b.id, "ct") - 0.5) * Math.min(Wfull * 0.3, 2);
+      const top = roofZ(cs, ct) + 1.0, bot = roofZ(cs, ct) - 1.5, hw = 0.38;
+      const corners: P2[] = [[cs - hw, ct - hw], [cs + hw, ct - hw], [cs + hw, ct + hw], [cs - hw, ct + hw]].map((q) => toXY(q as P2));
+      const push = (x: number, y: number, z: number) => {
+        W.pos.push(x, z, -y); W.col.push(chimCol.r, chimCol.g, chimCol.b); W.uv.push(0, -1); W.fl.push(b.floors); W.st.push(styleVal);
+      };
+      for (let i = 0; i < 4; i++) {
+        const [ax, ay] = corners[i], [bx, by] = corners[(i + 1) % 4];
+        push(ax, ay, bot); push(bx, by, bot); push(bx, by, top);
+        push(ax, ay, bot); push(bx, by, top); push(ax, ay, top);
+      }
+      const [a, b2, c, d] = corners;
+      push(a[0], a[1], top); push(b2[0], b2[1], top); push(c[0], c[1], top);
+      push(a[0], a[1], top); push(c[0], c[1], top); push(d[0], d[1], top);
+    }
+
     ranges[bi * 5 + 2] = W.pos.length / 3;
     ranges[bi * 5 + 3] = R.pos.length / 3;
     // ---- roof
@@ -178,6 +233,7 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
   walls.setAttribute("color", new THREE.Float32BufferAttribute(W.col, 3));
   walls.setAttribute("aUv", new THREE.Float32BufferAttribute(W.uv, 2));
   walls.setAttribute("aFloors", new THREE.Float32BufferAttribute(W.fl, 1));
+  walls.setAttribute("aStyle", new THREE.Float32BufferAttribute(W.st, 1));
   walls.computeVertexNormals();
   const roofs = new THREE.BufferGeometry();
   roofs.setAttribute("position", new THREE.Float32BufferAttribute(R.pos, 3));
@@ -206,7 +262,7 @@ export function buildBuildingTile(list: Building[], datum: number, style: StyleC
     else out.fill(roofDefault, nw * size);
     g.setAttribute(name, new THREE.BufferAttribute(out, size));
   };
-  cat("position", 3, 0); cat("normal", 3, 0); cat("color", 3, 0); cat("aUv", 2, 0); cat("aFloors", 1, 0);
+  cat("position", 3, 0); cat("normal", 3, 0); cat("color", 3, 0); cat("aUv", 2, 0); cat("aFloors", 1, 0); cat("aStyle", 1, 0);
   const part = new Float32Array(nw + nr); part.fill(1, nw);
   g.setAttribute("aPart", new THREE.BufferAttribute(part, 1));
   walls.dispose(); roofs.dispose();

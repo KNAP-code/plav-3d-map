@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { Buildings, Minarets, Roads, Terrain, Trees, Water, type Quality } from "@/scene/World";
+import { Buildings, Landmarks, Minarets, Roads, Terrain, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { T, type Lang } from "./i18n";
@@ -25,6 +25,7 @@ function params() {
   else if (h === "en") p.set("lang", "en");
   else if (h === "low" || h === "medium" || h === "high") p.set("q", h);
   else if (h === "bench") p.set("bench", "300");
+  else if (h === "review") p.set("review", "1");
   return p;
 }
 
@@ -52,6 +53,8 @@ export default function Viewer() {
   const elevRef = useRef<HTMLSpanElement>(null);
   const hudRefs = useMemo(() => ({ north: northRef, elev: elevRef }), []);
   const showStats = q.has("stats");
+  // landmarks whose position still needs confirmation are only shown with #review / ?review=1
+  const review = q.has("review");
   const t0 = useRef(performance.now());
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
 
@@ -135,8 +138,9 @@ export default function Viewer() {
             {!off.has("terrain") && <Terrain data={data} style={style} quality={quality} />}
             {!off.has("water") && <Water data={data} style={style} />}
             {!off.has("roads") && <Roads data={data} style={style} />}
-            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} />}
-            {!off.has("buildings") && <Minarets data={data} style={style} />}
+            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} />}
+            {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
+            {!off.has("buildings") && !off.has("landmarks") && <Landmarks data={data} provisional={review} />}
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} />}
           </Suspense>
           <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} />
