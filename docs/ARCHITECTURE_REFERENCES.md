@@ -119,3 +119,11 @@ written fact.
 - Phase 3 (Plav-specific house families) has not started. The ordinary houses still use the earlier procedural system.
 - The remaining 15 buildings wait for the owner's approval of this batch.
 - The Opština Plav building and other public buildings: no written description or usable photo was found.
+
+## Municipality building and other central landmarks (research 2026-11-20)
+- Opština Plav: OSM building "Opština Plav" with building:levels = 3 (used). No written description, plan or usable photo
+  was found on plav.me, plavto.me or elsewhere; the plav.me footer gives the address as Čaršijska b.b. It stays a
+  procedural 3-storey building on its real footprint, with roof and facade marked estimated.
+- Centar za kulturu "Husein Bašić" (Dom kulture), Pošta, Osnovni sud: no descriptions found; procedural, estimated.
+- Hotel Plavsko jezero: reopened in August 2026 after more than 30 years (plavto.me news); no architectural data.
+- Lead not yet read: the 2026 monograph "Plav – grad na jezeru" (announced on plav.me) may describe these buildings.

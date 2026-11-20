@@ -7,7 +7,7 @@
   19.955,
   42.606
  ],
- "generated": "2026-11-20T07:28:28+00:00",
+ "generated": "2026-11-20T10:57:16+00:00",
  "crs": "EPSG:32634",
  "origin": [
   413245.0,
@@ -169,7 +169,7 @@
   }
  ],
  "estimates": {
-  "rules": "estimate-rules-v1",
+  "rules": "estimate-rules-v2",
   "building_height": "OSM height/levels when present, otherwise floors from footprint area (see DATA_SOURCES.md)",
   "roof": "all roof shapes are estimated (no roof data in OSM for this area)",
   "trees": "positions from ESA WorldCover 10 m tree-cover pixels, jittered inside each pixel; species and size are stylised",

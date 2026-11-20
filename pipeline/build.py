@@ -32,7 +32,7 @@ from shapely.ops import orient, unary_union
 HERE = Path(__file__).parent
 ROOT = HERE.parent
 CONFIG = json.loads((HERE / "areas.json").read_text())
-RULES_VERSION = "estimate-rules-v1"
+RULES_VERSION = "estimate-rules-v2"
 
 TO_UTM = Transformer.from_crs("EPSG:4326", "EPSG:32634", always_xy=True)
 TO_LL = Transformer.from_crs("EPSG:32634", "EPSG:4326", always_xy=True)
@@ -122,21 +122,13 @@ def estimate_building(bid, area, aspect, cls, osm_h, osm_floors):
         return max(1, round(osm_h / FLOOR_H)), float(osm_h), "osm:height"
     if osm_floors:
         return int(osm_floors), osm_floors * FLOOR_H + 0.6, "osm:levels"
-    r = rnd(bid + "floors")
-    if cls in ("garage", "garages", "shed", "hut", "carport", "roof"):
+    # rules v2 (2026-11-20): no randomness and no height from footprint size. Without OSM height/levels a building
+    # gets one documented default: 1 storey for sheds/garages and footprints under 35 m², otherwise 2 storeys
+    # (ground floor + one upper floor). Taller buildings appear only where OSM records height or levels.
+    if cls in ("garage", "garages", "shed", "hut", "carport", "roof") or area < 35:
         floors = 1
-    elif area < 35:
-        floors = 1
-    elif area < 80:
-        floors = 2 if r < 0.6 else 1
-    elif area < 220:
-        floors = 2 if r < 0.7 else 3
-    elif area < 500:
-        floors = 3 if r < 0.6 else 4
     else:
-        floors = 3 if r < 0.7 else 2
-    if cls in ("mosque", "church"):
-        floors = max(floors, 2)
+        floors = 2
     return floors, floors * FLOOR_H + 0.6, "estimated"
 
 
@@ -145,10 +137,10 @@ def estimate_roof(bid, area, aspect, rectangularity, cls):
         return "flat"
     if cls in ("mosque",):
         return "hip"
-    if rectangularity < 0.55:
-        return "flat"
-    if aspect >= 1.6:
-        return "gable" if rnd(bid + "roof") < 0.6 else "hip"
+    # rules v2: deterministic. Elongated footprints get a gable roof, all others a hipped roof (the roof solver
+    # follows irregular footprints). Real roof shapes are unknown (no OSM roof tags here).
+    if aspect >= 1.8:
+        return "gable"
     return "hip"
 
 

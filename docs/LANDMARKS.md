@@ -53,22 +53,31 @@ The Carska (Imperial) mosque is the Stara džamija (plavto.me), not Sultanija.
 
 It is in Vojno Selo (the owner confirmed this), outside the central prototype area. It is kept for the municipality-wide scope.
 
-## Procedural houses (all estimates, deterministic per building id)
+## Ordinary buildings (rules v2, 2026-11-20)
 
-Footprints and positions are the real OSM/Overture ones and are never changed. Everything below is an estimate,
-because OSM has no roof, facade or balcony data for Plav.
+Footprints and positions are the real OSM/Overture ones and are never changed. Nothing about an ordinary building's
+appearance is chosen at random any more; every attribute is either from data or one documented default.
 
-- Building type:
-  - traditional Plav house: about 30% of 1-2 storey houses of 45-220 m², with a rubble-stone ground floor, white upper floor, small square windows with shutters, steep hipped or half-hipped roof with deep eaves, and a darker roof
-  - house: everything else under 4 storeys
-  - apartment block: 4+ storeys, or 3 storeys over 260 m²
-- Roof type: hip, gable, half-hip (Krüppelwalm) or flat; about 30% of blocks are flat. Roofs on irregular footprints follow the footprint, which gives complex roofs on L-shaped buildings.
-- Pitch and overhang depend on the building type.
-- Facade: window layout (grid, tall, paired, wide band, shopfront), window size varies per building, light window surrounds, and shutters on traditional houses and about 30% of other houses.
-- Wall and roof colours come from separate palettes for traditional houses, houses and blocks.
-- Details: an entrance (door, lintel, step, and a canopy on modern houses) on the wall facing the nearest street. Balconies on about half of the 2-3 storey houses (wooden on traditional houses) and on most blocks; there are none on shops. Chimneys on most pitched roofs.
-- Also estimated: gutters with one downpipe on pitched-roof houses; an exterior wooden stair to the upper floor on about 45% of 2-storey traditional houses; subtle weathering (rising damp, streaks under sills); three deciduous tree crown shapes (round, tall oval, broad), assigned per tree.
-- Details are a separate mesh per tile. It is drawn only near the camera (650 m on high, 420 m on medium, never on low) and casts no shadow.
+| attribute | rule | source |
+|---|---|---|
+| storeys | OSM height or building:levels when present (7 buildings); otherwise 1 storey for sheds, garages and footprints under 35 m², and 2 storeys (ground + one upper floor) for everything else | OSM, or default (estimate) |
+| apartment-block styling | only where OSM records 4 or more levels (1 building) | OSM |
+| roof shape | flat for garage/industrial classes and footprints over 1,500 m²; gable when the footprint is at least 1.8× longer than wide; hipped otherwise | footprint geometry (estimate: OSM has no roof tags here) |
+| roof pitch, overhang | one value per type (house, small building, block) | default (estimate) |
+| windows | regular grid sized to each wall | default (estimate) |
+| shops | only on buildings OSM classes as commercial or retail | OSM |
+| balconies, exterior stairs, traditional stone-ground-floor style | not drawn: there is no per-building evidence | removed |
+| entrance | one door on the wall facing the nearest street | estimate |
+| chimney | on every pitched-roof building over 35 m² | estimate |
+| colours | small tone variation per building, so neighbours do not merge visually | estimate |
+
+Tested and rejected: deriving heights from the Copernicus GLO-30 elevation model. The building signal at 30 m is
+swamped by terrain slope (no relation to OSM levels or footprint size), so it was not used. GHSL building heights are
+not reachable from the build environment.
+
+Removed compared with rules v1: random 1-4 storey heights driven by footprint area, random traditional-house styling (30%),
+random balconies (about 50%), random shops (12%), random roof conversions (half-hip, flat on blocks) and random window layouts.
+Effect: 2,029 buildings → 1,759 at 2 storeys, 267 at 1, 2 at 3 and 1 at 4 (before: 1,075 / 421 / 476 / 57).
 
 ## Streets (estimates vs mapped)
 

@@ -90,38 +90,28 @@ const BLOCK_WALLS = ["#d8d2c8", "#e5d6be", "#cdd3d0", "#e9e0cf", "#c9b9ab", "#ec
  */
 export function variation(b: Building, style: StyleConfig) {
   const area = b.obb[3] * b.obb[4];
-  const block = b.floors >= 4 || (b.floors >= 3 && area > 260);
+  // Rules v2 (2026-11-20): style follows data, not chance. Apartment-block styling only where OSM records 4+ levels;
+  // no randomly assigned traditional houses, shops, balconies or roof conversions. Only colour tone varies per building.
+  const block = b.floors >= 4;
   const small = area < 60 || b.floors <= 1;
   const h = (k: string) => hash01(b.id, k);
   const sacred = b.cls === "mosque" || b.cls === "church";
   // small machine-detected footprints (< 30 m²): plain single-storey shed, garage or barn, no windows or details
   const outb = b.kind === "outbuilding";
-  // traditional Plav house: 1-2 storeys, stone ground floor, white upper floor, steep roof with deep eaves
-  const trad = !outb && !block && !sacred && b.floors <= 2 && area >= 45 && area < 220 && h("trad") < 0.3;
-  let roof: RoofKind = b.roof === "flat" ? "flat" : b.roof === "gable" ? "gable" : "hip";
-  if (roof !== "flat" && !sacred) {
-    const r = h("rt");
-    if (block) roof = r < 0.3 ? "flat" : "hip";
-    else if (trad) roof = r < 0.6 ? "hip" : "halfhip";
-    else if (roof === "gable") roof = r < 0.55 ? "gable" : "halfhip";
-    else roof = r < 0.2 ? "gable" : r < 0.36 ? "halfhip" : "hip";
-  }
+  const trad = false; // no per-building evidence for the traditional Plav type yet (kept for documented cases later)
+  const roof: RoofKind = b.roof === "flat" ? "flat" : b.roof === "gable" ? "gable" : "hip";
   const base = style.roof.pitchDeg;
-  let pitch = block ? base - 10 + h("p") * 5 : small ? base + 2 + h("p") * 8 : base - 3 + h("p") * 9;
-  if (roof === "gable") pitch += 3;
-  if (trad) pitch = base + 8 + h("p") * 7;
-  const overhang = style.roof.overhang * (block ? 0.8 : trad ? 1.35 + h("o") * 0.4 : 0.75 + h("o") * 0.6);
-  const r = h("f");
-  const facade = block ? (r < 0.6 ? FACADE.band : FACADE.grid) : small ? (r < 0.7 ? FACADE.grid : FACADE.tall) : r < 0.45 ? FACADE.grid : r < 0.75 ? FACADE.tall : FACADE.paired;
-  const shop = !small && !trad && b.floors >= 2 && (b.cls === "commercial" || b.cls === "retail" || h("s") < 0.12);
-  const bay = style.window.bayWidth * (trad ? 1.1 : 0.85 + h("b") * 0.35);
-  const chimney = !outb && !block && roof !== "flat" && area > 35 && h("c") < 0.8;
-  // balconies on upper floors (estimates): most blocks, half of 2-3 storey houses, wooden ones on some traditional houses
-  const balcony = !outb && !sacred && b.floors >= 2 && !shop && (block ? h("bal") < 0.75 : trad ? h("bal") < 0.45 : h("bal") < 0.5);
+  const pitch = block ? base - 8 : small ? base + 4 : roof === "gable" ? base + 3 : base;
+  const overhang = style.roof.overhang * (block ? 0.8 : 1.0);
+  const facade = block ? FACADE.band : FACADE.grid;
+  const shop = !small && b.floors >= 2 && (b.cls === "commercial" || b.cls === "retail");
+  const bay = style.window.bayWidth * (0.95 + h("b") * 0.15);
+  const chimney = !outb && !block && roof !== "flat" && area > 35;
+  const balcony = false; // balconies are not mapped; none are drawn
   const entrance = !outb && !sacred && area >= 40;
-  const wallPick = outb ? OUT_WALLS[Math.floor(h("wc") * OUT_WALLS.length)] : trad ? TRAD_WALLS[Math.floor(h("wc") * TRAD_WALLS.length)] : block ? BLOCK_WALLS[Math.floor(h("wc") * BLOCK_WALLS.length)] : null;
-  const roofPick = outb ? OUT_ROOFS[Math.floor(h("rc") * OUT_ROOFS.length)] : trad ? TRAD_ROOFS[Math.floor(h("rc") * TRAD_ROOFS.length)] : null;
-  const rail = trad ? "#6b4a33" : h("rl2") < 0.55 ? "#efeeea" : h("rl2") < 0.85 ? "#55595f" : "#8a6a4e";
+  const wallPick = outb ? OUT_WALLS[Math.floor(h("wc") * OUT_WALLS.length)] : block ? BLOCK_WALLS[Math.floor(h("wc") * BLOCK_WALLS.length)] : null;
+  const roofPick = outb ? OUT_ROOFS[Math.floor(h("rc") * OUT_ROOFS.length)] : null;
+  const rail = "#efeeea";
   return {
     pitch, overhang, facade, shop, bay, chimney, roof, trad, block, balcony, entrance, wallPick, roofPick, rail, outb,
     seed: h("seed"), light: (h("l") - 0.5) * 0.07, roofLight: (h("rl") - 0.5) * 0.08,
