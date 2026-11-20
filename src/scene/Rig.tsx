@@ -204,23 +204,34 @@ export function Controls({ data, controlsRef, hud, onReady }: {
     c.draggingSmoothTime = 0.08;
     // ?closeup=1 (render scripts only): allow close, low cameras for landmark close-ups; normal controls are unchanged
     const closeup = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("closeup") === "1";
-    c.minDistance = closeup ? 12 : 40;
-    c.maxDistance = Math.max(halfW, halfH) * 3.2;
+    // ?eye=… (render scripts only): a standing observer looking at the skyline (ground-level panoramas)
+    const eye = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("eye");
+    c.minDistance = eye ? 1 : closeup ? 12 : 40;
+    // far enough out for a wide aerial of the town with its mountains (the real terrain reaches ±39 km)
+    c.maxDistance = Math.max(halfW, halfH) * (data.levels.length ? 5 : 3.2);
     c.minPolarAngle = 12 * DEG;
-    c.maxPolarAngle = (closeup ? 84 : 72) * DEG;
+    c.maxPolarAngle = (eye ? 110 : closeup ? 84 : data.levels.length ? 78 : 72) * DEG;
     c.setBoundary(new THREE.Box3(new THREE.Vector3(-halfW, -200, -halfH), new THREE.Vector3(halfW, 800, halfH)));
     c.boundaryEnclosesCamera = false;
     onReady?.();
   }, [controlsRef, halfW, halfH, onReady]);
 
   const t = useMemo(() => new THREE.Vector3(), []);
+  const cp = useMemo(() => new THREE.Vector3(), []);
   const last = useRef({ az: NaN, el: NaN });
   useFrame(() => {
     const c = controlsRef.current;
     if (!c) return;
+    // the real mountains rise right at the edge of the town: never let the camera sink into a hillside
+    if (data.levels.length && !EYE) {
+      c.getPosition(cp);
+      const x = cp.x, y = -cp.z;
+      const g = (data.core.contains(x, y) ? data.core.at(x, y) : data.context.at(x, y)) - data.datum + 25;
+      if (cp.y < g) c.setPosition(cp.x, g, cp.z, false);
+    }
     c.getTarget(t);
     const ground = data.core.at(t.x, -t.z) - data.datum;
-    if (Math.abs(ground - t.y) > 0.5 && !c.active) c.setTarget(t.x, t.y + (ground - t.y) * 0.15, t.z, false);
+    if (Math.abs(ground - t.y) > 0.5 && !c.active && !EYE) c.setTarget(t.x, t.y + (ground - t.y) * 0.15, t.z, false);
     if (!hud) return;
     const az = Math.round((c.azimuthAngle * 180) / Math.PI), el = Math.round(ground + data.datum);
     const L = last.current;
@@ -229,6 +240,15 @@ export function Controls({ data, controlsRef, hud, onReady }: {
   });
 
   return <CameraControls ref={controlsRef} makeDefault />;
+}
+
+const EYE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("eye");
+
+/** Standing observer: eye h m above the ground at (x, y), looking towards azimuth az (deg from grid north), pitch deg. */
+export function eyeAt(c: CameraControlsImpl, data: AreaData, x: number, y: number, h: number, azDeg: number, pitchDeg: number) {
+  const g = (data.core.contains(x, y) ? data.core.atTri(x, y) : data.context.atTri(x, y)) - data.datum + h;
+  const a = azDeg * DEG, p = pitchDeg * DEG, D = 25;
+  return c.setLookAt(x, g, -y, x + Math.sin(a) * Math.cos(p) * D, g + Math.sin(p) * D, -y - Math.cos(a) * Math.cos(p) * D, false);
 }
 
 export function flyTo(c: CameraControlsImpl, data: AreaData, style: StyleConfig, x: number, y: number, opts: { distance?: number; polarDeg?: number; azimuthDeg?: number; lift?: number } = {}, smooth = true) {

@@ -30,6 +30,8 @@ export type StyleConfig = {
   night: { fog: string; fogNear: number; fogFar: number; moon: string; moonIntensity: number; sky: string; ground: string; ambient: number };
   /** Sunset targets (the middle of the day → sunset → night cycle): low warm sun, rosy haze, the first lights on. */
   dusk: { sun: string; intensity: number; azimuthDeg: number; elevationDeg: number; sky: string; ground: string; ambient: number; fog: string; fogNear: number; fogFar: number; lights: number };
+  /** Real surrounding terrain (L1–L3): alpine/rock tones and the aerial-perspective cap (see farTerrainMaterial). */
+  terrain: { alpine: string; canopy: string; conifer: string; rock: string; scree: string; hazeBase: number; hazeRange: number; hazeDistance: number; zenith: string };
   /** Final colour grade (post): saturation and contrast offsets, vignette darkness (0 = off). */
   grade: { saturation: number; contrast: number; brightness: number; vignette: number };
 };
@@ -65,6 +67,8 @@ export const plavWarm: StyleConfig = {
   night: { fog: "#0e1626", fogNear: 1200, fogFar: 6500, moon: "#9db2e6", moonIntensity: 0.3, sky: "#26365a", ground: "#14171f", ambient: 0.46 },
   dusk: { sun: "#ffb47a", intensity: 2.8, azimuthDeg: 258, elevationDeg: 14, sky: "#cfcadc", ground: "#9a8774", ambient: 1.2, fog: "#ecc9a8", fogNear: 1000, fogFar: 7000, lights: 0.22 },
   grade: { saturation: -0.2, contrast: 0.06, brightness: 0.02, vignette: 0.28 },
+  // Prokletije: pale grey limestone, olive-tan alpine grass, dark spruce/fir/beech forest
+  terrain: { alpine: "#a3a578", canopy: "#557a42", conifer: "#44663f", rock: "#bdb8ac", scree: "#a9a395", hazeBase: 0.07, hazeRange: 0.55, hazeDistance: 26000, zenith: "#c4d2e6" },
 };
 
 /** Alternative for comparison: cooler alpine light, more slate roofs. */

@@ -6,7 +6,7 @@ import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData, type Building } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
 import { AUDIT_COLORS, AuditLayer, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
-import { Controls, Effects, PlainRender, Sun, flyTo, type TimeOfDay } from "@/scene/Rig";
+import { Controls, Effects, PlainRender, Sun, eyeAt, flyTo, type TimeOfDay } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
 import { T, type Lang } from "./i18n";
@@ -186,6 +186,8 @@ export default function Viewer() {
     if (!controls.current || !data) return;
     const h = home(data);
     // ?cam=x,y,distance,azimuthDeg,polarDeg (local metres) — handy for reproducible screenshots
+    const eye = q.get("eye")?.split(",").map(Number);
+    if (eye && eye.length >= 4) { eyeAt(controls.current, data, eye[0], eye[1], eye[2], eye[3], eye[4] ?? 0); return; }
     const cam = q.get("cam")?.split(",").map(Number);
     if (cam && cam.length >= 2) {
       flyTo(controls.current, data, style, cam[0], cam[1], { distance: cam[2], azimuthDeg: cam[3], polarDeg: cam[4], lift: cam[5] }, smooth);
@@ -219,7 +221,7 @@ export default function Viewer() {
         <Canvas
           dpr={dpr}
           frameloop="demand"
-          camera={{ fov: style.camera.fov, near: 5, far: 30000, position: [0, 400, 400] }}
+          camera={{ fov: Number(q.get("fov")) || style.camera.fov, near: q.has("eye") ? 1 : 5, far: 160000, position: [0, 400, 400] }}
           gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
           shadows
           onCreated={({ gl, scene }) => {

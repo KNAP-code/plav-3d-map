@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { AreaData, Building } from "@/data/load";
+import type { AreaData, Building, Heightfield } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { buildBuildingTile } from "@/geo/buildings";
 import { overlaysGeometry, roadsGeometry, splitNonIndexed, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
@@ -13,8 +13,9 @@ import { furnitureGeometry, sidewalksGeometry } from "@/geo/street";
 import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
 import { bridgeGeometry, headstoneMatrices, pierGeometry, pitchGeometry, powerGeometry, sidewalkGeometry, zebraGeometry } from "@/geo/streetscape";
 import { fenceGeometry, fruitTrees, hayMatrices, haystack, yardGeometry } from "@/geo/gardenscape";
-import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
+import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, farTerrainMaterial, skyMaterial, treeMaterial, waterMaterial } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
+import { chooseStride, chunkGeometry, levelChunks, type Chunk } from "@/geo/terrainLevels";
 import { bump } from "@/ui/perf";
 
 export type Quality = "high" | "medium" | "low";
@@ -22,13 +23,15 @@ export type Quality = "high" | "medium" | "low";
 /** Per-tier level-of-detail settings (the one place to tune the presets). */
 export const TIERS: Record<Quality, {
   terrainStride: number; contextStride: number; buildingNear: number; treeDensity: number; treeFar: number; detailNear: number;
+  /** real-terrain LOD: a chunk drops to a coarser stride while one coarse cell stays under this angle (radians) */
+  farTol: number;
 }> = {
   // buildingNear: tiles closer than this (m, camera to tile sphere) use the window/tile-pattern shader
   // detailNear: balconies/entrances (separate mesh per tile) drawn only for tiles closer than this; 0 = never
   // treeFar: beyond this distance only every 2nd tree in a tile is drawn (tiny on screen there)
-  high: { terrainStride: 1, contextStride: 1, buildingNear: 1400, treeDensity: 1, treeFar: 1600, detailNear: 650 },
-  medium: { terrainStride: 1, contextStride: 2, buildingNear: 900, treeDensity: 1, treeFar: 1100, detailNear: 420 },
-  low: { terrainStride: 2, contextStride: 2, buildingNear: 600, treeDensity: 2, treeFar: 800, detailNear: 0 },
+  high: { terrainStride: 1, contextStride: 1, buildingNear: 1400, treeDensity: 1, treeFar: 1600, detailNear: 650, farTol: 0.005 },
+  medium: { terrainStride: 1, contextStride: 2, buildingNear: 900, treeDensity: 1, treeFar: 1100, detailNear: 420, farTol: 0.011 },
+  low: { terrainStride: 2, contextStride: 2, buildingNear: 600, treeDensity: 2, treeFar: 800, detailNear: 0, farTol: 0.02 },
 };
 
 function useDispose(items: { dispose: () => void }[]) {
@@ -45,25 +48,98 @@ function coverTexture(img: HTMLImageElement) {
   return t;
 }
 
-/** Core terrain split into 4×4 frustum-culled tiles sharing one vertex buffer; context ring at reduced density. */
+/**
+ * Core terrain split into frustum-culled tiles sharing one vertex buffer. Around it either the real surrounding
+ * terrain (FarTerrain: nested 30/60/180 m levels, chunked, per-chunk LOD) or, for areas baked before it, the legacy
+ * 60 m context ring.
+ */
 export function Terrain({ data, style, quality }: { data: AreaData; style: StyleConfig; quality: Quality }) {
   const T = TIERS[quality];
   const core = useMemo(() => { bump("geometryBuilds"); return terrainGeometry(data.core, data.datum, 25, T.terrainStride); }, [data, T.terrainStride]);
   // ~600 m terrain tiles so the renderer can cull most of a town-sized core
   const tiles = useMemo(() => splitTiles(core, Math.max(4, Math.round((2 * data.meta.extent.halfW) / 600))), [core, data]);
-  const ctx = useMemo(() => terrainGeometry(data.context, data.datum, 0, T.contextStride), [data, T.contextStride]);
   const covCore = useMemo(() => coverTexture(data.coverCore), [data]);
-  const covCtx = useMemo(() => coverTexture(data.coverContext), [data]);
   const mCore = useMemo(() => terrainMaterial(style, covCore, false), [style, covCore]);
-  const mCtx = useMemo(() => terrainMaterial(style, covCtx, true), [style, covCtx]);
-  useDispose(useMemo(() => [core, ctx, ...tiles], [core, ctx, tiles]));
-  useDispose(useMemo(() => [covCore, covCtx, mCore, mCtx], [covCore, covCtx, mCore, mCtx]));
+  useDispose(useMemo(() => [core, ...tiles, covCore, mCore], [core, tiles, covCore, mCore]));
   return (
     <group>
       {tiles.map((g, i) => <mesh key={i} geometry={g} material={mCore} receiveShadow />)}
-      {/* nothing casts shadows outside the core, so the context ring skips shadow lookups */}
-      <mesh geometry={ctx} material={mCtx} />
+      {/* nothing casts shadows outside the core, so the surrounding terrain skips shadow lookups */}
+      {data.levels.length ? <FarTerrain data={data} style={style} quality={quality} /> : <LegacyContext data={data} style={style} quality={quality} />}
     </group>
+  );
+}
+
+function LegacyContext({ data, style, quality }: { data: AreaData; style: StyleConfig; quality: Quality }) {
+  const T = TIERS[quality];
+  const ctx = useMemo(() => terrainGeometry(data.context as Heightfield, data.datum, 0, T.contextStride), [data, T.contextStride]);
+  const covCtx = useMemo(() => coverTexture(data.coverContext!), [data]);
+  const mCtx = useMemo(() => terrainMaterial(style, covCtx, true), [style, covCtx]);
+  useDispose(useMemo(() => [ctx, covCtx, mCtx], [ctx, covCtx, mCtx]));
+  return <mesh geometry={ctx} material={mCtx} />;
+}
+
+/**
+ * Real surrounding terrain: one mesh per chunk (three culls them by the frustum); each frame the camera position picks
+ * every chunk's LOD stride (geometries are built on first use and cached). Plus the sky dome behind it.
+ */
+export function FarTerrain({ data, style, quality }: { data: AreaData; style: StyleConfig; quality: Quality }) {
+  const tol = TIERS[quality].farTol;
+  const { scene, invalidate } = useThree();
+  const chunks = useMemo(() => levelChunks(data), [data]);
+  const covers = useMemo(() => data.levels.map((l) => coverTexture(l.cover)), [data]);
+  const rEff = data.terrainInfo?.curvature.R_eff_m ?? 7_323_000;
+  const edge = data.levels[data.levels.length - 1].meta.half;
+  const mats = useMemo(() => data.levels.map((l, i) => {
+    const m = farTerrainMaterial(style, covers[i], { datum: data.datum, rEff, edge, x0: l.meta.x0, size: (l.meta.nx - 1) * l.meta.step });
+    // L1 overlaps the core's border cells: draw it just behind so the core always wins there
+    if (i === 0) { m.polygonOffset = true; m.polygonOffsetFactor = 1; m.polygonOffsetUnits = 2; }
+    return m;
+  }), [data, style, covers, rEff, edge]);
+  const group = useMemo(() => {
+    const g = new THREE.Group();
+    for (const ch of chunks) {
+      const mesh = new THREE.Mesh(chunkGeometry(data, ch, 4), mats[ch.level]);
+      mesh.userData.chunk = ch;
+      mesh.userData.stride = 4;
+      mesh.matrixAutoUpdate = false;
+      g.add(mesh);
+    }
+    return g;
+  }, [chunks, mats, data]);
+  const sky = useMemo(() => {
+    const mat = skyMaterial(new THREE.Color(style.terrain.zenith));
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), mat);
+    m.scale.setScalar(140_000);
+    m.renderOrder = -10;
+    m.frustumCulled = false;
+    m.onBeforeRender = (_r, sc, cam) => {
+      m.position.copy(cam.position); m.updateMatrixWorld();
+      if (sc.fog instanceof THREE.Fog) mat.uniforms.uFog.value.copy(sc.fog.color); // follows day / sunset / night
+    };
+    return m;
+  }, [scene, style]);
+  useEffect(() => () => {
+    for (const ch of chunks) for (const g of ch.geoms.values()) g.dispose();
+    covers.forEach((c) => c.dispose()); mats.forEach((m) => m.dispose());
+    sky.geometry.dispose(); (sky.material as THREE.Material).dispose();
+  }, [chunks, covers, mats, sky]);
+  const cam = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera }) => {
+    cam.copy(camera.position);
+    let changed = false;
+    for (const m of group.children as THREE.Mesh[]) {
+      const ch = m.userData.chunk as Chunk;
+      const s = chooseStride(data, ch, cam, tol);
+      if (s !== m.userData.stride) { m.geometry = chunkGeometry(data, ch, s); m.userData.stride = s; changed = true; }
+    }
+    if (changed) invalidate();
+  });
+  return (
+    <>
+      <primitive object={sky} />
+      <primitive object={group} />
+    </>
   );
 }
 

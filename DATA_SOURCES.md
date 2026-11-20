@@ -7,7 +7,9 @@ PLAV 3D uses only openly licensed data. Nothing is scraped and no cadastral data
 | Building footprints (hand-mapped) | OpenStreetMap, via Overture Maps release pinned in `pipeline/areas.json` | ODbL 1.0 | footprints, names, building class |
 | Building footprints (machine-traced) | Microsoft Global ML Building Footprints, via Overture Maps | ODbL 1.0 (as distributed by Overture) | footprints where OSM has none |
 | Roads, water, land use, minarets | OpenStreetMap via Overture Maps | ODbL 1.0 | streets, lake, rivers, pitches, cemeteries |
-| Terrain | Copernicus DEM GLO-30 (AWS open data `copernicus-dem-30m`) | Copernicus DEM licence, free with attribution | terrain mesh, lake level |
+| Terrain | Copernicus DEM GLO-30 (AWS open data `copernicus-dem-30m`) | Copernicus DEM licence, free with attribution | city terrain, lake level, surrounding mountains to ±38.9 km (`pipeline/terrain.py`, see `docs/TERRAIN.md`) |
+| Terrain check only | NASA SRTM 1″ (AWS terrain tiles `elevation-tiles-prod/skadi`) | public domain (USGS/NASA) | independent cross-check of GLO-30; not drawn |
+| Summit names and heights (check only) | OpenStreetMap `natural=peak` + `ele` via Overture `base/land` | ODbL 1.0 | validation table and panorama labels; not drawn in the app |
 | Tree cover | ESA WorldCover 10 m 2021 v200 (AWS open data `esa-worldcover`) | CC BY 4.0 | tree positions, ground colour |
 
 Required attribution (shown in the app's info panel):
@@ -39,5 +41,6 @@ Every baked building carries flags (`hSrc`, `roofSrc`) so estimates stay disting
 
 - 74% of buildings in the prototype area are machine-traced outlines, which can be offset by a few metres or merge neighbouring houses.
 - The Copernicus DEM is a 30 m surface model (it includes tree canopy and buildings). It is smoothed and only gives the broad shape of the valley.
+- Narrow summits are lower in a 30 m DEM than their surveyed heights (Visitor 2,211 m → 2,162 m in GLO-30, Zla Kolata 2,535 → 2,488 m). The terrain shows the DEM values unchanged; see `docs/TERRAIN.md`.
 - Gardens and street trees are mostly classed as "built-up" by WorldCover, so the town has fewer trees than in reality. No trees are invented.
 - Geofabrik and the OSM API were not reachable from the build environment, so OSM data comes from the Overture Maps copy (release pinned in `pipeline/areas.json`).

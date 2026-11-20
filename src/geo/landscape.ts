@@ -37,6 +37,13 @@ export function terrainGeometry(hf: Heightfield, datum: number, skirt = 0, strid
       idx.push(a, b, d, a, d, c);
     }
   let P: number[] = Array.from(pos), U: number[] = Array.from(uv);
+  // normals from the grid alone: averaging in the vertical skirt faces darkened a line along the core's border
+  const gridOnly = new THREE.BufferGeometry();
+  gridOnly.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  gridOnly.setIndex(idx.slice());
+  gridOnly.computeVertexNormals();
+  const N: number[] = Array.from(gridOnly.getAttribute("normal").array as Float32Array);
+  gridOnly.dispose();
   if (skirt > 0) {
     const border: number[] = [];
     for (let i = 0; i < nx; i++) border.push(i);
@@ -48,6 +55,7 @@ export function terrainGeometry(hf: Heightfield, datum: number, skirt = 0, strid
     for (const k of border) {
       P.push(pos[k * 3], pos[k * 3 + 1] - skirt, pos[k * 3 + 2]);
       U.push(uv[k * 2], uv[k * 2 + 1]);
+      N.push(N[k * 3], N[k * 3 + 1], N[k * 3 + 2]);
     }
     for (let m = 0; m < border.length - 1; m++) {
       const a = border[m], b = border[m + 1], c = start + m, d = start + m + 1;
@@ -57,8 +65,8 @@ export function terrainGeometry(hf: Heightfield, datum: number, skirt = 0, strid
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
   g.setIndex(idx);
-  g.computeVertexNormals();
   return g;
 }
 

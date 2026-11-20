@@ -1,0 +1,111 @@
+{
+ "treesBand": {
+  "file": "trees_band.bin",
+  "count": 18419,
+  "band_m": 300,
+  "note": "ESA WorldCover 10 m tree pixels just outside the core, same rule as the city trees, thinning out quadratically to none at 300 m"
+ },
+ "crs": "EPSG:32634",
+ "origin": [
+  413245.0,
+  4716717.0
+ ],
+ "source": "Copernicus DEM GLO-30 (DGED 2023_1 COG on AWS Open Data), 1 arc-second",
+ "verticalDatum": "EGM2008 orthometric heights (as published; no conversion applied)",
+ "curvature": {
+  "applied": true,
+  "refraction_k": 0.13,
+  "R_eff_m": 7322989,
+  "note": "rendered heights = DEM - d²/(2·R_eff), d from local (0,0); true DEM heights in validation"
+ },
+ "core": {
+  "note": "terrain_core.bin (8 m, unchanged) is level 0; L1 vertices inside it copy its heights"
+ },
+ "levels": [
+  {
+   "name": "L1",
+   "x0": -6000.0,
+   "y0": -6000.0,
+   "nx": 401,
+   "ny": 401,
+   "step": 30.0,
+   "base": 853,
+   "scale": 10,
+   "file": "L1.bin",
+   "cover": "L1.png",
+   "half": 6000.0,
+   "hole": null,
+   "demMin": 857.3,
+   "demMax": 2201.1,
+   "maxCurvatureDrop": 4.9,
+   "worldcover": {
+    "10": 437180,
+    "20": 32,
+    "30": 177076,
+    "40": 11688,
+    "50": 5879,
+    "60": 167,
+    "80": 7696,
+    "90": 1883
+   }
+  },
+  {
+   "name": "L2",
+   "x0": -18000.0,
+   "y0": -18000.0,
+   "nx": 601,
+   "ny": 601,
+   "step": 60.0,
+   "base": 512,
+   "scale": 10,
+   "file": "L2.bin",
+   "cover": "L2.png",
+   "half": 18000.0,
+   "hole": 6000.0,
+   "demMin": 532.7,
+   "demMax": 2675.5,
+   "maxCurvatureDrop": 44.2,
+   "worldcover": {
+    "10": 855843,
+    "20": 448,
+    "30": 542390,
+    "40": 8452,
+    "50": 3280,
+    "60": 28398,
+    "70": 4,
+    "80": 3048,
+    "90": 459,
+    "100": 79
+   }
+  },
+  {
+   "name": "L3",
+   "x0": -38880.0,
+   "y0": -38880.0,
+   "nx": 433,
+   "ny": 433,
+   "step": 180.0,
+   "base": 5,
+   "scale": 10,
+   "file": "L3.bin",
+   "cover": "L3.png",
+   "half": 38880.0,
+   "hole": 18000.0,
+   "demMin": 154.3,
+   "demMax": 2675.5,
+   "maxCurvatureDrop": 206.4,
+   "worldcover": {
+    "10": 112628,
+    "20": 989,
+    "30": 63279,
+    "40": 5945,
+    "50": 1371,
+    "60": 2829,
+    "80": 429,
+    "90": 17,
+    "100": 2
+   }
+  }
+ ],
+ "coverChannels": "r WorldCover tree, g shrub/grass/crop/wetland/moss, b built + bare/sparse, a snow-ice + water"
+}

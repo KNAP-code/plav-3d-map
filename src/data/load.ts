@@ -49,13 +49,42 @@ export type Streets = {
   cemeteries: (PolyJ & { name: string | null })[];
 };
 
+/** One nested terrain level from pipeline/terrain.py (public/data/<area>/terrain/terrain.json). */
+export type LevelMeta = GridMeta & { name: string; half: number; hole: number | null; demMin: number; demMax: number; maxCurvatureDrop: number };
+export type TerrainInfo = {
+  crs: string; origin: [number, number]; source: string; verticalDatum: string;
+  curvature: { applied: boolean; refraction_k: number; R_eff_m: number; note: string };
+  levels: LevelMeta[];
+  treesBand?: { file: string; count: number; band_m: number; note: string };
+};
+export type TerrainLevel = { meta: LevelMeta; hf: Heightfield; cover: HTMLImageElement };
+
+/**
+ * Height lookup across the nested real-terrain levels (finest first). Same interface as Heightfield.at/atTri
+ * so every "ground outside the core" sampler keeps working.
+ */
+export class LevelStack {
+  constructor(public levels: TerrainLevel[]) {}
+  private pick(x: number, y: number) {
+    for (const l of this.levels) if (Math.max(Math.abs(x), Math.abs(y)) <= l.meta.half) return l.hf;
+    return this.levels[this.levels.length - 1].hf;
+  }
+  at(x: number, y: number) { return this.pick(x, y).at(x, y); }
+  atTri(x: number, y: number) { return this.pick(x, y).atTri(x, y); }
+  contains(x: number, y: number) { const L = this.levels[this.levels.length - 1].meta.half; return Math.abs(x) <= L && Math.abs(y) <= L; }
+}
+
 export type AreaData = {
   meta: AreaMeta;
   datum: number; // elevation subtracted from every height in the scene
   core: Heightfield;
-  context: Heightfield;
+  /** ground outside the core: the real-terrain level stack when baked, else the legacy 60 m context grid */
+  context: Heightfield | LevelStack;
+  /** nested real-terrain levels (empty for areas without pipeline/terrain.py output) */
+  levels: TerrainLevel[];
+  terrainInfo: TerrainInfo | null;
   coverCore: HTMLImageElement;
-  coverContext: HTMLImageElement;
+  coverContext: HTMLImageElement | null;
   buildings: Building[];
   /** source footprints left out by the reconciliation rules (shown only in the #audit view) */
   removed: { id: string; src: string; reason: string; fp: [number, number][] }[];
@@ -128,14 +157,21 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const streetsP = fetch(`${base}/streets.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const gardensP = fetch(`${base}/gardens.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const terrainInfo: TerrainInfo | null = await fetch(`${base}/terrain/terrain.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const bandP = terrainInfo?.treesBand ? bin(`${base}/terrain/${terrainInfo.treesBand.file}`).catch(() => null) : Promise.resolve(null);
+  const levelsP = Promise.all((terrainInfo?.levels ?? []).map(async (m) => {
+    const [buf, cover] = await Promise.all([bin(`${base}/terrain/${m.file}`), img(`${base}/terrain/${m.cover}`)]);
+    return { meta: m, buf, cover };
+  }));
   const [coreBuf, ctxBuf, bjs, vjs, treeBuf, coverCore, coverContext] = await Promise.all([
     tick(bin(`${base}/${meta.core.file}`)),
-    tick(bin(`${base}/${meta.context.file}`)),
+    // the legacy context ring is only needed when no real-terrain levels were baked
+    tick(terrainInfo ? Promise.resolve(new ArrayBuffer(0)) : bin(`${base}/${meta.context.file}`)),
     tick(fetch(`${base}/buildings.json`).then((r) => r.text())),
     tick(fetch(`${base}/vectors.json`).then((r) => r.text())),
     tick(bin(`${base}/${meta.treesFile ?? "trees.bin"}`)),
     tick(img(`${base}/${meta.core.cover}`)),
-    tick(img(`${base}/${meta.context.cover}`)),
+    tick(terrainInfo ? Promise.resolve(null) : img(`${base}/${meta.context.cover}`)),
   ]);
   const decode = (buf: ArrayBuffer, g: GridMeta) => {
     const q = new Uint16Array(buf);
@@ -144,18 +180,24 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
     return new Heightfield(g, h);
   };
   const core = decode(coreBuf, meta.core);
-  const context = decode(ctxBuf, meta.context);
+  const lv = await levelsP;
+  const levels: TerrainLevel[] = lv.map(({ meta: m, buf, cover }) => ({ meta: m, hf: decode(buf, m), cover }));
+  const context = levels.length ? new LevelStack(levels) : decode(ctxBuf, meta.context);
+  const levelBytes = lv.reduce((a, l) => a + l.buf.byteLength, 0);
   const b = JSON.parse(bjs);
   const v = JSON.parse(vjs);
+  // trees in a thinning band just outside the core (pipeline/terrain.py), appended to the city's WorldCover trees
+  const band = await bandP;
+  const trees = band && band.byteLength ? (() => { const a = new Float32Array(treeBuf.byteLength / 4 + band.byteLength / 4); a.set(new Float32Array(treeBuf)); a.set(new Float32Array(band), treeBuf.byteLength / 4); return a; })() : new Float32Array(treeBuf);
   const furniture = (await furnP) ?? { points: [], walls: [] };
   const streets = (await streetsP) as Streets | null;
   return {
     furniture, streets, gardens: (await gardensP) as Gardens | null,
-    meta, core, context, coverCore, coverContext,
+    meta, core, context, levels, terrainInfo, coverCore, coverContext,
     datum: meta.core.base,
     buildings: b.buildings, removed: b.removed ?? [], minarets: b.minarets,
     roads: v.roads, crossings: v.crossings ?? [], water: v.water, streams: v.streams, overlays: v.overlays,
-    trees: new Float32Array(treeBuf),
-    bytes: coreBuf.byteLength + ctxBuf.byteLength + bjs.length + vjs.length + treeBuf.byteLength,
+    trees,
+    bytes: levelBytes + coreBuf.byteLength + ctxBuf.byteLength + bjs.length + vjs.length + treeBuf.byteLength,
   };
 }

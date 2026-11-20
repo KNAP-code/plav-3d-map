@@ -59,6 +59,8 @@ type Patch = {
   fragColor?: string;
   /** runs after the emissive chunk: add to totalEmissiveRadiance (night lights) */
   fragEmissive?: string;
+  /** replaces three's fog chunk (custom aerial perspective) */
+  fragFog?: string;
 };
 
 function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
@@ -71,6 +73,7 @@ function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
       .replace("#include <common>", `#include <common>\n${NOISE}\nuniform float uNight;\n${p.fragHead ?? ""}`)
       .replace("#include <color_fragment>", `#include <color_fragment>\n${p.fragColor ?? ""}`)
       .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${p.fragEmissive ?? ""}`);
+    if (p.fragFog) shader.fragmentShader = shader.fragmentShader.replace("#include <fog_fragment>", p.fragFog);
   };
   m.customProgramCacheKey = () => key;
   return m;
@@ -172,6 +175,99 @@ export function terrainMaterial(style: StyleConfig, cover: THREE.Texture, contex
       }
     `,
   }, context ? "terrain-ctx-v2" : "terrain-core-v2");
+}
+
+/**
+ * Real surrounding terrain (L1–L3). Colours come from ESA WorldCover classes (forest / meadow / bare rock / water)
+ * baked per level, shifted by true elevation (alpine meadow above ~1 600 m, conifers higher up, pale limestone on
+ * bare ground and steep open slopes) and kept in the same palette and mottling as the city core at the valley floor.
+ * Aerial perspective: the scene's linear haze is used near the town (identical to the core and buildings), but it is
+ * capped by a slow exponential curve with distance, so ridges 10–40 km away stay readable as softened silhouettes;
+ * the outermost few km fade fully into the horizon colour so the data edge never shows.
+ */
+export function farTerrainMaterial(style: StyleConfig, cover: THREE.Texture, opts: { datum: number; rEff: number; edge: number; x0: number; size: number }) {
+  const g = style.ground, t = style.terrain;
+  const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 });
+  return patch(m, {
+    uniforms: {
+      uCover: { value: cover },
+      uGrass: { value: c3(g.grass) }, uGrassDark: { value: c3(g.grassDark) }, uForest: { value: c3(g.forestFloor) },
+      uDirt: { value: c3(g.dirt) }, uBuilt: { value: c3(g.built) },
+      uAlpine: { value: c3(t.alpine) }, uConifer: { value: c3(t.conifer) }, uRock: { value: c3(t.rock) },
+      uScree: { value: c3(t.scree) }, uWater: { value: c3(style.water.deep) },
+      uCanopy: { value: c3(t.canopy) },
+      uMottle: { value: g.mottle }, uScale: { value: g.mottleScale },
+      uDatum: { value: opts.datum }, uREff: { value: opts.rEff }, uEdge: { value: opts.edge },
+      uHaze: { value: new THREE.Vector3(t.hazeBase, t.hazeRange, t.hazeDistance) },
+    },
+    vertexHead: "varying vec2 vCov; varying vec3 vWp; varying vec3 vNw;",
+    vertexMain: "vCov = uv; vWp = (modelMatrix * vec4(transformed,1.0)).xyz; vNw = normal;",
+    fragHead: `uniform sampler2D uCover; uniform vec3 uGrass, uGrassDark, uForest, uDirt, uBuilt, uAlpine, uConifer, uRock, uScree, uWater, uCanopy;
+               uniform float uMottle, uScale, uDatum, uREff, uEdge; uniform vec3 uHaze;
+               varying vec2 vCov; varying vec3 vWp; varying vec3 vNw;`,
+    fragColor: /* glsl */ `
+      {
+        vec4 w = texture2D(uCover, vCov);
+        // true DEM elevation: rendered height + datum + the curvature drop baked into the far levels
+        float elev = vWp.y + uDatum + dot(vWp.xz, vWp.xz) / (2.0 * uREff);
+        vec2 p = vWp.xz * uScale;
+        float n1 = fbm(p), n2 = fbm(p * 3.1 + 7.0);
+        float macro = fbm(vWp.xz * 0.0011 + 3.7);
+        // valley meadows: the city core's palette and mottling, so the two meet without a colour seam
+        vec3 col = mix(uGrass, uGrassDark, smoothstep(0.35, 0.75, n2) * 0.6);
+        col = mix(col, col * vec3(1.06, 1.01, 0.86), smoothstep(0.5, 0.72, macro) * 0.5);
+        col = mix(col, col * vec3(0.88, 0.97, 0.92), smoothstep(0.45, 0.25, macro) * 0.5);
+        // above ~1 600 m meadows turn to drier, paler alpine grassland
+        float alp = smoothstep(1550.0, 1950.0, elev + (n1 - 0.5) * 160.0);
+        col = mix(col, uAlpine * mix(0.94, 1.06, n2), alp);
+        // forest (WorldCover tree class) seen as canopy: the same dark tone the city's 3D trees give from a distance,
+        // broadleaf (beech) low down, darker conifer / mixed higher up, crown-sized mottling
+        vec3 forest = mix(uCanopy, uConifer, smoothstep(1150.0, 1550.0, elev));
+        forest *= mix(0.8, 1.1, fbm(vWp.xz * 0.09)) * mix(0.92, 1.06, fbm(vWp.xz * 0.012 + 1.3));
+        col = mix(col, forest, smoothstep(0.2, 0.75, w.r));
+        // bare / sparse ground: limestone rock and scree in the mountains, village dirt in the valley
+        vec3 bare = mix(mix(uDirt, uBuilt, 0.35), mix(uScree, uRock, smoothstep(0.35, 0.7, n1)), smoothstep(1150.0, 1450.0, elev));
+        col = mix(col, bare, smoothstep(0.2, 0.7, w.b));
+        // steep open slopes show rock (forest on steep ground stays forest: it is in the data)
+        float steep = 1.0 - normalize(vNw).y;
+        float rock = smoothstep(0.2, 0.42, steep) * (1.0 - smoothstep(0.3, 0.7, w.r)) * smoothstep(1000.0, 1400.0, elev);
+        // high Prokletije: above ~1 900 m open ground is mostly karst limestone with thin grass; moderate slopes
+        // there already show rock (elevation/slope rule, not data: WorldCover mixes these as grass or bare)
+        float karst = smoothstep(1850.0, 2250.0, elev + (n1 - 0.5) * 200.0) * smoothstep(0.08, 0.25, steep) * (1.0 - smoothstep(0.3, 0.7, w.r));
+        rock = max(rock, karst * 0.8);
+        col = mix(col, uRock * mix(0.88, 1.06, n1) * mix(0.94, 1.04, fbm(vWp.xz * 0.004)), rock * 0.85);
+        // permanent water (small glacial lakes) — snow/ice is classified into the same channel but is absent here
+        col = mix(col, uWater, smoothstep(0.35, 0.7, w.a));
+        diffuseColor.rgb = col;
+      }
+    `,
+    fragFog: /* glsl */ `
+      #ifdef USE_FOG
+      {
+        float dist = length(vWp - cameraPosition);
+        float fLin = smoothstep(fogNear, fogFar, vFogDepth);
+        float cap = uHaze.x + uHaze.y * (1.0 - exp(-dist / uHaze.z));
+        float f = min(fLin, cap);
+        f = max(f, smoothstep(uEdge * 0.84, uEdge, max(abs(vWp.x), abs(vWp.z))));
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, f);
+      }
+      #endif
+    `,
+  }, "terrain-far-v1");
+}
+
+/**
+ * Sky dome: horizon in the scene's haze colour (so fully hazed terrain melts into it), a slightly deeper tone towards
+ * the zenith. Follows the haze colour through day, sunset and night.
+ */
+export function skyMaterial(zenith: THREE.Color) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uFog: { value: new THREE.Color() }, uZenith: { value: zenith } },
+    vertexShader: "varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position.z = gl_Position.w; }",
+    fragmentShader: `uniform vec3 uFog, uZenith; varying vec3 vDir;
+      void main(){ float t = smoothstep(0.0, 0.55, vDir.y); gl_FragColor = vec4(mix(uFog, uFog * uZenith, t), 1.0); }`,
+    side: THREE.BackSide, depthWrite: false, fog: false,
+  });
 }
 
 export function roadMaterial(style: StyleConfig) {

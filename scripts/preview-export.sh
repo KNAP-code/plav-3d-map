@@ -20,6 +20,18 @@ m["context"]["file"] = m["context"]["file"].replace(".bin", ".wasm")
 m["treesFile"] = "trees.wasm"
 json.dump(m, open(p, "w"), ensure_ascii=False, indent=1)
 PY
+  if [ -d "$d/terrain" ]; then
+    for f in "$d"terrain/*.bin; do mv "$f" "${f%.bin}.wasm"; done
+    python3 - "$d/terrain/terrain.json" <<'PY'
+import json, sys
+p = sys.argv[1]; m = json.load(open(p))
+for l in m["levels"]:
+    l["file"] = l["file"].replace(".bin", ".wasm")
+if "treesBand" in m:
+    m["treesBand"]["file"] = m["treesBand"]["file"].replace(".bin", ".wasm")
+json.dump(m, open(p, "w"), ensure_ascii=False, indent=1)
+PY
+  fi
 done
 echo "binary grids renamed to .wasm"
 # Drop the legacy noModule polyfill bundle (ignored by every browser that runs WebGL2 modules;

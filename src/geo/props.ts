@@ -62,7 +62,7 @@ export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: n
     const x = t[i], y = t[i + 1];
     const tx = Math.min(nx - 1, Math.max(0, Math.floor((x + halfW) / tile)));
     const ty = Math.min(ny - 1, Math.max(0, Math.floor((y + halfH) / tile)));
-    items.push({ k: i / 4, tile: ty * nx + tx, x, y, z: d.core.at(x, y) - d.datum - 0.25, sc: t[i + 2] * size, kind: t[i + 3] });
+    items.push({ k: i / 4, tile: ty * nx + tx, x, y, z: (d.core.contains(x, y) ? d.core.at(x, y) : d.context.atTri(x, y)) - d.datum - 0.25, sc: t[i + 2] * size, kind: t[i + 3] });
   }
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
