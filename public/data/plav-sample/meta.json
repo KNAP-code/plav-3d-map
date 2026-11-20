@@ -1,0 +1,125 @@
+{
+ "area": "plav-sample",
+ "title": "Plav — čaršija sample",
+ "bbox": [
+  19.9418,
+  42.5945,
+  19.9468,
+  42.5985
+ ],
+ "generated": "2026-11-19T22:04:13+00:00",
+ "crs": "EPSG:32634",
+ "origin": [
+  413390.0,
+  4716548.0
+ ],
+ "core": {
+  "x0": -204.86732611157046,
+  "y0": -221.90000000027118,
+  "nx": 104,
+  "ny": 112,
+  "step": 4,
+  "base": 938,
+  "scale": 100,
+  "file": "terrain_core.bin",
+  "cover": "cover_core.png"
+ },
+ "context": {
+  "x0": -3000,
+  "y0": -3000,
+  "nx": 151,
+  "ny": 151,
+  "step": 40,
+  "base": 893,
+  "scale": 10,
+  "file": "terrain_context.bin",
+  "cover": "cover_context.png",
+  "coreSink": 4.0
+ },
+ "extent": {
+  "halfW": 204.9,
+  "halfH": 221.9
+ },
+ "treesFile": "trees.bin",
+ "stats": {
+  "total": 348,
+  "OpenStreetMap": 191,
+  "Microsoft ML Buildings": 157,
+  "other": 0,
+  "height_from_osm": 1,
+  "height_estimated": 347,
+  "roof_estimated": 348,
+  "trees": 180,
+  "roads": 69,
+  "water": 12,
+  "minarets": 2
+ },
+ "landmarks": [
+  {
+   "name": "Redžepagića džamija",
+   "x": 159.2,
+   "y": -37.1,
+   "cls": "mosque"
+  },
+  {
+   "name": "Opština Plav",
+   "x": 4.4,
+   "y": 73.2,
+   "cls": "public"
+  },
+  {
+   "name": "Sultanija",
+   "x": -13.3,
+   "y": 103.0,
+   "cls": "mosque"
+  },
+  {
+   "name": "Osnovni sud",
+   "x": -20.4,
+   "y": 62.9,
+   "cls": null
+  },
+  {
+   "name": "Pošta Plav",
+   "x": 6.6,
+   "y": 28.0,
+   "cls": "post_office"
+  },
+  {
+   "name": "Stara džamija",
+   "x": 3.0,
+   "y": -0.8,
+   "cls": "mosque"
+  },
+  {
+   "name": "Sabovica",
+   "x": -23.1,
+   "y": -174.6,
+   "cls": "mosque"
+  },
+  {
+   "name": "Dom kulture Plav",
+   "x": -125.6,
+   "y": 121.5,
+   "cls": null
+  }
+ ],
+ "estimates": {
+  "rules": "estimate-rules-v1",
+  "building_height": "OSM height/levels when present, otherwise floors from footprint area (see DATA_SOURCES.md)",
+  "roof": "all roof shapes are estimated (no roof data in OSM for this area)",
+  "trees": "positions from ESA WorldCover 10 m tree-cover pixels, jittered inside each pixel; species and size are stylised",
+  "road_width": "by road class (OSM has no widths here)",
+  "minaret_height": "24 m stylised"
+ },
+ "sources": {
+  "overture_release": "2026-11-18.0",
+  "attribution": [
+   "© OpenStreetMap contributors (ODbL)",
+   "Microsoft Global ML Building Footprints via Overture Maps (ODbL)",
+   "Overture Maps Foundation",
+   "ESA WorldCover 10 m 2021 v200 (CC BY 4.0)",
+   "Copernicus DEM GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA"
+  ]
+ }
+}
