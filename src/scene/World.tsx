@@ -83,8 +83,8 @@ const auditTint = (b: Building, e?: AuditEntry) =>
   : b.src === "osm" ? ((b.onStreet ?? 0) >= 0.15 ? AUDIT_COLORS.osmOnStreet : AUDIT_COLORS.osm)
   : b.kind === "outbuilding" ? AUDIT_COLORS.outbuilding : AUDIT_COLORS.ms;
 
-export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, onPick }: {
-  data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean;
+export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, onPick, estimates = false }: {
+  data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean; estimates?: boolean;
   auditMap?: Map<string, AuditEntry>; onPick?: (b: Building) => void;
 }) {
   const near = TIERS[quality].buildingNear;
@@ -103,8 +103,8 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
     }
     bump("geometryBuilds");
     const road = roadLookup(data);
-    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, audit ? (bb) => auditTint(bb, auditMap?.get(bb.id)) : undefined));
-  }, [data, skip, audit, auditMap, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, audit ? (bb) => auditTint(bb, auditMap?.get(bb.id)) : undefined, estimates && !audit));
+  }, [data, skip, audit, auditMap, estimates, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const mNear = useMemo(() => buildingMaterial(style, true), [style]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
   useDispose(useMemo(() => geos.flatMap((g) => [g.main, g.details]), [geos]));

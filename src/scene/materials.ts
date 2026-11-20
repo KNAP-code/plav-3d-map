@@ -285,7 +285,10 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float kind = mod(sv, 4.0);
         bool shop = mod(floor(sv / 4.0), 2.0) > 0.5;
         bool trad = mod(floor(sv / 8.0), 2.0) > 0.5;
-        bool outb = sv >= 15.5;
+        bool outb = mod(floor(sv / 16.0), 2.0) > 0.5;
+        bool brick = mod(floor(sv / 32.0), 2.0) > 0.5;   // estimate: unfinished facade, exposed brick
+        bool blockw = mod(floor(sv / 64.0), 2.0) > 0.5;  // estimate: unfinished facade, grey concrete block
+        bool barn = mod(floor(sv / 128.0), 2.0) > 0.5;   // estimate: timber barn / shed
         bool ground = fl > nFl - 1.5;
         // per-building window size variation (from the quantised seed)
         float js = h21(vec2(nSeed, 7.0)) - 0.5;
@@ -324,6 +327,29 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
           float joint = smoothstep(0.0, 0.12, f2.x) * smoothstep(0.0, 0.16, f2.y);
           diffuseColor.rgb = mix(vec3(0.55, 0.52, 0.47), vec3(0.74, 0.7, 0.63), n) * mix(0.72, 1.0, joint);
         }
+        // masonry / timber patterns in metres (bays ~3.1 m wide, floors 2.9 m high); faded out when sub-pixel
+        if (vW.y >= 0.0 && (brick || blockw || barn)) {
+          vec2 m = vec2(vW.x * 3.1, vW.y * 2.9);
+          vec2 mw = max(fwidth(m), vec2(1e-4));
+          if (barn) {
+            float p = fract(m.x / 0.24);
+            float plank = smoothstep(0.0, 0.1 + mw.x * 4.0, p) * mix(0.9, 1.08, h21(vec2(floor(m.x / 0.24), nSeed)));
+            diffuseColor.rgb *= mix(1.0, mix(0.7, 1.0, plank), 1.0 - smoothstep(0.08, 0.2, mw.x));
+          } else {
+            vec2 u = brick ? vec2(0.25, 0.075) : vec2(0.4, 0.2);
+            float row = floor(m.y / u.y);
+            vec2 f = fract(vec2(m.x / u.x + 0.5 * mod(row, 2.0), m.y / u.y));
+            float mortar = (1.0 - smoothstep(0.0, 0.12, f.x)) + (1.0 - smoothstep(0.0, 0.18, f.y));
+            float vis = 1.0 - smoothstep(u.y * 0.25, u.y * 0.6, max(mw.x, mw.y));
+            vec3 mc = brick ? vec3(0.78, 0.74, 0.68) : vec3(0.52, 0.51, 0.5);
+            float jit = h21(vec2(floor(m.x / u.x + 0.5 * mod(row, 2.0)), row));
+            diffuseColor.rgb *= mix(1.0, mix(0.9, 1.08, jit), vis);
+            diffuseColor.rgb = mix(diffuseColor.rgb, mc, clamp(mortar, 0.0, 1.0) * 0.55 * vis);
+            // exposed concrete floor slabs and frame at every storey line (typical of unfinished houses)
+            float slab = 1.0 - smoothstep(0.035, 0.05, fract(vW.y));
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.61, 0.58), slab * step(0.5, vW.y) * step(vW.y, nFl - 0.1));
+          }
+        }
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.94, 0.9), clamp(frame - inX * inY, 0.0, 1.0) * 0.85);
         diffuseColor.rgb = mix(diffuseColor.rgb, shutC, shutter);
         float win = inX * inY * valid;
@@ -341,10 +367,21 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float r = h21(vec2(floor(vW.x * (kind > 1.5 && kind < 2.5 ? 2.0 : 1.0)) + nSeed * 0.19, fl + nSeed * 0.11));
         gWin = win * step(r, 0.36 + (shop && ground ? 0.25 : 0.0)) * (0.7 + 0.45 * fract(r * 13.0)) * (shop && ground ? 0.7 : 1.0);
       } else {
-        float row = fract(vW.y / uSpacing);
-        float line = smoothstep(0.0, 0.18, row) * (1.0 - smoothstep(0.82, 1.0, row) * 0.4);
-        float n = h21(floor(vec2(vW.x / (uSpacing*0.85), vW.y / uSpacing)));
-        diffuseColor.rgb *= mix(1.0 - uContrast, 1.0, line) * mix(0.95, 1.05, n);
+        float rm = floor(vSt + 0.5); // roof material: 0 clay tile, 1 sheet metal, 2 concrete tile (estimates)
+        vec2 rw = max(fwidth(vW), vec2(1e-4));
+        if (rm > 0.5 && rm < 1.5) {
+          // standing-seam sheet metal: raised seams every 0.5 m running down the slope, faint sheen
+          float sp = fract(vW.x / 0.5);
+          float seam = 1.0 - smoothstep(0.0, 0.08 + rw.x * 3.0, min(sp, 1.0 - sp));
+          float vis = 1.0 - smoothstep(0.12, 0.3, rw.x);
+          diffuseColor.rgb *= mix(1.0, mix(1.0, 1.25, seam), vis) * mix(0.97, 1.03, fbm(vW * 0.3));
+        } else {
+          float sc = rm > 1.5 ? 1.35 : 1.0;
+          float row = fract(vW.y / (uSpacing * sc));
+          float line = smoothstep(0.0, 0.18, row) * (1.0 - smoothstep(0.82, 1.0, row) * 0.4);
+          float n = h21(floor(vec2(vW.x / (uSpacing * sc * 0.85), vW.y / (uSpacing * sc))));
+          diffuseColor.rgb *= mix(1.0 - uContrast * (rm > 1.5 ? 0.6 : 1.0), 1.0, line) * mix(0.95, 1.05, n);
+        }
       }
     ` : /* glsl */ `
       float nFl = floor(vFl + 0.5);
@@ -362,7 +399,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v6" : "building-far-v6");
+  }, detail ? "building-near-v7" : "building-far-v7");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */
