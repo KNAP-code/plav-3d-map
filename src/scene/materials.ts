@@ -557,3 +557,38 @@ export function pavingMaterial() {
     `,
   }, "paving-v1");
 }
+
+/**
+ * Estimated garden fences: one vertical strip per segment; pickets (wood) or posts + wire mesh (wire) are cut out
+ * with discard. aF = (metres along, 0..1 height, kind 0 wood / 1 wire). Far away the strip turns into a faint band.
+ */
+export function fenceMaterial() {
+  const m = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.9, side: THREE.DoubleSide });
+  return patch(m, {
+    vertexHead: "attribute vec3 aF; varying vec3 vF;",
+    vertexMain: "vF = aF;",
+    fragHead: "varying vec3 vF;",
+    fragColor: /* glsl */ `
+      {
+        float fw = max(fwidth(vF.x), 1e-4);
+        float far = smoothstep(0.05, 0.14, fw);
+        if (vF.z < 0.5) {
+          float pick = step(fract(vF.x / 0.16), 0.55);
+          float rail = step(abs(vF.y - 0.3), 0.05) + step(abs(vF.y - 0.8), 0.05);
+          float top = 1.0 - step(0.92 + 0.08 * abs(fract(vF.x / 0.16) - 0.27) * 3.0, vF.y);
+          float keep = max(pick * top, rail);
+          if (far < 0.5 && keep < 0.5) discard;
+          if (far >= 0.5 && vF.y > 0.85) discard;
+          diffuseColor.rgb = vec3(0.55, 0.41, 0.28) * mix(0.9, 1.08, h21(vec2(floor(vF.x / 0.16), 2.0)));
+        } else {
+          float post = step(fract(vF.x / 2.5), 0.04);
+          float mesh = max(step(fract(vF.x / 0.12), 0.14), step(fract(vF.y * 9.0), 0.14));
+          float topw = step(0.96, vF.y);
+          if (far < 0.5 && max(post, max(mesh * 0.0 + step(0.5, mesh) * step(fw, 0.03), topw)) < 0.5) discard;
+          if (far >= 0.5 && post < 0.5 && topw < 0.5) discard;
+          diffuseColor.rgb = post > 0.5 ? vec3(0.35, 0.37, 0.38) : vec3(0.55, 0.58, 0.58);
+        }
+      }
+    `,
+  }, "fence-v1");
+}

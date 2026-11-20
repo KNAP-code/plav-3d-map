@@ -37,6 +37,10 @@ export type PolyJ = { outer: [number, number][]; holes: [number, number][][] };
 export type Water = PolyJ & { kind: "lake" | "river"; name: string | null; level: number | null };
 export type Stream = { c: string; n: string | null; pts: [number, number][] };
 export type Overlay = PolyJ & { k: string };
+export type Gardens = {
+  yards: PolyJ[]; fences: { k: string; pts: [number, number][] }[]; plots: { c: [number, number]; a: number }[];
+  fruit: [number, number, number][]; hay: [number, number, number][];
+};
 export type Streets = {
   carriage: PolyJ[]; sidewalks: PolyJ[];
   bridges: { c: string; n: string | null; w: number; pts: [number, number][] }[];
@@ -66,6 +70,8 @@ export type AreaData = {
   trees: Float32Array; // x, y, scale, kind
   /** street surfaces and mapped infrastructure (pipeline/streets.py); null for areas built before it existed */
   streets: Streets | null;
+  /** ESTIMATED gardens, fences, plots, fruit trees, haystacks (pipeline/gardens.py); null if not exported */
+  gardens: Gardens | null;
   bytes: number;
 };
 
@@ -120,6 +126,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   let done = 0;
   const tick = <T,>(p: Promise<T>) => p.then((v) => { done++; onProgress?.(done / 7); return v; });
   const streetsP = fetch(`${base}/streets.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const gardensP = fetch(`${base}/gardens.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const [coreBuf, ctxBuf, bjs, vjs, treeBuf, coverCore, coverContext] = await Promise.all([
     tick(bin(`${base}/${meta.core.file}`)),
@@ -143,7 +150,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const furniture = (await furnP) ?? { points: [], walls: [] };
   const streets = (await streetsP) as Streets | null;
   return {
-    furniture, streets,
+    furniture, streets, gardens: (await gardensP) as Gardens | null,
     meta, core, context, coverCore, coverContext,
     datum: meta.core.base,
     buildings: b.buildings, removed: b.removed ?? [], minarets: b.minarets,

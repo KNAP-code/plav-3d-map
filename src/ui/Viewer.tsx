@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData, type Building } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { AUDIT_COLORS, AuditLayer, Buildings, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
+import { AUDIT_COLORS, AuditLayer, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
@@ -237,7 +237,8 @@ export default function Viewer() {
             {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
             {!off.has("landmarks") && <Landmarks data={data} provisional={review} />}
-            {!off.has("trees") && <Trees data={data} style={style} quality={quality} />}
+            {!off.has("trees") && <Trees data={data} style={style} quality={quality} estimates={estimates} />}
+            {estimates && !off.has("gardens") && <Gardens data={data} quality={quality} />}
           </Suspense>
           <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} night={night} />
           <Controls data={data} controlsRef={controls} hud={hudRefs} onReady={onControlsReady} />

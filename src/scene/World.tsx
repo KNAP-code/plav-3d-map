@@ -12,7 +12,8 @@ import { streetlights } from "@/geo/roads";
 import { furnitureGeometry, sidewalksGeometry } from "@/geo/street";
 import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
 import { bridgeGeometry, headstoneMatrices, pierGeometry, pitchGeometry, powerGeometry, sidewalkGeometry, zebraGeometry } from "@/geo/streetscape";
-import { SCENE, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
+import { fenceGeometry, fruitTrees, hayMatrices, haystack, yardGeometry } from "@/geo/gardenscape";
+import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
 import { bump } from "@/ui/perf";
 
@@ -290,10 +291,10 @@ export const shadowSync = { full: false };
  * 256 m tiles; only tiles inside the view frustum are written to the instance buffer, and tiles far
  * from the camera keep every 2nd tree. The buffer is rewritten only when that visible set changes.
  */
-export function Trees({ data, style, quality }: { data: AreaData; style: StyleConfig; quality: Quality }) {
+export function Trees({ data, style, quality, estimates = false }: { data: AreaData; style: StyleConfig; quality: Quality; estimates?: boolean }) {
   const T = TIERS[quality];
   const geo = useMemo(() => treeGeometries(style.trees.trunk), [style.trees.trunk]);
-  const sets = useMemo(() => treeSets(data, style.trees.leaf, style.trees.conifer, style.trees.size), [data, style.trees]);
+  const sets = useMemo(() => treeSets(data, style.trees.leaf, style.trees.conifer, style.trees.size, 256, estimates ? fruitTrees(data) : undefined), [data, style.trees, estimates]);
   const mat = useMemo(() => treeMaterial(), []);
   const meshes = useMemo(() => {
     const mk = (g: THREE.BufferGeometry, s: TreeSet) => {
@@ -511,6 +512,36 @@ export function Traffic({ data, style, count }: { data: AreaData; style: StyleCo
     <group>
       <primitive object={cars} />
       <primitive object={lights} />
+    </group>
+  );
+}
+
+/**
+ * ESTIMATED gardens (only with estimates on): yard lawns and vegetable plots (one draw), street-side fences (one draw,
+ * medium/high only) and haystacks on mapped meadows (one instanced draw, medium/high only).
+ */
+export function Gardens({ data, quality }: { data: AreaData; quality: Quality }) {
+  const yards = useMemo(() => yardGeometry(data), [data]);
+  const fences = useMemo(() => fenceGeometry(data), [data]);
+  const yardM = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), []);
+  const fenceM = useMemo(() => fenceMaterial(), []);
+  const hay = useMemo(() => {
+    const mats = hayMatrices(data);
+    if (!mats.length) return null;
+    const im = new THREE.InstancedMesh(haystack(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }), mats.length);
+    mats.forEach((m, i) => im.setMatrixAt(i, m));
+    im.computeBoundingSphere();
+    im.castShadow = true; im.receiveShadow = true;
+    return im;
+  }, [data]);
+  useDispose(useMemo(() => [yards, fences, yardM, fenceM], [yards, fences, yardM, fenceM]));
+  useEffect(() => () => { if (hay) { hay.geometry.dispose(); (hay.material as THREE.Material).dispose(); hay.dispose(); } }, [hay]);
+  if (!data.gardens) return null;
+  return (
+    <group>
+      <mesh geometry={yards} material={yardM} receiveShadow />
+      {quality !== "low" && <mesh geometry={fences} material={fenceM} castShadow receiveShadow />}
+      {quality !== "low" && hay && <primitive object={hay} />}
     </group>
   );
 }

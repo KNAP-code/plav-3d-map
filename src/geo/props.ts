@@ -49,8 +49,9 @@ export type TreeSet = {
   tiles: { start: number; end: number; box: THREE.Box3; cx: number; cz: number }[];
 };
 
-export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: number, tile = 256): { leaf: TreeSet; oval: TreeSet; broad: TreeSet; conifer: TreeSet } {
-  const t = d.trees;
+export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: number, tile = 256, extra?: Float32Array): { leaf: TreeSet; oval: TreeSet; broad: TreeSet; conifer: TreeSet } {
+  // extra: ESTIMATED garden fruit trees (kind 0.5), appended after the WorldCover trees
+  const t = extra && extra.length ? (() => { const a = new Float32Array(d.trees.length + extra.length); a.set(d.trees); a.set(extra, d.trees.length); return a; })() : d.trees;
   const lc = leaf.map((c) => new THREE.Color(c));
   const cc = conifer.map((c) => new THREE.Color(c));
   const { halfW, halfH } = d.meta.extent;
@@ -90,7 +91,8 @@ export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: n
     return { matrices, colors, count: list.length, tiles };
   };
   // deciduous trees get one of three crown shapes (deterministic per tree): 55% round, 20% tall oval, 25% broad
-  const shape = (k: number) => { const h = (((k + 7) * 2246822519) >>> 0) / 4294967296; return h < 0.55 ? 0 : h < 0.75 ? 1 : 2; };
+  const fruitK = new Set<number>(); items.forEach((it) => { if (it.kind > 0.25 && it.kind < 0.75) fruitK.add(it.k); });
+  const shape = (k: number) => { if (fruitK.has(k)) return 2; const h = (((k + 7) * 2246822519) >>> 0) / 4294967296; return h < 0.55 ? 0 : h < 0.75 ? 1 : 2; };
   const dec = items.filter((i) => i.kind < 1);
   return {
     leaf: build(dec.filter((i) => shape(i.k) === 0), lc),
