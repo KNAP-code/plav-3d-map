@@ -133,7 +133,7 @@ export function Effects({ style, quality, ao = true, tilt = true }: { style: Sty
     }
     const effects = [];
     if (style.post.tiltShift && tilt)
-      effects.push(new TiltShiftEffect({ offset: 0.0, rotation: 0, focusArea: style.post.tiltFocus, feather: style.post.tiltFeather, kernelSize: quality === "high" ? KernelSize.MEDIUM : KernelSize.SMALL, resolutionScale: quality === "low" ? 0.35 : 0.5 }));
+      effects.push(new TiltShiftEffect({ offset: 0.0, rotation: 0, focusArea: style.post.tiltFocus, feather: style.post.tiltFeather, kernelSize: quality === "high" ? KernelSize.SMALL : KernelSize.VERY_SMALL, resolutionScale: quality === "low" ? 0.35 : 0.5 }));
     effects.push(new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }));
     if (quality === "high") effects.push(new SMAAEffect());
     comp.addPass(new EffectPass(camera, ...effects));
@@ -215,8 +215,8 @@ export function Controls({ data, controlsRef, hud, onReady }: {
   return <CameraControls ref={controlsRef} makeDefault />;
 }
 
-export function flyTo(c: CameraControlsImpl, data: AreaData, style: StyleConfig, x: number, y: number, opts: { distance?: number; polarDeg?: number; azimuthDeg?: number } = {}, smooth = true) {
-  const h = data.core.at(x, y) - data.datum;
+export function flyTo(c: CameraControlsImpl, data: AreaData, style: StyleConfig, x: number, y: number, opts: { distance?: number; polarDeg?: number; azimuthDeg?: number; lift?: number } = {}, smooth = true) {
+  const h = data.core.at(x, y) - data.datum + (opts.lift ?? 0);
   const az = (opts.azimuthDeg ?? style.camera.startAzimuthDeg) * DEG;
   const pol = (opts.polarDeg ?? style.camera.startPolarDeg) * DEG;
   const d = opts.distance ?? style.camera.startDistance;

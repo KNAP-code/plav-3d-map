@@ -24,13 +24,24 @@ Estimated (needs visual verification):
 - Exact position of the šadrvan.
 - Rear (qibla) wall. No photo is available, so it is modelled as plain plaster with two arched windows.
 
-## Redžepagića kula (candidate OSM way 221505346) — HIDDEN until the location is confirmed
+## Redžepagića kula (OSM way 221505346) — CONFIRMED, shown in the main map
 
-- The only coordinate found is 42.595724 N, 19.945963 E, from photomontenegro.me (2013, no stated method). It names the street "Podnogradska".
-- The nearest footprint is a square 8.6 × 8.4 m OSM building 7 m away, about 55 m from Redžepagića džamija. It has no name tag in the Overture data.
-- Cross-checks attempted: the OSM way page, Wikidata, Wikimapia, satellite tiles and the municipal and tourist sites. None was reachable from the build sandbox or none stated a location, so the position is **unverified**.
-- What the model shows (from the sources and the owner's photos): a square stone tower with walls over 1 m thick that taper towards the top, two stone storeys, an overhanging timber čardak with framed windows, closed timber erkers (one with its own roof), a steep hipped roof with deep eaves, an arched door and slit openings.
-- Estimated: stone height 8 m, timber storey 2.6 m and roof rise 2.6 m from photo proportions. The front face is assumed to be the one towards the nearest street. The window count and positions are also estimated.
+- Position confirmed by the project owner on 2026-11-20: 42.595724 N, 19.945963 E, OSM building way 221505346 (8.6 × 8.4 m).
+  The model replaces the generic building on that footprint, keeps its centre and orientation, and sits on the terrain at the footprint's ground height.
+- Not to be confused with Redžepagića džamija, about 55 m to the north-east.
+- Camera shortcut: the "Redžepagića kula" chip flies to the door face.
+- Verified from the sources and the owner's two photos:
+  - square rubble-stone tower whose walls taper towards the top
+  - round-arched wooden door and small square openings in the stone
+  - dark timber čardak overhanging all four sides, with corbel beams, corner posts, diagonal braces, a light beam band and pairs of small white-framed windows
+  - closed timber erker on the front face hanging below the čardak, with its own reddish mono-pitch roof
+  - erkers on the side faces near the front corners
+  - steep hipped reddish-brown roof with deep eaves and a finial rod
+- Estimated:
+  - heights (stone 10 m, timber storey 2.6 m, roof rise 3.4 m) from photo proportions
+  - which face is the front (the one towards the nearest street)
+  - the rear face, which has no photo
+  - exact sizes of the erkers and windows
 
 ## Šehidska džamija
 

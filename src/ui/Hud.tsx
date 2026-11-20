@@ -4,7 +4,7 @@ import type { AreaData } from "@/data/load";
 import type { Quality } from "@/scene/World";
 import { T, type Lang } from "./i18n";
 
-export type Chip = { label: string; x: number; y: number; distance?: number; azimuth?: number };
+export type Chip = { label: string; x: number; y: number; distance?: number; azimuth?: number; polar?: number; lift?: number };
 
 const I = {
   plus: <path d="M12 5v14M5 12h14" />,

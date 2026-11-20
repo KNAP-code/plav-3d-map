@@ -219,76 +219,109 @@ const STARA: LandmarkDef = {
 };
 
 /**
- * Redžepagića kula. Position: 42.595724 N, 19.945963 E (photomontenegro.me), 7 m from a square
- * 8.6 × 8.4 m OSM footprint: provisional until the project owner confirms it.
+ * Redžepagića kula. Position confirmed by the project owner (2026-11-20): 42.595724 N, 19.945963 E,
+ * OSM building way 221505346 (8.6 × 8.4 m footprint).
  */
 const KULA: LandmarkDef = {
   name: "Redžepagića kula",
-  provisional: true,
   verified: [
-    "Square stone tower, walls over 1 m thick tapering towards the top (montenegrina.net, photos)",
-    "Two stone storeys plus a later timber top storey (čardak) overhanging the stone walls (sources, photos)",
-    "Closed timber balconies (erkers) projecting from the top storey, one with its own small roof (photos)",
-    "Steep hipped roof with deep eaves, reddish-brown covering (photo 2; sources: originally stone slabs, later shingles)",
-    "Round-arched door and small slit openings in the stone (photos)",
+    "Position and footprint: OSM way 221505346 at 42.595724, 19.945963 (confirmed on site knowledge by the project owner)",
+    "Square rubble-stone tower, walls tapering towards the top (montenegrina.net, photos)",
+    "Two stone storeys plus a later dark timber top storey (čardak) overhanging the stone on all sides (sources, photos)",
+    "Timber storey: small white-framed windows in pairs, diagonal braces and a light horizontal beam (photo 2)",
+    "Closed timber erker on the front face hanging below the čardak with its own small reddish roof; erkers at the side corners (photos)",
+    "Steep hipped roof, reddish-brown covering, deep eaves, finial rod at the apex (photos)",
+    "Round-arched wooden door at ground level, small square openings in the stone (photos)",
   ],
   estimated: [
-    "Position: one source coordinate matched to the nearest square OSM footprint (needs confirmation)",
-    "Heights: stone 8 m, timber storey 2.6 m, roof rise 2.6 m (from photo proportions)",
+    "Heights: stone 10 m, timber storey 2.6 m, roof rise 3.4 m (from photo proportions: stone face ≈1.2× as tall as wide; no survey)",
     "Which face is the front (door + roofed erker): the face towards the nearest street",
-    "Number and position of the small windows in the timber storey",
+    "Rear face: no photo; modelled like the front without door or erker",
+    "Exact sizes of the erkers and windows (from photo proportions)",
   ],
   build(B, { L, W }) {
-    const stone = C("#b9b0a2"), wood = C("#4a3426"), beam = C("#33241a"), roof = C("#8c4f3f"), frame = C("#efe9de"), dark = C("#2a2420");
-    const hs = 8.0, hw = 2.6, taper = 0.3, ov = 0.9;
-    // tapering stone shaft (front = +s face)
+    const stone = C("#bdb3a3"), wood = C("#4a3426"), beam = C("#2f2118"), band = C("#b08a5e"), roof = C("#8f4c3a");
+    const frame = C("#efe9de"), dark = C("#2a2420"), door = C("#5a4130"), glass = C("#3b3f45");
+    const hs = 10.0, hw = 2.6, taper = 0.35, ov = 1.0;
     const p = (s: number, t: number, z: number) => [s, t, z] as V3;
     const Ls = L - taper, Ws = W - taper;
+    // tapering stone shaft (front = +s face)
     const faces: [number, number, number, number][] = [[-L, -W, L, -W], [L, -W, L, W], [L, W, -L, W], [-L, W, -L, -W]];
     const top: [number, number, number, number][] = [[-Ls, -Ws, Ls, -Ws], [Ls, -Ws, Ls, Ws], [Ls, Ws, -Ls, Ws], [-Ls, Ws, -Ls, -Ws]];
     for (let i = 0; i < 4; i++) {
       const [a0, b0, a1, b1] = faces[i], [c0, d0, c1, d1] = top[i];
       B.quad(p(a0, b0, -1), p(a1, b1, -1), p(c1, d1, hs), p(c0, d0, hs), stone, K.stone);
     }
-    // door (front) and slit windows
-    B.archWindow(L - taper * 0.05, -W, L - taper * 0.05, W, W, 1.05, 0, 2.2, C("#4b3628"), 0.03);
-    for (const [s0, t0, s1, t1] of faces) for (const z of [3.2, 5.6]) {
-      const len = Math.hypot(s1 - s0, t1 - t0);
-      B.archWindow(s0, t0, s1, t1, len * 0.5, 0.3, z, z + 0.6, dark, 0.06 + taper * (z / hs));
-    }
+    // square opening on a stone face (offset follows the taper)
+    const hole = (f: number, u: number, z: number, w: number, h: number, c = dark) => {
+      const [s0, t0, s1, t1] = faces[f], len = Math.hypot(s1 - s0, t1 - t0), ds = (s1 - s0) / len, dt = (t1 - t0) / len;
+      const off = 0.05 - taper * ((z + h / 2) / hs), ns = dt * off, nt = -ds * off;
+      const q = (du: number, zz: number): V3 => [s0 + ds * (u + du) + ns, t0 + dt * (u + du) + nt, zz];
+      B.quad(q(-w / 2, z), q(w / 2, z), q(w / 2, z + h), q(-w / 2, z + h), c);
+    };
+    // front: arched door left of centre, small window above it, larger opening to the right (photo 2)
+    B.archWindow(L - 0.01, -W, L - 0.01, W, W * 0.8, 1.05, 0, 2.3, door, 0.04);
+    hole(1, W * 0.8, 5.4, 0.35, 0.4); hole(1, W * 1.35, 3.9, 0.65, 0.75);
+    // other faces: small slit/square openings on both stone storeys
+    for (const f of [0, 2, 3]) { const u = (f === 3 ? W : L) * 1.0; hole(f, u, 3.8, 0.3, 0.5); hole(f, u * 0.9, 7.2, 0.3, 0.5); }
     // timber storey, overhanging the stone top by 0.6 m
-    const Lt = Ls + 0.6, Wt = Ws + 0.6;
-    B.box(-Lt, Lt, -Wt, Wt, hs, hs + hw, wood, K.planks, false);
-    B.quad([-Lt, -Wt, hs], [-Lt, Wt, hs], [Lt, Wt, hs], [Lt, -Wt, hs], beam); // underside
-    // corbel beams under the overhang
-    for (const t of [-Wt * 0.6, 0, Wt * 0.6]) B.box(-Lt - 0.2, Lt + 0.2, t - 0.12, t + 0.12, hs - 0.35, hs, beam);
-    // small framed windows on each face of the timber storey
-    const win = (s0: number, t0: number, s1: number, t1: number, n: number) => {
-      const len = Math.hypot(s1 - s0, t1 - t0), ds = (s1 - s0) / len, dt = (t1 - t0) / len, ns = dt * 0.05, nt = -ds * 0.05;
-      for (let i = 0; i < n; i++) {
-        const u = ((i + 0.5) / n) * len, cs = s0 + ds * u + ns, ct = t0 + dt * u + nt;
-        const q = (du: number, z: number, o = 0): V3 => [cs + ds * du + ns * o, ct + dt * du + nt * o, z];
-        B.quad(q(-0.42, hs + 0.9), q(0.42, hs + 0.9), q(0.42, hs + 1.85), q(-0.42, hs + 1.85), frame);
-        B.quad(q(-0.32, hs + 1.0, 1), q(0.32, hs + 1.0, 1), q(0.32, hs + 1.75, 1), q(-0.32, hs + 1.75, 1), C("#3b3f45"), K.glass);
+    const Lt = Ls + 0.6, Wt = Ws + 0.6, zt = hs, zr = hs + hw;
+    B.box(-Lt, Lt, -Wt, Wt, zt, zr, wood, K.planks, false);
+    B.quad([-Lt, -Wt, zt], [-Lt, Wt, zt], [Lt, Wt, zt], [Lt, -Wt, zt], beam); // underside
+    // corbel beams under the overhang, both directions
+    for (const t of [-Wt * 0.6, 0, Wt * 0.6]) B.box(-Lt - 0.2, Lt + 0.2, t - 0.12, t + 0.12, zt - 0.3, zt, beam);
+    for (const s of [-Lt * 0.6, Lt * 0.6]) B.box(s - 0.12, s + 0.12, -Wt - 0.2, Wt + 0.2, zt - 0.3, zt, beam);
+    const tf: [number, number, number, number][] = [[-Lt, -Wt, Lt, -Wt], [Lt, -Wt, Lt, Wt], [Lt, Wt, -Lt, Wt], [-Lt, Wt, -Lt, -Wt]];
+    for (const [s0, t0, s1, t1] of tf) {
+      const len = Math.hypot(s1 - s0, t1 - t0), ds = (s1 - s0) / len, dt = (t1 - t0) / len;
+      const at = (u: number, z: number, o: number): V3 => [s0 + ds * u + dt * o, t0 + dt * u - ds * o, z];
+      // light beam band below the windows, sole plate and wall plate
+      B.quad(at(0, zt + 0.55, 0.04), at(len, zt + 0.55, 0.04), at(len, zt + 0.7, 0.04), at(0, zt + 0.7, 0.04), band);
+      B.quad(at(0, zt, 0.05), at(len, zt, 0.05), at(len, zt + 0.18, 0.05), at(0, zt + 0.18, 0.05), beam);
+      B.quad(at(0, zr - 0.2, 0.05), at(len, zr - 0.2, 0.05), at(len, zr, 0.05), at(0, zr, 0.05), beam);
+      // corner posts and diagonal braces from the corners
+      for (const u of [0.1, len - 0.1]) B.quad(at(u - 0.1, zt, 0.06), at(u + 0.1, zt, 0.06), at(u + 0.1, zr, 0.06), at(u - 0.1, zr, 0.06), beam);
+      for (const [u0, u1] of [[0.2, 1.6], [len - 0.2, len - 1.6]]) {
+        const w = 0.09 * Math.sign(u1 - u0);
+        B.quad(at(u0 - w, zt + 0.2, 0.06), at(u0 + w, zt + 0.2, 0.06), at(u1 + w, zr - 0.2, 0.06), at(u1 - w, zr - 0.2, 0.06), beam);
       }
-    };
-    win(-Lt, -Wt, Lt, -Wt, 2); win(Lt, -Wt, Lt, Wt, 2); win(Lt, Wt, -Lt, Wt, 2); win(-Lt, Wt, -Lt, -Wt, 2);
-    // erkers: front one hangs lower and has its own roof; one on each side face at the top storey
-    const erker = (cs: number, ct: number, ds: number, dt: number, z0: number, z1: number, roofed: boolean) => {
-      B.box(cs - ds, cs + ds, ct - dt, ct + dt, z0, z1, wood, K.planks);
+      // a pair of small white-framed windows in the middle
+      for (const u of [len / 2 - 0.65, len / 2 + 0.65]) {
+        B.quad(at(u - 0.4, zt + 0.95, 0.07), at(u + 0.4, zt + 0.95, 0.07), at(u + 0.4, zt + 1.9, 0.07), at(u - 0.4, zt + 1.9, 0.07), frame);
+        B.quad(at(u - 0.3, zt + 1.05, 0.09), at(u + 0.3, zt + 1.05, 0.09), at(u + 0.3, zt + 1.8, 0.09), at(u - 0.3, zt + 1.8, 0.09), glass, K.glass);
+        B.quad(at(u - 0.03, zt + 1.05, 0.1), at(u + 0.03, zt + 1.05, 0.1), at(u + 0.03, zt + 1.8, 0.1), at(u - 0.03, zt + 1.8, 0.1), frame);
+      }
+    }
+    // erker: timber box projecting from a face; framed window on its outer face; optional own roof
+    const erker = (cs: number, ct: number, ds: number, dt: number, z0: number, z1: number, dir: [number, number], roofed: boolean) => {
+      B.box(cs - ds, cs + ds, ct - dt, ct + dt, z0, z1, wood, K.planks, !roofed);
       B.quad([cs - ds, ct - dt, z0], [cs - ds, ct + dt, z0], [cs + ds, ct + dt, z0], [cs + ds, ct - dt, z0], beam);
+      // brackets below
+      B.box(cs - ds * 0.9, cs + ds * 0.9, ct - dt * 0.9, ct + dt * 0.9, z0 - 0.25, z0, beam);
+      const os = cs + dir[0] * (ds + 0.04), ot = ct + dir[1] * (dt + 0.04), es = dir[1], et = -dir[0];
+      const zc = (z0 + z1) / 2 + 0.15;
+      const q = (u: number, z: number, o = 0): V3 => [os + es * u + dir[0] * o, ot + et * u + dir[1] * o, z];
+      B.quad(q(-0.38, zc - 0.42), q(0.38, zc - 0.42), q(0.38, zc + 0.42), q(-0.38, zc + 0.42), frame);
+      B.quad(q(-0.28, zc - 0.32, 0.02), q(0.28, zc - 0.32, 0.02), q(0.28, zc + 0.32, 0.02), q(-0.28, zc + 0.32, 0.02), glass, K.glass);
+      B.quad(q(-0.5, z0 + 0.25, 0.01), q(0.5, z0 + 0.25, 0.01), q(0.5, z0 + 0.38, 0.01), q(-0.5, z0 + 0.38, 0.01), band);
       if (roofed) {
-        const o = 0.25;
-        B.quad([cs + ds + o, ct - dt - o, z1], [cs + ds + o, ct + dt + o, z1], [cs - ds, ct + dt + o, z1 + 0.7], [cs - ds, ct - dt - o, z1 + 0.7], roof, K.shingle);
+        // mono-pitch roof sloping outwards, reddish metal (photo 2)
+        const o = 0.3, hi = 0.75;
+        const A: V3 = [cs - ds - o, ct - dt - o, z1], Bc: V3 = [cs + ds + o, ct - dt - o, z1], Cc: V3 = [cs + ds + o, ct + dt + o, z1], D: V3 = [cs - ds - o, ct + dt + o, z1];
+        const lift = (v: V3): V3 => { const back = (v[0] - cs) * dir[0] + (v[1] - ct) * dir[1] < 0; return [v[0], v[1], back ? v[2] + hi : v[2]]; };
+        B.quad(lift(A), lift(Bc), lift(Cc), lift(D), roof, K.plain);
+        B.quad(D, Cc, Bc, A, roof.clone().multiplyScalar(0.55), K.plain);
       }
     };
-    erker(Lt + 0.55, -Wt * 0.35, 0.55, 1.05, hs - 1.5, hs + 0.9, true);
-    erker(Wt * 0.15, -Wt - 0.5, 1.1, 0.5, hs - 0.2, hs + hw - 0.1, false);
-    erker(-Wt * 0.15, Wt + 0.5, 1.1, 0.5, hs - 0.2, hs + hw - 0.1, false);
-    // roof with deep eaves
-    const tan = 2.6 / (Math.min(Lt, Wt) + ov);
-    const ridge = B.hipRoof(Lt + ov, Wt + ov, hs + hw, tan, roof, K.shingle);
-    B.frustum(0, 0, 4, 0.04, 0.03, ridge, ridge + 1.2, C("#555"), K.plain);
+    // front erker: left of centre, hanging well below the čardak, with its own roof
+    erker(Lt + 0.6, -Wt * 0.3, 0.6, 1.1, zt - 1.7, zt + 1.0, [1, 0], true);
+    // side erkers near the front corners, at the čardak level, hanging a little lower
+    erker(Lt * 0.45, -Wt - 0.55, 1.05, 0.55, zt - 0.6, zr - 0.15, [0, -1], false);
+    erker(Lt * 0.45, Wt + 0.55, 1.05, 0.55, zt - 0.6, zr - 0.15, [0, 1], false);
+    // steep hipped roof with deep eaves, finial rod
+    const tan = 3.4 / (Math.min(Lt, Wt) + ov);
+    const ridge = B.hipRoof(Lt + ov, Wt + ov, zr, tan, roof, K.shingle);
+    B.frustum(0, 0, 4, 0.04, 0.03, ridge, ridge + 1.4, C("#555"), K.plain);
   },
 };
 
@@ -297,6 +330,27 @@ export const LANDMARKS: Record<string, LandmarkDef> = {
   "d8f69ad5-7153-4d6e-955e-b92a1d3e95f6": STARA,
   "4a1e5139-8dfc-4753-80af-dac7d0240aaf": KULA,
 };
+
+/** +1 if the model's front (+s) faces along the OBB axis, -1 if flipped. The kula's front (door) is the face towards the nearest road. */
+function frontFlip(d: AreaData, b: Building, def: LandmarkDef) {
+  if (def !== KULA) return 1;
+  const [cx, cy, ang] = b.obb;
+  let best = Infinity, bx = 0, by = 0;
+  for (const r of d.roads) for (const [x, y] of r.pts) { const q = Math.hypot(x - cx, y - cy); if (q < best) { best = q; bx = x; by = y; } }
+  return (bx - cx) * Math.cos(ang) + (by - cy) * Math.sin(ang) >= 0 ? 1 : -1;
+}
+
+/** Camera shortcut for a landmark: footprint centre and the azimuth (deg, as used by flyTo) that looks at its front. */
+export function landmarkFocus(d: AreaData, name: string, turnDeg = 0) {
+  for (const b of d.buildings) {
+    const def = LANDMARKS[b.id];
+    if (!def || def.name !== name) continue;
+    const [cx, cy, ang] = b.obb, f = frontFlip(d, b, def);
+    const nx = Math.cos(ang) * f, ny = Math.sin(ang) * f;
+    return { x: cx, y: cy, azimuth: (Math.atan2(nx, -ny) * 180) / Math.PI + turnDeg };
+  }
+  return null;
+}
 
 /** Build all landmark models present in the area as one merged geometry (one draw call). */
 export function landmarkGeometry(d: AreaData, opts: { provisional: boolean }) {
@@ -308,13 +362,7 @@ export function landmarkGeometry(d: AreaData, opts: { provisional: boolean }) {
     const [cx, cy, ang, Lf, Wf] = b.obb;
     const ca = Math.cos(ang), sa = Math.sin(ang);
     const ground = (b.g0 + b.g1) / 2 - d.datum;
-    let flip = 1;
-    if (def === KULA) {
-      // front (door) face: the +s or -s face, whichever points towards the nearest road
-      let best = Infinity, bx = 0, by = 0;
-      for (const r of d.roads) for (const [x, y] of r.pts) { const q = Math.hypot(x - cx, y - cy); if (q < best) { best = q; bx = x; by = y; } }
-      flip = (bx - cx) * ca + (by - cy) * sa >= 0 ? 1 : -1;
-    }
+    const flip = frontFlip(d, b, def);
     const B = new Builder((s, t, z) => {
       s *= flip; t *= flip;
       const x = cx + s * ca - t * sa, y = cy + s * sa + t * ca;

@@ -53,7 +53,7 @@ export const plavWarm: StyleConfig = {
   water: { color: "#5b9aa6", deep: "#3f7c8c", shore: "#9cc3c2", roughness: 0.18 },
   trees: { leaf: ["#6ea94a", "#5f9b3f", "#80b552", "#4f8a3a", "#8cbd5c"], conifer: ["#3f7a3f", "#356e3b", "#4a8545"], trunk: "#7a5b43", size: 1.0 },
   minaret: { color: "#f4f1ea", cap: "#7f8c95" },
-  post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: true, tiltFocus: 0.42, tiltFeather: 0.28, tiltBlur: 1, exposure: 1.0 },
+  post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: true, tiltFocus: 0.62, tiltFeather: 0.3, tiltBlur: 1, exposure: 1.0 },
   camera: { fov: 28, startPolarDeg: 40, startAzimuthDeg: 28, startDistance: 420 },
   night: { fog: "#0e1626", fogNear: 1200, fogFar: 6500, moon: "#9db2e6", moonIntensity: 0.22, sky: "#22314f", ground: "#12151c", ambient: 0.38 },
 };

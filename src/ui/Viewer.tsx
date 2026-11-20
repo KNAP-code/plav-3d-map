@@ -8,6 +8,7 @@ import { PRESETS, type StyleConfig } from "@/style/presets";
 import { Buildings, Landmarks, Minarets, Roads, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
+import { landmarkFocus } from "@/geo/landmarks";
 import { T, type Lang } from "./i18n";
 import { AdaptiveQuality, Bench, StatsProbe, bump, formatBench, type BenchResult } from "./perf";
 import dynamic from "next/dynamic";
@@ -79,6 +80,9 @@ export default function Viewer() {
         out.push({ label: L.lake, x, y, distance: 650, azimuth: 95 });
       }
     }
+    // Redžepagića kula: position confirmed by the project owner (OSM way 221505346); camera looks at the door face
+    const kula = landmarkFocus(data, "Redžepagića kula", 25);
+    if (kula) out.splice(1, 0, { label: "Redžepagića kula", x: kula.x, y: kula.y, distance: 80, azimuth: kula.azimuth, polar: 72, lift: 7 });
     const seen = new Set<string>();
     for (const m of data.meta.landmarks) {
       if (seen.has(m.name) || out.length > 8) continue;
@@ -108,7 +112,7 @@ export default function Viewer() {
   const onHome = useCallback(() => goHome(true), [goHome]);
   const onRotate = useCallback(() => { controls.current?.rotate(45 * DEG, 0, true); }, []);
   const onNorth = useCallback(() => { controls.current?.rotateAzimuthTo(0, true); }, []);
-  const onChip = useCallback((c: Chip) => { if (controls.current && data) flyTo(controls.current, data, style, c.x, c.y, { distance: c.distance ?? 260, azimuthDeg: c.azimuth }); }, [data, style]);
+  const onChip = useCallback((c: Chip) => { if (controls.current && data) flyTo(controls.current, data, style, c.x, c.y, { distance: c.distance ?? 260, azimuthDeg: c.azimuth, polarDeg: c.polar, lift: c.lift }); }, [data, style]);
   const onFirst = useCallback((ms: number) => setFirstFrameMs(ms - t0.current), []);
   const L = T[lang];
 

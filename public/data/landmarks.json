@@ -1,0 +1,1753 @@
+{
+ "generated_from": "Overture Maps 2026-11-18.0 (OSM buildings/minarets, Meta places), municipal boundary from Overture divisions (OSM)",
+ "confidence_rules": {
+  "VERIFIED": "name + footprint in OSM and at least one independent source agreeing within 30 m",
+  "PROBABLE": "one geographic source consistent with written descriptions",
+  "UNCONFIRMED": "single unverified source, unnamed footprint or conflicting sources"
+ },
+ "prototype_bbox": [
+  19.93,
+  42.59,
+  19.955,
+  42.606
+ ],
+ "municipality": {
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     19.8278098,
+     42.6310938
+    ],
+    [
+     19.8306095,
+     42.6259935
+    ],
+    [
+     19.8324007,
+     42.615653
+    ],
+    [
+     19.8372074,
+     42.6131634
+    ],
+    [
+     19.8398917,
+     42.607778
+    ],
+    [
+     19.8464699,
+     42.6058526
+    ],
+    [
+     19.8511462,
+     42.6068764
+    ],
+    [
+     19.8560644,
+     42.6101254
+    ],
+    [
+     19.866466,
+     42.6073617
+    ],
+    [
+     19.8731107,
+     42.6070147
+    ],
+    [
+     19.8750716,
+     42.6050418
+    ],
+    [
+     19.8863065,
+     42.6040724
+    ],
+    [
+     19.8910627,
+     42.6023394
+    ],
+    [
+     19.8920376,
+     42.5996589
+    ],
+    [
+     19.894339,
+     42.5995555
+    ],
+    [
+     19.9040975,
+     42.5929358
+    ],
+    [
+     19.9119966,
+     42.5940414
+    ],
+    [
+     19.9169552,
+     42.5922075
+    ],
+    [
+     19.9156424,
+     42.5900978
+    ],
+    [
+     19.918722,
+     42.5900236
+    ],
+    [
+     19.916768,
+     42.5842724
+    ],
+    [
+     19.9151832,
+     42.5839495
+    ],
+    [
+     19.9149138,
+     42.5824372
+    ],
+    [
+     19.9113519,
+     42.5815997
+    ],
+    [
+     19.911127,
+     42.5790867
+    ],
+    [
+     19.9094373,
+     42.5776459
+    ],
+    [
+     19.9048701,
+     42.5784526
+    ],
+    [
+     19.9030015,
+     42.5769586
+    ],
+    [
+     19.9003566,
+     42.5782085
+    ],
+    [
+     19.8981373,
+     42.5768395
+    ],
+    [
+     19.8952638,
+     42.5787061
+    ],
+    [
+     19.8925226,
+     42.577716
+    ],
+    [
+     19.8909238,
+     42.5749349
+    ],
+    [
+     19.8925591,
+     42.5716926
+    ],
+    [
+     19.8917045,
+     42.5680918
+    ],
+    [
+     19.8932478,
+     42.5666173
+    ],
+    [
+     19.8947048,
+     42.568156
+    ],
+    [
+     19.8980269,
+     42.5652825
+    ],
+    [
+     19.898858,
+     42.5618927
+    ],
+    [
+     19.9016387,
+     42.5617014
+    ],
+    [
+     19.9005811,
+     42.5570657
+    ],
+    [
+     19.8991803,
+     42.5558616
+    ],
+    [
+     19.9007833,
+     42.5539347
+    ],
+    [
+     19.9007093,
+     42.5505222
+    ],
+    [
+     19.8973921,
+     42.5447717
+    ],
+    [
+     19.9017093,
+     42.539028
+    ],
+    [
+     19.9004043,
+     42.5327528
+    ],
+    [
+     19.8965029,
+     42.5300948
+    ],
+    [
+     19.8927792,
+     42.524966
+    ],
+    [
+     19.8971919,
+     42.5176668
+    ],
+    [
+     19.9025227,
+     42.5143212
+    ],
+    [
+     19.9033158,
+     42.5100706
+    ],
+    [
+     19.9069491,
+     42.5069626
+    ],
+    [
+     19.9173075,
+     42.5075362
+    ],
+    [
+     19.9222635,
+     42.5111288
+    ],
+    [
+     19.9401473,
+     42.5178774
+    ],
+    [
+     19.9434775,
+     42.5176263
+    ],
+    [
+     19.9532703,
+     42.5106539
+    ],
+    [
+     19.9669385,
+     42.5092972
+    ],
+    [
+     19.971958,
+     42.5113906
+    ],
+    [
+     19.9825334,
+     42.5123492
+    ],
+    [
+     19.9847755,
+     42.510895
+    ],
+    [
+     19.9955001,
+     42.5113921
+    ],
+    [
+     20.003143,
+     42.5087718
+    ],
+    [
+     20.0081845,
+     42.5128874
+    ],
+    [
+     20.0100524,
+     42.5199969
+    ],
+    [
+     20.0124352,
+     42.5219811
+    ],
+    [
+     20.0120993,
+     42.5257032
+    ],
+    [
+     20.0139372,
+     42.526294
+    ],
+    [
+     20.0163525,
+     42.5306289
+    ],
+    [
+     20.0138514,
+     42.5364421
+    ],
+    [
+     20.0150808,
+     42.5413995
+    ],
+    [
+     20.0167815,
+     42.5431497
+    ],
+    [
+     20.027715,
+     42.5435715
+    ],
+    [
+     20.031408,
+     42.5455211
+    ],
+    [
+     20.049386,
+     42.5500633
+    ],
+    [
+     20.0565081,
+     42.5591476
+    ],
+    [
+     20.0731394,
+     42.555542
+    ],
+    [
+     20.0788765,
+     42.5560902
+    ],
+    [
+     20.0790726,
+     42.5597369
+    ],
+    [
+     20.0843052,
+     42.5680687
+    ],
+    [
+     20.08398,
+     42.5705948
+    ],
+    [
+     20.0880424,
+     42.5739875
+    ],
+    [
+     20.0884946,
+     42.5760032
+    ],
+    [
+     20.0872709,
+     42.5809181
+    ],
+    [
+     20.0857293,
+     42.582446
+    ],
+    [
+     20.0861698,
+     42.5874481
+    ],
+    [
+     20.0749546,
+     42.6016881
+    ],
+    [
+     20.0745273,
+     42.604837
+    ],
+    [
+     20.0728171,
+     42.6068975
+    ],
+    [
+     20.0761271,
+     42.6147029
+    ],
+    [
+     20.0757302,
+     42.6209103
+    ],
+    [
+     20.0818413,
+     42.6263379
+    ],
+    [
+     20.0899375,
+     42.6309
+    ],
+    [
+     20.0936092,
+     42.6392356
+    ],
+    [
+     20.0970139,
+     42.6426098
+    ],
+    [
+     20.1087032,
+     42.6478339
+    ],
+    [
+     20.1119442,
+     42.6554024
+    ],
+    [
+     20.0945475,
+     42.6662929
+    ],
+    [
+     20.0885733,
+     42.6687164
+    ],
+    [
+     20.0833932,
+     42.680036
+    ],
+    [
+     20.0682713,
+     42.6802874
+    ],
+    [
+     20.0636683,
+     42.6848634
+    ],
+    [
+     20.0544282,
+     42.6847929
+    ],
+    [
+     20.0527581,
+     42.6884137
+    ],
+    [
+     20.0450671,
+     42.695479
+    ],
+    [
+     20.0333271,
+     42.6970492
+    ],
+    [
+     20.0315223,
+     42.7058918
+    ],
+    [
+     20.0327637,
+     42.7109046
+    ],
+    [
+     20.0072582,
+     42.7079304
+    ],
+    [
+     19.9977241,
+     42.703741
+    ],
+    [
+     19.989738,
+     42.7019985
+    ],
+    [
+     19.9688963,
+     42.7069762
+    ],
+    [
+     19.9603496,
+     42.7024665
+    ],
+    [
+     19.9559276,
+     42.703616
+    ],
+    [
+     19.9428078,
+     42.7001231
+    ],
+    [
+     19.9335353,
+     42.7022876
+    ],
+    [
+     19.909875,
+     42.6937346
+    ],
+    [
+     19.9079717,
+     42.6946034
+    ],
+    [
+     19.8975904,
+     42.6931124
+    ],
+    [
+     19.8912783,
+     42.6899505
+    ],
+    [
+     19.8908722,
+     42.6879615
+    ],
+    [
+     19.8831331,
+     42.6818347
+    ],
+    [
+     19.8686468,
+     42.6770305
+    ],
+    [
+     19.8683273,
+     42.6789148
+    ],
+    [
+     19.8626113,
+     42.6769936
+    ],
+    [
+     19.8617076,
+     42.6764935
+    ],
+    [
+     19.8651971,
+     42.6753663
+    ],
+    [
+     19.8656587,
+     42.6728147
+    ],
+    [
+     19.8696975,
+     42.6703078
+    ],
+    [
+     19.8647916,
+     42.6650931
+    ],
+    [
+     19.8574845,
+     42.6505338
+    ],
+    [
+     19.8643569,
+     42.6551884
+    ],
+    [
+     19.8620025,
+     42.653219
+    ],
+    [
+     19.8623826,
+     42.6513675
+    ],
+    [
+     19.8602253,
+     42.6480149
+    ],
+    [
+     19.8562409,
+     42.6470814
+    ],
+    [
+     19.8543594,
+     42.6449592
+    ],
+    [
+     19.8412466,
+     42.6425705
+    ],
+    [
+     19.8395949,
+     42.6405517
+    ],
+    [
+     19.840473,
+     42.6381533
+    ],
+    [
+     19.8290439,
+     42.6337096
+    ],
+    [
+     19.8278098,
+     42.6310938
+    ]
+   ]
+  ]
+ },
+ "lake": {
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     19.9264392,
+     42.604532
+    ],
+    [
+     19.9246424,
+     42.6044835
+    ],
+    [
+     19.92096,
+     42.6027216
+    ],
+    [
+     19.9201959,
+     42.601913
+    ],
+    [
+     19.919366,
+     42.6003608
+    ],
+    [
+     19.9192659,
+     42.5993852
+    ],
+    [
+     19.9190044,
+     42.5993472
+    ],
+    [
+     19.9192745,
+     42.5986199
+    ],
+    [
+     19.9197595,
+     42.5987538
+    ],
+    [
+     19.9193303,
+     42.5980817
+    ],
+    [
+     19.919459,
+     42.597491
+    ],
+    [
+     19.9186863,
+     42.5989147
+    ],
+    [
+     19.9164091,
+     42.5968424
+    ],
+    [
+     19.916216,
+     42.5965502
+    ],
+    [
+     19.9165885,
+     42.5954233
+    ],
+    [
+     19.9156994,
+     42.5944414
+    ],
+    [
+     19.9170343,
+     42.5935175
+    ],
+    [
+     19.9185686,
+     42.5945434
+    ],
+    [
+     19.9182062,
+     42.5953778
+    ],
+    [
+     19.9196761,
+     42.5965861
+    ],
+    [
+     19.9194698,
+     42.5973709
+    ],
+    [
+     19.920787,
+     42.5970237
+    ],
+    [
+     19.9207447,
+     42.5957679
+    ],
+    [
+     19.9219801,
+     42.5952771
+    ],
+    [
+     19.9201825,
+     42.5952565
+    ],
+    [
+     19.9184825,
+     42.5920917
+    ],
+    [
+     19.9176279,
+     42.5918152
+    ],
+    [
+     19.9172038,
+     42.5919856
+    ],
+    [
+     19.9168769,
+     42.5916865
+    ],
+    [
+     19.9170236,
+     42.5912202
+    ],
+    [
+     19.9184162,
+     42.5906428
+    ],
+    [
+     19.9195449,
+     42.5905745
+    ],
+    [
+     19.9204325,
+     42.5911482
+    ],
+    [
+     19.9203413,
+     42.5918867
+    ],
+    [
+     19.9219769,
+     42.5917805
+    ],
+    [
+     19.9220876,
+     42.5900417
+    ],
+    [
+     19.919829,
+     42.5891415
+    ],
+    [
+     19.9194213,
+     42.5883761
+    ],
+    [
+     19.9197549,
+     42.5874132
+    ],
+    [
+     19.9193067,
+     42.5869382
+    ],
+    [
+     19.9224502,
+     42.5850025
+    ],
+    [
+     19.9234287,
+     42.5850977
+    ],
+    [
+     19.9253921,
+     42.5859504
+    ],
+    [
+     19.9256281,
+     42.5864647
+    ],
+    [
+     19.9271637,
+     42.5874717
+    ],
+    [
+     19.9289325,
+     42.5882297
+    ],
+    [
+     19.9306189,
+     42.5905365
+    ],
+    [
+     19.9329793,
+     42.5916182
+    ],
+    [
+     19.9347798,
+     42.5958071
+    ],
+    [
+     19.9345545,
+     42.5959655
+    ],
+    [
+     19.9347798,
+     42.5963778
+    ],
+    [
+     19.9340395,
+     42.5967952
+    ],
+    [
+     19.9338494,
+     42.598529
+    ],
+    [
+     19.9289112,
+     42.6016198
+    ],
+    [
+     19.9289464,
+     42.6023986
+    ],
+    [
+     19.9285082,
+     42.6029404
+    ],
+    [
+     19.9269191,
+     42.6038751
+    ],
+    [
+     19.9264392,
+     42.604532
+    ]
+   ]
+  ]
+ },
+ "landmarks": [
+  {
+   "id": "stara-dzamija",
+   "name": "Stara džamija",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "d8f69ad5-7153-4d6e-955e-b92a1d3e95f6",
+    "osm": "w420655007",
+    "osm_url": "https://www.openstreetmap.org/way/420655007",
+    "osm_name": "Stara džamija",
+    "osm_class": "mosque",
+    "size_m": [
+     20.2,
+     10.4
+    ],
+    "outline": [
+     [
+      19.944233,
+      42.5965422
+     ],
+     [
+      19.9443206,
+      42.5963987
+     ],
+     [
+      19.9444329,
+      42.5964359
+     ],
+     [
+      19.9443452,
+      42.5965793
+     ],
+     [
+      19.944233,
+      42.5965422
+     ]
+    ],
+    "centroid": [
+     42.596489,
+     19.944333
+    ]
+   },
+   "meta": {
+    "name": "Stara Džamija",
+    "lat": 42.596494,
+    "lon": 19.944338,
+    "confidence": 0.65,
+    "distance_m": 0.7
+   },
+   "minaret": {
+    "lat": 42.596496,
+    "lon": 19.944279,
+    "osm": "w422233868"
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Stara džamija' + OSM minaret node 'Stara' inside it + Meta place within 1 m; plan 17.5 × 10.1 m matches the 16 × 10 m stated by avlija.me.",
+   "sources": [
+    "https://www.openstreetmap.org/way/420655007",
+    "https://avlija.me/islamsko-kulturno-nasljedje-plav/",
+    "https://www.monteislam.com/novosti/obnovljeni-dzamijski-kompleksi-u-plavu",
+    "https://bs.wikipedia.org/wiki/Spisak_d%C5%BEamija_u_Sand%C5%BEaku"
+   ],
+   "references": "2 photos supplied by the project owner (entrance end, side). Missing: rear (qibla) wall, minaret top close-up.",
+   "model": "built (provisional: eave height, pitch, rear wall estimated)",
+   "lat": 42.596489,
+   "lon": 19.944333,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "sultanija",
+   "name": "Sultanija (Carska) džamija",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "7ab32b00-f4fc-4c90-b77b-ef344f97e8bc",
+    "osm": "w221505365",
+    "osm_url": "https://www.openstreetmap.org/way/221505365",
+    "osm_name": "Sultanija",
+    "osm_class": "mosque",
+    "size_m": [
+     17.9,
+     17.2
+    ],
+    "outline": [
+     [
+      19.9440384,
+      42.5974151
+     ],
+     [
+      19.9440952,
+      42.5973181
+     ],
+     [
+      19.9442641,
+      42.5973717
+     ],
+     [
+      19.9441786,
+      42.5975178
+     ],
+     [
+      19.9440524,
+      42.5974778
+     ],
+     [
+      19.9440812,
+      42.5974287
+     ],
+     [
+      19.9440384,
+      42.5974151
+     ]
+    ],
+    "centroid": [
+     42.597415,
+     19.944145
+    ]
+   },
+   "meta": {
+    "name": "Sultanija",
+    "lat": 42.597415,
+    "lon": 19.944145,
+    "confidence": 0.93,
+    "distance_m": 0.0
+   },
+   "minaret": {
+    "lat": 42.597436,
+    "lon": 19.944051,
+    "osm": "w422233869"
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Sultanija' + OSM minaret node 'Sultanija' + Meta place within 2 m. Built 1907 (avlija.me, Wikipedia list).",
+   "sources": [
+    "https://www.openstreetmap.org/way/221505365",
+    "https://avlija.me/islamsko-kulturno-nasljedje-plav/",
+    "https://bs.wikipedia.org/wiki/Spisak_d%C5%BEamija_u_Sand%C5%BEaku"
+   ],
+   "references": "No usable photographs yet. Needed: 2–4 photos (front, side, minaret).",
+   "model": "not built: waiting for reference photos",
+   "lat": 42.597415,
+   "lon": 19.944145,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "redzepagica-dzamija",
+   "name": "Redžepagića džamija",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "046e12de-83fc-4793-a0ea-d1e63069c2d7",
+    "osm": "w540032588",
+    "osm_url": "https://www.openstreetmap.org/way/540032588",
+    "osm_name": "Redžepagića džamija",
+    "osm_class": "mosque",
+    "size_m": [
+     20.3,
+     8.4
+    ],
+    "outline": [
+     [
+      19.9463473,
+      42.5961368
+     ],
+     [
+      19.9462169,
+      42.5962656
+     ],
+     [
+      19.9461383,
+      42.5962224
+     ],
+     [
+      19.9462688,
+      42.5960937
+     ],
+     [
+      19.9463473,
+      42.5961368
+     ]
+    ],
+    "centroid": [
+     42.59618,
+     19.946243
+    ]
+   },
+   "meta": {
+    "name": "Redzepagica Dzamija",
+    "lat": 42.596033,
+    "lon": 19.946342,
+    "confidence": 0.71,
+    "distance_m": 18.2
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Redžepagića džamija' + Meta place 'Redzepagica Dzamija' within ~17 m (inside the footprint's neighbourhood). Built 1774 (avlija.me).",
+   "sources": [
+    "https://www.openstreetmap.org/way/540032588",
+    "https://avlija.me/islamsko-kulturno-nasljedje-plav/",
+    "https://bs.wikipedia.org/wiki/Spisak_d%C5%BEamija_u_Sand%C5%BEaku"
+   ],
+   "references": "No usable photographs yet. Needed: 2–4 photos.",
+   "model": "not built: waiting for reference photos",
+   "lat": 42.59618,
+   "lon": 19.946243,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "sabovica-dzamija",
+   "name": "Šabovića džamija",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "a7e3238c-8616-4b92-a8f1-60669e556198",
+    "osm": "w221505369",
+    "osm_url": "https://www.openstreetmap.org/way/221505369",
+    "osm_name": "Sabovica",
+    "osm_class": "mosque",
+    "size_m": [
+     17.3,
+     9.7
+    ],
+    "outline": [
+     [
+      19.9439754,
+      42.5949362
+     ],
+     [
+      19.9439812,
+      42.5949058
+     ],
+     [
+      19.9440781,
+      42.5948246
+     ],
+     [
+      19.9441637,
+      42.5948799
+     ],
+     [
+      19.9440668,
+      42.5949612
+     ],
+     [
+      19.9440301,
+      42.5949729
+     ],
+     [
+      19.9439946,
+      42.594963
+     ],
+     [
+      19.9439754,
+      42.5949362
+     ]
+    ],
+    "centroid": [
+     42.594903,
+     19.944061
+    ]
+   },
+   "meta": {
+    "name": "Šabovića Džamija",
+    "lat": 42.594911,
+    "lon": 19.944083,
+    "confidence": 0.49,
+    "distance_m": 2.0
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Sabovica' (class mosque) + Meta place 'Šabovića Džamija' within ~1 m. Built 1880 (avlija.me).",
+   "sources": [
+    "https://www.openstreetmap.org/way/221505369",
+    "https://avlija.me/islamsko-kulturno-nasljedje-plav/",
+    "https://bs.wikipedia.org/wiki/Spisak_d%C5%BEamija_u_Sand%C5%BEaku"
+   ],
+   "references": "No photographs yet.",
+   "model": "not built: waiting for reference photos",
+   "lat": 42.594903,
+   "lon": 19.944061,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "mosque-north-plav",
+   "name": "Unnamed mosque, north Plav",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "adce3013-69e3-40bf-8854-335c0045dcfc",
+    "osm": "w1527933133",
+    "osm_url": "https://www.openstreetmap.org/way/1527933133",
+    "osm_name": null,
+    "osm_class": "mosque",
+    "size_m": [
+     18.6,
+     18.4
+    ],
+    "outline": [
+     [
+      19.9486754,
+      42.6021905
+     ],
+     [
+      19.9485645,
+      42.6020959
+     ],
+     [
+      19.9485311,
+      42.6020705
+     ],
+     [
+      19.9485911,
+      42.602033
+     ],
+     [
+      19.9486184,
+      42.6020571
+     ],
+     [
+      19.9487002,
+      42.6020018
+     ],
+     [
+      19.9487541,
+      42.602042
+     ],
+     [
+      19.9487984,
+      42.6021138
+     ],
+     [
+      19.9486754,
+      42.6021905
+     ]
+    ],
+    "centroid": [
+     42.602093,
+     19.948676
+    ]
+   },
+   "confidence": "UNCONFIRMED",
+   "evidence": "OSM building tagged as a mosque but without a name; no second source found.",
+   "sources": [
+    "https://www.openstreetmap.org/way/1527933133"
+   ],
+   "references": "None.",
+   "model": "not built: name and references unknown",
+   "lat": 42.602093,
+   "lon": 19.948676,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "redzepagica-kula",
+   "name": "Redžepagića kula",
+   "kind": "tower house",
+   "footprint": {
+    "overture_id": "4a1e5139-8dfc-4753-80af-dac7d0240aaf",
+    "osm": "w221505346",
+    "osm_url": "https://www.openstreetmap.org/way/221505346",
+    "osm_name": null,
+    "osm_class": null,
+    "size_m": [
+     8.8,
+     8.5
+    ],
+    "outline": [
+     [
+      19.9459413,
+      42.5956971
+     ],
+     [
+      19.9459521,
+      42.5956205
+     ],
+     [
+      19.9460538,
+      42.5956283
+     ],
+     [
+      19.946043,
+      42.5957049
+     ],
+     [
+      19.9459413,
+      42.5956971
+     ]
+    ],
+    "centroid": [
+     42.595663,
+     19.945998
+    ]
+   },
+   "confidence": "VERIFIED",
+   "evidence": "Confirmed by the project owner on 2026-11-20: 42.595724, 19.945963, OSM building way 221505346. Earlier single source: coordinate from photomontenegro.me (2013, method not stated, street 'Podnogradska'). Nearest footprint is an unnamed square 8.6 × 8.4 m OSM building 7 m away. OSM website, Wikidata, Wikimapia and satellite tiles could not be reached from the build environment for a cross-check. Not to be confused with Redžepagića džamija (≈ 55 m north-east).",
+   "sources": [
+    "https://www.photomontenegro.me/radzepagica-kula/",
+    "https://montenegrina.net/plav-kula-redzepagica/",
+    "https://www.openstreetmap.org/way/221505346"
+   ],
+   "references": "2 photos supplied by the project owner (two faces of the tower).",
+   "model": "custom model, shown in the main map (camera shortcut 'Redžepagića kula')",
+   "lat": 42.595724,
+   "lon": 19.945963,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "sehidska-dzamija",
+   "name": "Šehidska džamija (Vojno Selo)",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "d2b46bce-2be9-40f1-bed1-f2f16bce5a4d",
+    "osm": "w602247777",
+    "osm_url": "https://www.openstreetmap.org/way/602247777",
+    "osm_name": "Šehidska džamija",
+    "osm_class": "mosque",
+    "size_m": [
+     17.9,
+     17.7
+    ],
+    "outline": [
+     [
+      19.9164373,
+      42.5798236
+     ],
+     [
+      19.9163246,
+      42.5798434
+     ],
+     [
+      19.916271,
+      42.5798039
+     ],
+     [
+      19.9162549,
+      42.5797446
+     ],
+     [
+      19.9163139,
+      42.5796814
+     ],
+     [
+      19.9164265,
+      42.5796854
+     ],
+     [
+      19.9164748,
+      42.5797486
+     ],
+     [
+      19.9164373,
+      42.5798236
+     ]
+    ],
+    "centroid": [
+     42.579759,
+     19.916363
+    ]
+   },
+   "confidence": "PROBABLE",
+   "evidence": "OSM building named 'Šehidska džamija' 3 km south-west of Plav centre; the Wikipedia list and the project owner place it in Vojno Selo. No second geographic source.",
+   "sources": [
+    "https://www.openstreetmap.org/way/602247777",
+    "https://sandzacke.rs/featured/nakon-15-godina-izgradnje-otvara-se-sehidska-dzamija-u-plavu/",
+    "https://bs.wikipedia.org/wiki/Spisak_d%C5%BEamija_u_Sand%C5%BEaku"
+   ],
+   "references": "No photographs yet.",
+   "model": "catalogue only (outside the prototype area)",
+   "lat": 42.579759,
+   "lon": 19.916363,
+   "in_prototype": false,
+   "in_municipality": true
+  },
+  {
+   "id": "bogajice-dzamija",
+   "name": "Džamija u Bogajićima",
+   "kind": "mosque",
+   "footprint": {
+    "overture_id": "1d313fab-a804-4264-9be1-14dbc94e030d",
+    "osm": "w1527933134",
+    "osm_url": "https://www.openstreetmap.org/way/1527933134",
+    "osm_name": "Bogajiće Džamija",
+    "osm_class": "mosque",
+    "size_m": [
+     17.9,
+     12.9
+    ],
+    "outline": [
+     [
+      19.9531027,
+      42.583333
+     ],
+     [
+      19.9529982,
+      42.5834332
+     ],
+     [
+      19.9528774,
+      42.583366
+     ],
+     [
+      19.9529856,
+      42.5832666
+     ],
+     [
+      19.9531027,
+      42.583333
+     ]
+    ],
+    "centroid": [
+     42.58335,
+     19.952991
+    ]
+   },
+   "confidence": "PROBABLE",
+   "evidence": "OSM building named 'Bogajiće Džamija'; the Wikipedia list mentions a mosque in Bogajići under construction since 2010. No second geographic source.",
+   "sources": [
+    "https://www.openstreetmap.org/way/1527933134",
+    "https://bs.wikipedia.org/wiki/Spisak_d%C5%BEamija_u_Sand%C5%BEaku"
+   ],
+   "references": "No photographs yet.",
+   "model": "catalogue only (outside the prototype area)",
+   "lat": 42.58335,
+   "lon": 19.952991,
+   "in_prototype": false,
+   "in_municipality": true
+  },
+  {
+   "id": "brezojevice-church",
+   "name": "Church near Brezojevice (possibly Holy Trinity monastery)",
+   "kind": "church",
+   "footprint": {
+    "overture_id": "d43a6d97-a949-4279-9b0b-461418a764b5",
+    "osm": "w225949136",
+    "osm_url": "https://www.openstreetmap.org/way/225949136",
+    "osm_name": null,
+    "osm_class": "church",
+    "size_m": [
+     16.8,
+     8.6
+    ],
+    "outline": [
+     [
+      19.937767,
+      42.618238
+     ],
+     [
+      19.937585,
+      42.6182197
+     ],
+     [
+      19.9375993,
+      42.6181425
+     ],
+     [
+      19.9377813,
+      42.6181608
+     ],
+     [
+      19.9377935,
+      42.6181905
+     ],
+     [
+      19.9377885,
+      42.6182161
+     ],
+     [
+      19.937767,
+      42.618238
+     ]
+    ],
+    "centroid": [
+     42.618191,
+     19.937689
+    ]
+   },
+   "confidence": "UNCONFIRMED",
+   "evidence": "Unnamed OSM building tagged as a church. A Meta place 'Manastir Svete Trojice u Brezojevicama' exists but is pinned 2.2 km away, in Plav, so it does not confirm this position.",
+   "sources": [
+    "https://www.openstreetmap.org/way/225949136"
+   ],
+   "references": "No photographs yet.",
+   "model": "catalogue only",
+   "lat": 42.618191,
+   "lon": 19.937689,
+   "in_prototype": false,
+   "in_municipality": true
+  },
+  {
+   "id": "murino-church",
+   "name": "Church in Murino (name unconfirmed)",
+   "kind": "church",
+   "footprint": {
+    "overture_id": "ac759cf7-2eca-4851-8d6e-7dfa7e741488",
+    "osm": "w371797885",
+    "osm_url": "https://www.openstreetmap.org/way/371797885",
+    "osm_name": null,
+    "osm_class": "church",
+    "size_m": [
+     16.8,
+     13.8
+    ],
+    "outline": [
+     [
+      19.8867213,
+      42.6608287
+     ],
+     [
+      19.8868509,
+      42.6608937
+     ],
+     [
+      19.886749,
+      42.6609884
+     ],
+     [
+      19.8866229,
+      42.6609213
+     ],
+     [
+      19.8867213,
+      42.6608287
+     ]
+    ],
+    "centroid": [
+     42.660908,
+     19.886736
+    ]
+   },
+   "confidence": "UNCONFIRMED",
+   "evidence": "Unnamed OSM building tagged as a church, next to the OSM school building 'Škola' in Murino. Name and dedication not found in reachable sources.",
+   "sources": [
+    "https://www.openstreetmap.org/way/371797885"
+   ],
+   "references": "No photographs yet.",
+   "model": "catalogue only (Murino, outside the prototype area)",
+   "lat": 42.660908,
+   "lon": 19.886736,
+   "in_prototype": false,
+   "in_municipality": true
+  },
+  {
+   "id": "church-north-east",
+   "name": "Small church north-east of Plav (name unknown)",
+   "kind": "church",
+   "footprint": {
+    "overture_id": "6fac0e52-7089-4f53-9668-0d5601702b03",
+    "osm": "w371392047",
+    "osm_url": "https://www.openstreetmap.org/way/371392047",
+    "osm_name": null,
+    "osm_class": "church",
+    "size_m": [
+     9.0,
+     7.8
+    ],
+    "outline": [
+     [
+      19.9554486,
+      42.6647497
+     ],
+     [
+      19.9553759,
+      42.6647137
+     ],
+     [
+      19.9554277,
+      42.6646572
+     ],
+     [
+      19.9555003,
+      42.6646931
+     ],
+     [
+      19.9554486,
+      42.6647497
+     ]
+    ],
+    "centroid": [
+     42.664703,
+     19.955438
+    ]
+   },
+   "confidence": "UNCONFIRMED",
+   "evidence": "Unnamed 54 m² OSM building tagged as a church.",
+   "sources": [
+    "https://www.openstreetmap.org/way/371392047"
+   ],
+   "references": "No photographs yet.",
+   "model": "catalogue only",
+   "lat": 42.664703,
+   "lon": 19.955438,
+   "in_prototype": false,
+   "in_municipality": true
+  },
+  {
+   "id": "celova-kula",
+   "name": "Ćelova kula",
+   "kind": "tower house",
+   "footprint": null,
+   "confidence": "UNCONFIRMED",
+   "evidence": "Meta place only (confidence 0.38), no OSM footprint or written source found.",
+   "sources": [],
+   "references": "None.",
+   "model": "catalogue only",
+   "lat": 42.649443,
+   "lon": 19.939443,
+   "in_prototype": false,
+   "in_municipality": true
+  },
+  {
+   "id": "opstina-plav",
+   "name": "Opština Plav (municipal building)",
+   "kind": "civic",
+   "footprint": {
+    "overture_id": "93bc9e4b-ab1d-4873-9e4d-b4e640ca776e",
+    "osm": "w149580304",
+    "osm_url": "https://www.openstreetmap.org/way/149580304",
+    "osm_name": "Opština Plav",
+    "osm_class": "public",
+    "size_m": [
+     37.1,
+     14.3
+    ],
+    "outline": [
+     [
+      19.9442681,
+      42.5969811
+     ],
+     [
+      19.9444295,
+      42.596982
+     ],
+     [
+      19.9444286,
+      42.5970626
+     ],
+     [
+      19.944381,
+      42.5970623
+     ],
+     [
+      19.9443798,
+      42.5971806
+     ],
+     [
+      19.9444084,
+      42.5971807
+     ],
+     [
+      19.9444071,
+      42.5973069
+     ],
+     [
+      19.9442762,
+      42.5973062
+     ],
+     [
+      19.9442412,
+      42.5972378
+     ],
+     [
+      19.9442416,
+      42.5972014
+     ],
+     [
+      19.9442658,
+      42.5972015
+     ],
+     [
+      19.9442681,
+      42.5969811
+     ]
+    ],
+    "centroid": [
+     42.597144,
+     19.944334
+    ]
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Opština Plav'.",
+   "sources": [
+    "https://www.openstreetmap.org/way/149580304"
+   ],
+   "references": "No photographs yet.",
+   "model": "procedural (not a custom landmark yet)",
+   "lat": 42.597144,
+   "lon": 19.944334,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "dom-kulture-plav",
+   "name": "Dom kulture Plav",
+   "kind": "civic",
+   "footprint": {
+    "overture_id": "74a3178f-65e5-480e-83c9-6271261bc0d4",
+    "osm": "w153733688",
+    "osm_url": "https://www.openstreetmap.org/way/153733688",
+    "osm_name": "Dom kulture Plav",
+    "osm_class": null,
+    "size_m": [
+     52.9,
+     31.6
+    ],
+    "outline": [
+     [
+      19.9430363,
+      42.5978442
+     ],
+     [
+      19.9426718,
+      42.5979186
+     ],
+     [
+      19.9425232,
+      42.5975243
+     ],
+     [
+      19.9426561,
+      42.5974972
+     ],
+     [
+      19.9426441,
+      42.5974653
+     ],
+     [
+      19.9427077,
+      42.5974523
+     ],
+     [
+      19.9427715,
+      42.5974393
+     ],
+     [
+      19.9427832,
+      42.5974703
+     ],
+     [
+      19.9428874,
+      42.597449
+     ],
+     [
+      19.9430363,
+      42.5978442
+     ]
+    ],
+    "centroid": [
+     42.597678,
+     19.942778
+    ]
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Dom kulture Plav'.",
+   "sources": [
+    "https://www.openstreetmap.org/way/153733688"
+   ],
+   "references": "No photographs yet.",
+   "model": "procedural (not a custom landmark yet)",
+   "lat": 42.597678,
+   "lon": 19.942778,
+   "in_prototype": true,
+   "in_municipality": true
+  },
+  {
+   "id": "pijaca-plav",
+   "name": "Pijaca Plav (market)",
+   "kind": "civic",
+   "footprint": {
+    "overture_id": "a6934b1f-718c-499d-b86f-3f3f32ae04c9",
+    "osm": "w422239140",
+    "osm_url": "https://www.openstreetmap.org/way/422239140",
+    "osm_name": "Pijaca Plav",
+    "osm_class": null,
+    "size_m": [
+     44.6,
+     17.3
+    ],
+    "outline": [
+     [
+      19.9470312,
+      42.5974384
+     ],
+     [
+      19.9468353,
+      42.5973925
+     ],
+     [
+      19.9469874,
+      42.5970411
+     ],
+     [
+      19.9471834,
+      42.5970871
+     ],
+     [
+      19.9470312,
+      42.5974384
+     ]
+    ],
+    "centroid": [
+     42.59724,
+     19.947009
+    ]
+   },
+   "confidence": "VERIFIED",
+   "evidence": "OSM building named 'Pijaca Plav'.",
+   "sources": [
+    "https://www.openstreetmap.org/way/422239140"
+   ],
+   "references": "No photographs yet.",
+   "model": "procedural (not a custom landmark yet)",
+   "lat": 42.59724,
+   "lon": 19.947009,
+   "in_prototype": true,
+   "in_municipality": true
+  }
+ ],
+ "unresolved": [
+  "Unnamed mosque in north Plav (OSM way): name unknown.",
+  "Murino: only an unnamed church and a school are mapped; no named landmarks or memorials found in OSM/Overture.",
+  "Šehidska džamija and Bogajići mosque: single geographic source each.",
+  "Reference photos missing for Sultanija, Redžepagića džamija, Šabovića džamija, Šehidska džamija and all churches."
+ ]
+}
