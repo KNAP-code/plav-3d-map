@@ -151,6 +151,26 @@ Other candidates checked for this batch: Opština Plav, Dom kulture, Pošta, Osn
 school and Hotel Plavsko jezero have verified OSM footprints but no photo or description reachable from the build
 environment, so they would only get restrained provisional models.
 
+## Batch 3: mosque šadrvans and Sultanija window correction (2026-11-20)
+
+Searched for more central landmarks on the approved sites: every plavto.me gallery and news page, and eight plavto.me
+publications (the 129-page tourist catalogue, "Cultural Route Plav", the towers, mosques and mill brochures). They
+describe only mosques, towers, churches and accommodation; none shows or locates the Opština, Dom kulture, Pošta,
+Osnovni sud, Pijaca, school or Hotel Plavsko jezero. The tower texts give no addresses. plav.me, photomontenegro.me,
+avlija.me and monteislam.com are blocked from the build environment.
+
+What the photos did support:
+
+| item | evidence | verified | estimated |
+|---|---|---|---|
+| Sultanija šadrvan | [1710606531-3](https://www.plavto.me/files/images/1710606531-3.jpg), [1710606530-12](https://www.plavto.me/files/images/1710606530-12.jpg) | open octagonal pavilion, white round arches on slender posts, ribbed lead dome, stone basin and fountain, beside the hall behind the courtyard fence | position (between the hall's SE end and the Opština, ±3 m), size 4.4 m |
+| Redžepagića šadrvan | [1711363700-1](https://www.plavto.me/files/images/1711363700-1.jpg) | open hexagonal pavilion, white posts and round arches with green trim, faceted dark-grey roof with finial, next to the timber entrance section | position (street side of the entrance section, ±3 m), size about 4 m |
+| Sultanija hall windows | [1710606530-12](https://www.plavto.me/files/images/1710606530-12.jpg) | 4 rectangular windows per row on the long NE face (was 3); the wing's 6 small domes in two rows of three confirmed | the SW face is assumed to match |
+
+The aerial photo 1710606530-12 also shows a large cream building with stepped red-tile hip roofs and balconies SE of
+Sultanija. It sits where the OSM "Opština Plav" footprint is, but it shows four storeys with balconies against OSM's three
+levels, so it is not used as evidence for the Opština until the owner confirms it.
+
 ## Mosque orientation
 The qibla from Plav is 136° (SE). The long axes of the Sultanija (157°), Redžepagića (144°) and Šabovića (139°) footprints all
 point close to it, so their entrances are modelled on the NW end. This is an inference from the footprint and the qibla, not a

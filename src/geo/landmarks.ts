@@ -468,6 +468,31 @@ function woodenMinaret(B: Builder, s: number, t: number, base: number, shaftTop:
 }
 
 /**
+ * Open fountain pavilion (šadrvan): n slender posts on a low plinth carrying round arches, a basin with a central
+ * fountain, and either a ribbed lead dome or a faceted pyramid roof.
+ */
+function sadrvan(B: Builder, cs: number, ct: number, o: { n: number; r: number; h: number; post: THREE.Color; trim: THREE.Color; roof: THREE.Color; rib?: THREE.Color; dome: boolean; base: THREE.Color }) {
+  const { n, r, h } = o, rot = Math.PI / n;
+  B.frustum(cs, ct, n, r + 0.35, r + 0.35, -0.6, 0.3, o.base, K.stone, true, rot); // plinth
+  for (let i = 0; i < n; i++) {
+    const a = rot + (i / n) * Math.PI * 2, ps = cs + Math.cos(a) * r, pt = ct + Math.sin(a) * r;
+    B.box(ps - 0.13, ps + 0.13, pt - 0.13, pt + 0.13, 0.3, h - 0.5, o.post, K.plain, false);
+  }
+  B.frustum(cs, ct, n, r + 0.18, r + 0.18, h - 0.75, h, o.trim, K.plain, false, rot); // arcade band (arches read against it)
+  B.frustum(cs, ct, n, r + 0.3, r + 0.3, h - 0.08, h + 0.12, o.post, K.plain, false, rot); // cornice
+  B.frustum(cs, ct, 12, 0.85, 0.75, 0.3, 0.8, o.base, K.stone, false); // basin
+  B.frustum(cs, ct, 6, 0.12, 0.08, 0.8, 1.35, o.base); // fountain
+  if (o.dome) {
+    B.frustum(cs, ct, n, r + 0.05, r + 0.05, h + 0.12, h + 0.42, o.post, K.plain, false, rot); // drum
+    B.ribbedDome(cs, ct, r + 0.05, h + 0.42, o.roof, o.rib ?? o.roof, 16, 4);
+    B.frustum(cs, ct, 4, 0.05, 0.03, h + 0.42 + r, h + 1.2 + r, C("#c9b46a"));
+  } else {
+    B.frustum(cs, ct, n, r + 0.55, 0, h + 0.12, h + 0.12 + r * 0.75, o.roof, K.shingle, false, rot);
+    B.frustum(cs, ct, 4, 0.05, 0.03, h + 0.12 + r * 0.75, h + 0.7 + r * 0.75, C("#8c8c86"));
+  }
+}
+
+/**
  * Sultanija džamija (1907). Source: Tourist Organisation Plav (plavto.me "Sultanija Mosque"): built 1907 with funds
  * from Sultan Abdul Hamid II by builders from Debar, of carved stone brought from afar, stones tied with grooves and
  * lead; "the slender minaret and the dome" built of the same stone; minaret demolished 1927, building used as a
@@ -494,14 +519,16 @@ const SULTANIJA: LandmarkDef = {
     "Photo (plavto.me 1710606531-1, -2, 1710606530-12): hall of light grey cut-stone blocks with rectangular windows in two rows; one large dark lead dome with ribs on a low light-stone drum",
     "Photo: lower entrance wing in front of the hall with several small lead domes on its roof and tall round-arched bays of gridded glazing; a round-arched entrance",
     "Photo: white cylindrical minaret on a square grey stone base, TWO balconies, tall dark pointed cap; it stands between the hall and the entrance wing (matches the OSM node)",
+    "Aerial photo 1710606530-12: four rectangular windows per row on the hall's long NE face; six small ribbed domes in two rows of three on the entrance wing; a tall gridded arched bay on the wing's NE end",
+    "Photos 1710606531-3 and 1710606530-12: the šadrvan is an open octagonal pavilion of white round arches on slender posts with a ribbed lead dome, over a stone basin and fountain, beside the hall behind the courtyard fence",
   ],
   estimated: [
     "Which part of the L is the prayer hall: the square-ish SE part (11.8 × 15.2 m) is modelled as the domed hall, the NW wing as the lower entrance wing (consistent with the photos, but the plan is not documented)",
     "Heights read from photo proportions, not measured: hall walls 8.5 m, entrance wing 6.5 m, dome radius 5.4 m; minaret base 7 m, balconies at about 22 m and 28.5 m, cap from 34 m (scaled to the 41.5 m total)",
     "Small domes on the entrance wing: 6 in a 2 × 3 grid; the photos show several but not their exact count and layout",
-    "Window and bay counts per side (3 rectangular per row on the long sides, 2 at the rear; glazed bays 3 on the NW face, 2 on the NE face, 1 on each side of the minaret)",
+    "Window and bay counts on the faces the photos do not show (2 per row on the SE face; glazed bays 3 on the NW face, 2 on the NE face, 1 on each side of the minaret)",
     "Exact colours of stone, lead and glazing",
-    "The white šadrvan pavilion with a small dome seen in the photos is not modelled: its position is not known",
+    "Šadrvan position: placed between the hall's SE end and the Opština, where the aerial photo 1710606530-12 shows it; about ±3 m. Its size (4.4 m across) is from photo proportion",
   ],
   build(B) {
     const stone = C("#d3d0c8"), stoneDark = C("#b5b1a8"), lead = C("#4f565b"), leadRib = C("#3e4448"), glass = C("#2f343a"), frame = C("#9ea2a3"), white = C("#f1efe9"), grey = C("#a9a7a1");
@@ -521,7 +548,7 @@ const SULTANIJA: LandmarkDef = {
     B.frustum(dc, 0, 4, 0.06, 0.03, hE + 1.15 + r, hE + 2.6 + r, C("#c9b46a"), K.plain); // alem
     // hall: rectangular windows in two rows (photo 1710606530-12)
     for (const z of [[1.6, 3.6], [5.0, 6.9]] as const) {
-      for (const u of [3.0, 7.6, 12.2]) { B.rectWindow(-2.9, -7.6, 8.9, -7.6, u * 11.8 / 15.2, 1.1, z[0], z[1], glass, stoneDark); B.rectWindow(8.9, 7.6, -2.9, 7.6, u * 11.8 / 15.2, 1.1, z[0], z[1], glass, stoneDark); }
+      for (const u of [1.6, 4.5, 7.3, 10.2]) { B.rectWindow(-2.9, -7.6, 8.9, -7.6, u, 1.1, z[0], z[1], glass, stoneDark); B.rectWindow(8.9, 7.6, -2.9, 7.6, u, 1.1, z[0], z[1], glass, stoneDark); }
       for (const u of [3.8, 11.4]) B.rectWindow(8.9, -7.6, 8.9, 7.6, u, 1.1, z[0], z[1], glass, stoneDark);
     }
     // entrance wing: tall round-arched bays with gridded glazing (photo 1710606531-2), entrance in the middle of the NW face
@@ -552,6 +579,8 @@ const SULTANIJA: LandmarkDef = {
     B.frustum(ms, mt, 16, 1.0, 1.0, 33.8, 34.1, grey, K.plain);
     B.frustum(ms, mt, 16, 0.98, 0.0, 34.1, H - 0.9, C("#3a3f43"), K.plain); // tall dark pointed cap
     B.frustum(ms, mt, 4, 0.05, 0.03, H - 0.9, H, C("#c9b46a"), K.plain); // alem
+    // šadrvan beside the SE end of the hall (photos 1710606531-3, 1710606530-12; position estimated)
+    sadrvan(B, 11.2, 2.0, { n: 8, r: 2.0, h: 3.6, post: white, trim: C("#e7e3da"), roof: lead, rib: leadRib, dome: true, base: grey });
   },
 };
 
@@ -583,13 +612,14 @@ const REDZEPAGICA_DZ: LandmarkDef = {
     "Prayer hall 6.53 × 7.90 m, height 4.80 m, stone-concrete; recent extensive restoration added an L-shaped concrete mahfil (İbrahimgil & Kudumovic 2023, listed as the 1774 Fatıma Hanım mosque in Plav)",
     "Photo (plavto.me 1711363700-1): bare rough-stone walls (not rendered), a stone string course, small round-arched windows with dressed-stone surrounds in two rows (larger below, smaller above), gutter and corner downpipe",
     "Photo (1711363700-1, 1711363699-2): steep hipped roof of orange-red clay tiles with a short ridge, nearly pyramidal; the stone hall continues into a dark timber-boarded section under the same roof at the entrance end",
+    "Photo 1711363700-1: the šadrvan is an open hexagonal pavilion of white posts and round arches with green trim, under a faceted dark-grey roof with a finial, over a basin, next to the timber entrance section",
     "Photo: the minaret rises from the end of the short ridge; dark weathered timber shaft in fishbone cladding, an enclosed balcony only slightly wider than the shaft with a band of small openings, a timber cone cap with a flared eave and a metal finial; it stands about 1.3–1.4 roof heights above the ridge",
   ],
   estimated: [
     "Split of the 17.9 m footprint: stone hall 9.3 m at the SE end (the 7.90 m interior plus walls), timber entrance section 3.2 m, both under one hipped roof (12.5 m); the remaining 5.4 m at the NW end has no structure in the photos and is drawn only as a paved forecourt",
     "Roof pitch 38° and eaves 0.8 m (photo proportion, not measured); minaret heights scaled from the photos to the 14 m total",
     "Window counts per side (3 lower + 3 upper on each long side, 2 + 1 on the rear end) and the door position on the timber section",
-    "The šadrvan pavilion (hexagonal, grey roof, white arches) beside the entrance seen in photo 1711363700-1 is not modelled: its exact position is not known",
+    "Šadrvan position: beside the timber entrance section on the street (-t) side, where photo 1711363700-1 shows it; about ±3 m. Its size (about 4 m across) is from photo proportion",
   ],
   build(B, { L, W }) {
     const rock = C("#948876"), dressed = C("#b9ae9c"), tile = C("#ad5a3c"), wood = C("#5b4535"), dark = C("#3a2a1f"), glass = C("#30353b"), pave = C("#9d9a92");
@@ -636,6 +666,8 @@ const REDZEPAGICA_DZ: LandmarkDef = {
     B.box(sc - hl, sc + hl, -hw - 0.1, -hw + 0.05, z - 0.18, z, gut, K.plain); B.box(sc - hl, sc + hl, hw - 0.05, hw + 0.1, z - 0.18, z, gut, K.plain);
     B.box(L + 0.05, L + 0.17, -W - 0.17, -W - 0.05, -1, z - 0.1, gut, K.plain, false);
     // minaret at the NW end of the short ridge, about 1.35 roof heights above the ridge (photos), 14 m in all
+    // šadrvan next to the timber entrance section on the street side (photo 1711363700-1; position estimated)
+    sadrvan(B, (ws + hs) / 2, -W - 3.0, { n: 6, r: 1.8, h: 2.8, post: C("#eeeae0"), trim: C("#3f8f7a"), roof: C("#4a4d52"), dome: false, base: dressed });
     woodenMinaret(B, sc - rr, 0, eave, ridge + 2.9, { r: 0.62, balc: 0.95, cap: 0.8, balcR: 1.15, flare: 1.3, wood, dark, capCol: C("#5e4636"), kind: K.chevron, openings: C("#1d1712") });
   },
 };
