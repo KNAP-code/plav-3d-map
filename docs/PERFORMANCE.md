@@ -102,3 +102,18 @@ The same setup as above (SwiftShader, Pixel 7 emulation, relative numbers only).
 | high | 710 → 738 ms | 40 → 42 | 492k → 499k |
 
 The frame-time changes are within run-to-run noise. The two extra draw calls are the new tree crown shapes (oval, broad), which add no triangles per tree.
+
+## Accuracy audit + atmosphere pass (2026-11-20, preview v20)
+
+Headless Chromium, SwiftShader (CPU), Pixel 7 viewport, 30 frames of a scripted orbit. These numbers are only for
+comparing builds. They are not phone frame rates.
+
+| Tier | v19 p50 / p95 | v20 p50 / p95 | Draw calls | Triangles |
+|---|---|---|---|---|
+| Low | 180 / 222 ms | 186 / 249 ms | 33 → 33 | 411k → 411k |
+| Medium | 516 / 735 ms | 524 / 714 ms | 37 → 37 | 644k → 644k |
+| High | 967 / 1109 ms | 982 / 1104 ms | 51 → 51 | 788k → 788k |
+
+The atmosphere adds no geometry and no passes. The grade and vignette are merged into the existing post pass. During
+a day/sunset/night change, the shadow map is refitted once per frame for about 2 s. Real-device fps is still
+unmeasured: open the preview with `#stats` (live fps) or `#bench` on a phone.
