@@ -724,6 +724,189 @@ const SABOVICA: LandmarkDef = {
   },
 };
 
+
+/** Wall line (CCW, outward = right of travel) for face 0:+s, 1:+t, 2:-s, 3:-t of the rectangle |s|<=L, |t|<=W. */
+function face(L: number, W: number, i: number): [number, number, number, number] {
+  return ([[L, -W, L, W], [L, W, -L, W], [-L, W, -L, -W], [-L, -W, L, -W]] as [number, number, number, number][])[i];
+}
+/** Point u metres along face i, pushed d metres outwards. */
+function onFace(L: number, W: number, i: number, u: number, d = 0): [number, number] {
+  const [s0, t0, s1, t1] = face(L, W, i), len = Math.hypot(s1 - s0, t1 - t0), ds = (s1 - s0) / len, dt = (t1 - t0) / len;
+  return [s0 + ds * u + dt * d, t0 + dt * u - ds * d];
+}
+function faceLen(L: number, W: number, i: number) { return i % 2 ? 2 * L : 2 * W; }
+
+/**
+ * Stone machicolation box (mašikula) projecting from face i at u: corbels below, small openings in its front.
+ * Seen on the Plav-Gusinje towers in the plavto.me photos.
+ */
+function masikula(B: Builder, L: number, W: number, i: number, u: number, w: number, z0: number, z1: number, stone: THREE.Color, dark: THREE.Color, proj = 0.4, holes = 3) {
+  const along = i % 2 === 0; // faces 0,2 run along t
+  const [cs, ct] = onFace(L, W, i, u, proj / 2);
+  const hs = along ? proj / 2 : w / 2, ht = along ? w / 2 : proj / 2;
+  B.box(cs - hs, cs + hs, ct - ht, ct + ht, z0, z1, stone, K.stone);
+  for (let k = 0; k < 3; k++) { // corbels
+    const v = u - w / 2 + 0.15 + (k / 2) * (w - 0.3), [ks, kt] = onFace(L, W, i, v, proj / 2);
+    const a = along ? proj / 2 : 0.1, b = along ? 0.1 : proj / 2;
+    B.box(ks - a, ks + a, kt - b, kt + b, z0 - 0.35, z0, stone, K.stone);
+  }
+  const [s0, t0, s1, t1] = face(L, W, i);
+  const len = Math.hypot(s1 - s0, t1 - t0), ds = (s1 - s0) / len, dt = (t1 - t0) / len;
+  // openings on the box front: the face line shifted outwards by proj
+  const fs0 = s0 + dt * proj, ft0 = t0 - ds * proj, fs1 = s1 + dt * proj, ft1 = t1 - ds * proj;
+  for (let k = 0; k < holes; k++) B.rectWindow(fs0, ft0, fs1, ft1, u - w / 2 + ((k + 0.5) / holes) * w, 0.14, z0 + (z1 - z0) * 0.35, z0 + (z1 - z0) * 0.75, dark, undefined, 0.03);
+}
+
+/** Pitched hip roof over |s|<=L+ov, |t|<=W+ov at eave z (helper for the towers). */
+function towerRoof(B: Builder, L: number, W: number, z: number, deg: number, ov: number, color: THREE.Color, fascia?: THREE.Color) {
+  if (fascia) B.box(-L - ov, L + ov, -W - ov, W + ov, z - 0.22, z, fascia, K.plain, false);
+  return B.hipRoof(L + ov, W + ov, z, Math.tan((deg * Math.PI) / 180), color);
+}
+
+/**
+ * Bećiragića kula / kula Šaćir-bega (1899). Source: plavto.me "Bećiragić Tower (Šaćir-bega Tower)": built 1899 by Šaćir-bey
+ * Jusufagić by masons from Debar, hewn stone, ground floor + two floors, base 10.3 × 10 m, a musafirhana (guest house);
+ * the carved door pillars and the long calligraphic inscription above the door. Gallery photos 1710606305-1,
+ * 1710606306-4, 1710606307-3, 1710606307-8 (viewed as references). Position: not yet confirmed.
+ */
+const BECIRAGICA_KULA: LandmarkDef = {
+  name: "Bećiragića kula",
+  provisional: true,
+  chip: { label: "Bećiragića kula", match: /bećiragića kula/i },
+  sources: ["https://www.plavto.me/en/tourist-offer/beciragic-tower-sacir-bega-tower/", "plavto.me gallery photos 1710606305-1, 1710606306-4, 1710606307-3, 1710606307-8 (viewed for reference, not copied)"],
+  verified: [
+    "Hewn stone, ground floor and two floors, base 10.3 × 10 m, built 1899 by masons from Debar (plavto.me)",
+    "Inscription panel above the door and carved door pillars (plavto.me text; photos 1710606306-6, 1710606306-7)",
+    "Photos: light grey-white cut-stone ashlar walls; round-arched door with a carved surround; small round-headed windows in square stone frames on the two upper floors, in pairs on the door face; a stone machicolation box at the top of the door face; low hipped roof of red clay tiles with a short overhang and a chimney",
+  ],
+  estimated: [
+    "Position: no source gives it; the model waits for the owner to point out the footprint",
+    "Heights: eaves 10.6 m (three storeys of about 3.4 m), roof pitch 24° (photo proportion)",
+    "Window counts per face (2 × 4 on the door face, 2 × 3 on the others) and their exact sizes",
+  ],
+  build(B, { L, W }) {
+    const stone = C("#d9d1c0"), base = C("#b8ad99"), frame = C("#ece6da"), glass = C("#2c2a28"), door = C("#4b261c"), tile = C("#b3593b");
+    const H = 10.6;
+    const P: [number, number][] = [[-L, -W], [L, -W], [L, W], [-L, W]];
+    B.walls(P, -1, H, stone, K.stone); B.walls(P, -1, 0.6, base, K.stone, 0.05);
+    const win = (i: number, u: number, z0: number) => {
+      const [s0, t0, s1, t1] = face(L, W, i);
+      B.rectWindow(s0, t0, s1, t1, u, 0.75, z0 - 0.15, z0 + 1.05, frame, undefined, 0.03);
+      B.archWindow(s0, t0, s1, t1, u, 0.5, z0, z0 + 0.85, glass, 0.06);
+    };
+    for (let i = 0; i < 4; i++) {
+      const n = faceLen(L, W, i);
+      const us = i === 0 ? [0.17, 0.33, 0.67, 0.83] : [0.25, 0.5, 0.75];
+      for (const z of [4.3, 7.6]) for (const f of us) win(i, f * n, z);
+    }
+    // door face (+s): arched door with carved pillars, inscription panel above, machicolation at the top
+    const [s0, t0, s1, t1] = face(L, W, 0);
+    B.rectWindow(s0, t0, s1, t1, W, 2.0, 0, 3.0, frame, undefined, 0.03);
+    B.archWindow(s0, t0, s1, t1, W, 1.25, 0, 2.6, door, 0.07);
+    B.rectWindow(s0, t0, s1, t1, W, 1.7, 3.15, 4.0, frame, undefined, 0.04);
+    masikula(B, L, W, 0, W, 1.5, H - 1.7, H - 0.4, stone, glass, 0.45, 2);
+    const top = towerRoof(B, L, W, H, 24, 0.45, tile, C("#6d4a3a"));
+    B.box(-L * 0.35 - 0.3, -L * 0.35 + 0.3, W * 0.3 - 0.3, W * 0.3 + 0.3, H, top - 0.2, stone, K.stone); // chimney
+  },
+};
+
+/**
+ * Hadžimušovića kula (1897/98). Source: plavto.me "Hadžimušović Tower": Ribarska mahala near Lake Plav, hewn and
+ * semi-finished stone, square base about 10 × 10.2 m, ground floor + two floors, arched hewn-stone windows on the upper
+ * floors, loopholes, shingle roof replaced with tiles, a second door and windows opened on the ground floor later.
+ * Gallery photos 1710895153-6, 1710895154-1, -2, -4 (viewed as references). Position: not yet confirmed.
+ */
+const HADZIMUSOVICA_KULA: LandmarkDef = {
+  name: "Hadžimušovića kula",
+  provisional: true,
+  chip: { label: "Hadžimušovića kula", match: /hadžimušovića kula/i },
+  sources: ["https://www.plavto.me/en/tourist-offer/hadzimusovica-tower/", "plavto.me gallery photos 1710895153-6, 1710895154-1, 1710895154-2, 1710895154-4 (viewed for reference, not copied)"],
+  verified: [
+    "Hewn and semi-finished stone, square base about 10 × 10.2 m, ground floor and two floors, built 1897/98 (plavto.me)",
+    "Two arched doors on the ground floor (one added after the owners divided the tower; plavto.me + photo 1710895154-4)",
+    "Photos: rough brown-grey stone with dressed corner stones; small round-headed windows and a round window; stone machicolation boxes with small openings at the top floor (one on the door face, two on the side); steep hipped roof in dark grey tiles with a thin overhang",
+  ],
+  estimated: [
+    "Position: Ribarska mahala per the text, exact footprint not known; waits for the owner",
+    "Heights: eaves 10.0 m, roof pitch 32° (photo proportion)",
+    "Exact window positions and sizes",
+  ],
+  build(B, { L, W }) {
+    const stone = C("#ad9c80"), quoin = C("#cbbfa8"), glass = C("#2a2826"), door = C("#2f2a26"), roof = C("#45474a");
+    const H = 10.0;
+    const P: [number, number][] = [[-L, -W], [L, -W], [L, W], [-L, W]];
+    B.walls(P, -1, H, stone, K.stone);
+    for (const [cs, ct] of [[L, W], [L, -W], [-L, W], [-L, -W]] as const) B.box(cs - 0.28, cs + 0.28, ct - 0.28, ct + 0.28, -1, H, quoin, K.stone, false);
+    const arch = (i: number, u: number, w: number, z0: number, z1: number, c = glass) => {
+      const [s0, t0, s1, t1] = face(L, W, i);
+      B.archWindow(s0, t0, s1, t1, u, w + 0.3, z0 - 0.15, z1 + 0.15, quoin, 0.03);
+      B.archWindow(s0, t0, s1, t1, u, w, z0, z1, c, 0.06);
+    };
+    // door face (+s): two arched doors, a round-headed window and a round window, machicolation top right
+    const n0 = faceLen(L, W, 0);
+    arch(0, n0 * 0.3, 1.05, 0, 2.3, door); arch(0, n0 * 0.68, 1.05, 0, 2.3, door);
+    arch(0, n0 * 0.38, 0.45, 6.6, 7.4); arch(0, n0 * 0.5, 0.35, 4.6, 4.95);
+    masikula(B, L, W, 0, n0 * 0.72, 2.0, H - 1.9, H - 0.6, quoin, glass, 0.35, 4);
+    // side faces: small windows, two machicolations on one side, one on the other
+    arch(1, faceLen(L, W, 1) * 0.5, 0.45, 4.4, 5.2); arch(3, faceLen(L, W, 3) * 0.5, 0.45, 4.4, 5.2);
+    masikula(B, L, W, 1, faceLen(L, W, 1) * 0.3, 1.6, H - 1.9, H - 0.6, quoin, glass, 0.35, 3);
+    masikula(B, L, W, 1, faceLen(L, W, 1) * 0.7, 1.6, H - 1.9, H - 0.6, quoin, glass, 0.35, 3);
+    masikula(B, L, W, 3, faceLen(L, W, 3) * 0.5, 1.6, H - 1.9, H - 0.6, quoin, glass, 0.35, 3);
+    arch(2, faceLen(L, W, 2) * 0.5, 0.45, 6.6, 7.4);
+    towerRoof(B, L, W, H, 32, 0.35, roof, C("#2f3033"));
+  },
+};
+
+/**
+ * Đurovića kula / kula Mehmeda-Meda Jakup Ferovog (end of the 19th century). Source: plavto.me "Durovića Tower": built by
+ * Medo (Jakup) Ferov, an elementary school after World War II, thoroughly renovated keeping its authentic form except
+ * for minor changes to the windows and an added staircase. Gallery photos 1710607212-5, 1710607213-1 … -4 (viewed as
+ * references). Position: not yet confirmed.
+ */
+const DUROVICA_KULA: LandmarkDef = {
+  name: "Đurovića kula",
+  provisional: true,
+  chip: { label: "Đurovića kula", match: /đurovića kula/i },
+  sources: ["https://www.plavto.me/en/tourist-offer/durovica-tower-mehmeda-meda-tower-jakup-ferovog/", "plavto.me gallery photos 1710607212-5, 1710607213-1, -2, -3, -4 (viewed for reference, not copied)"],
+  verified: [
+    "Built at the end of the 19th century by Medo (Jakup) Ferov; renovated keeping its form, with changed windows and an added staircase (plavto.me)",
+    "Photos: rectangular stone building of cut stone with light corner quoins; two rows of tall round-headed windows with white stone surrounds and brown wooden shutters; a round-arched ground-floor door with a white stone arch; hipped roof in dark grey with a dark fascia and two chimneys; a roofed wooden external staircase on one short side; downpipes at the corners; a low stone-and-iron fence to the street",
+  ],
+  estimated: [
+    "Position: no source gives it; the model waits for the owner to point out the footprint",
+    "Heights: eaves 8.6 m, roof pitch 30° (photo proportion)",
+    "Window counts (5 per row on the long sides, 2 on the short sides), door and staircase placement on the footprint",
+  ],
+  build(B, { L, W }) {
+    const stone = C("#c9b89a"), quoin = C("#e6e0d3"), shutter = C("#6a3e24"), door = C("#4a2d1d"), roof = C("#4a4b4e"), wood = C("#5b4433");
+    const H = 8.6;
+    const P: [number, number][] = [[-L, -W], [L, -W], [L, W], [-L, W]];
+    B.walls(P, -1, H, stone, K.stone);
+    for (const [cs, ct] of [[L, W], [L, -W], [-L, W], [-L, -W]] as const) B.box(cs - 0.25, cs + 0.25, ct - 0.25, ct + 0.25, -1, H, quoin, K.stone, false);
+    const win = (i: number, u: number, z0: number) => {
+      const [s0, t0, s1, t1] = face(L, W, i);
+      B.archWindow(s0, t0, s1, t1, u, 1.15, z0 - 0.12, z0 + 1.85, quoin, 0.03);
+      B.archWindow(s0, t0, s1, t1, u, 0.85, z0, z0 + 1.7, shutter, 0.06);
+    };
+    for (let i = 0; i < 4; i++) {
+      const n = faceLen(L, W, i), k = i % 2 ? 5 : 2;
+      for (const z of [2.7, 5.8]) for (let j = 0; j < k; j++) win(i, ((j + 0.5) / k) * n, z);
+    }
+    // ground-floor door on the long +t face, under the fourth window
+    const [s0, t0, s1, t1] = face(L, W, 1), n1 = faceLen(L, W, 1);
+    B.archWindow(s0, t0, s1, t1, n1 * 0.7, 1.6, 0, 2.45, quoin, 0.03);
+    B.archWindow(s0, t0, s1, t1, n1 * 0.7, 1.1, 0, 2.2, door, 0.07);
+    // roofed wooden external staircase on the -s short side
+    const ss = -L - 1.5;
+    B.box(ss, -L, -W * 0.8, -W * 0.8 + 1.3, -1, 3.0, wood, K.planks);
+    B.box(ss - 0.1, -L, -W * 0.8 - 0.1, -W * 0.8 + 1.4, 3.6, 3.75, roof);
+    // downpipes
+    for (const [cs, ct] of [[L + 0.15, W + 0.15], [-L - 0.15, W + 0.15]] as const) B.box(cs - 0.06, cs + 0.06, ct - 0.06, ct + 0.06, -1, H - 0.1, C("#3b3a38"), K.plain, false);
+    const top = towerRoof(B, L, W, H, 30, 0.6, roof, C("#2b2622"));
+    for (const s of [-L * 0.4, L * 0.4]) B.box(s - 0.3, s + 0.3, -0.3, 0.3, H, top + 0.4, stone, K.stone);
+  },
+};
+
 /** Landmarks by building id (Overture/OSM id of the real footprint). */
 export const LANDMARKS: Record<string, LandmarkDef> = {
   "d8f69ad5-7153-4d6e-955e-b92a1d3e95f6": STARA,
@@ -732,6 +915,24 @@ export const LANDMARKS: Record<string, LandmarkDef> = {
   "046e12de-83fc-4793-a0ea-d1e63069c2d7": REDZEPAGICA_DZ,
   "a7e3238c-8616-4b92-a8f1-60669e556198": SABOVICA,
 };
+
+/** Modelled landmarks whose footprint is not yet known: built and documented, but not placed on the map. */
+export const PENDING_LANDMARKS: Record<string, LandmarkDef> = {
+  beciragica: BECIRAGICA_KULA,
+  hadzimusovica: HADZIMUSOVICA_KULA,
+  durovica: DUROVICA_KULA,
+};
+
+/**
+ * Render-only stand-ins (?closeup=1&place=key@buildingId): put a pending model on some footprint so it can be shown in
+ * close-up renders before its real position is known. Never used without the closeup flag.
+ */
+const STAND_INS: Record<string, LandmarkDef> = {};
+export function placeStandIn(key: string, buildingId: string) {
+  const def = PENDING_LANDMARKS[key];
+  if (def) STAND_INS[buildingId] = { ...def, provisional: false };
+}
+const lookup = (id: string): LandmarkDef | undefined => LANDMARKS[id] ?? STAND_INS[id];
 
 /** +1 if the model's front (+s) faces along the OBB axis, -1 if flipped. The kula's front (door) is the face towards the nearest road. */
 function frontFlip(d: AreaData, b: Building, def: LandmarkDef) {
@@ -745,7 +946,7 @@ function frontFlip(d: AreaData, b: Building, def: LandmarkDef) {
 /** Camera shortcut for a landmark: footprint centre and the azimuth (deg, as used by flyTo) that looks at its front. */
 export function landmarkFocus(d: AreaData, name: string, turnDeg = 0) {
   for (const b of d.buildings) {
-    const def = LANDMARKS[b.id];
+    const def = lookup(b.id);
     if (!def || def.name !== name) continue;
     const [cx, cy, ang] = b.obb, f = frontFlip(d, b, def) * (def.focusSide ?? 1);
     const nx = Math.cos(ang) * f, ny = Math.sin(ang) * f;
@@ -759,7 +960,7 @@ export function landmarkGeometry(d: AreaData, opts: { provisional: boolean }) {
   const parts: THREE.BufferGeometry[] = [];
   const used: Building[] = [];
   for (const b of d.buildings) {
-    const def = LANDMARKS[b.id];
+    const def = lookup(b.id);
     if (!def || (def.provisional && !opts.provisional)) continue;
     const [cx, cy, ang, Lf, Wf] = b.obb;
     const ca = Math.cos(ang), sa = Math.sin(ang);
@@ -782,7 +983,7 @@ export function landmarkReplacements(d: AreaData, opts: { provisional: boolean }
   const ids = new Set<string>();
   const minarets = new Set<number>();
   for (const b of d.buildings) {
-    const def = LANDMARKS[b.id];
+    const def = lookup(b.id);
     if (!def || (def.provisional && !opts.provisional)) continue;
     ids.add(b.id);
     if (def.minaretRadius) d.minarets.forEach((m, i) => { if (Math.hypot(m.x - b.obb[0], m.y - b.obb[1]) < def.minaretRadius!) minarets.add(i); });

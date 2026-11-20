@@ -132,6 +132,25 @@ Changed from the previous model: grey stone became cream blocks with corner pila
 became a rendered annex with ogee glazed bays and a dark cornice; the domes became ribbed; the roof became brown and
 flatter; the minaret became slimmer with an open-band balcony.
 
+## Batch 2: three Plav-Gusinje towers (2026-11-20)
+
+Chosen because they are the best-documented remaining buildings in Plav: each has a Tourist Organisation Plav text with
+dimensions and floors and a photo gallery. The models are built (`src/geo/landmarks.ts`, `PENDING_LANDMARKS`) but **not
+placed on the map**: no reachable source gives their positions (plavto.me, photomontenegro.me, komoot, Wikivoyage and
+OpenStreetMap were checked; OSM does not name them; dozens of 10 × 10 m footprints lie near Ribarska, Jusufagića and
+Šabovića streets). They go on the map when the owner points out each footprint. Until then the close-up renders use a
+stand-in footprint (render-only `?closeup=1&place=key@id`), labelled as such.
+
+| tower | text source | photos used (plavto.me, viewed only) | verified | estimated |
+|---|---|---|---|---|
+| Bećiragića kula / kula Šaćir-bega (1899) | [plavto.me](https://www.plavto.me/en/tourist-offer/beciragic-tower-sacir-bega-tower/) | [1710606305-1](https://www.plavto.me/files/images/1710606305-1.jpg), [1710606306-4](https://www.plavto.me/files/images/1710606306-4.jpg), [1710606307-3](https://www.plavto.me/files/images/1710606307-3.jpg), [1710606307-8](https://www.plavto.me/files/images/1710606307-8.jpg) | hewn stone, ground + 2 floors, 10.3 × 10 m, arched carved door with inscription panel, small round-headed windows in square frames (pairs on the door face), machicolation box over the door, low hipped red-tile roof, chimney | position; eaves 10.6 m; pitch 24°; window counts |
+| Hadžimušovića kula (1897/98) | [plavto.me](https://www.plavto.me/en/tourist-offer/hadzimusovica-tower/) | [1710895153-6](https://www.plavto.me/files/images/1710895153-6.jpg), [1710895154-1](https://www.plavto.me/files/images/1710895154-1.jpg), [1710895154-2](https://www.plavto.me/files/images/1710895154-2.jpg), [1710895154-4](https://www.plavto.me/files/images/1710895154-4.jpg) | Ribarska mahala; rough stone with dressed quoins, about 10 × 10.2 m, ground + 2 floors, two arched ground-floor doors, small arched and round windows, machicolation boxes (1 on the door face, 2 on one side), steep dark-grey tiled hip roof | exact position; eaves 10.0 m; pitch 32°; window positions |
+| Đurovića kula / kula Mehmeda-Meda Jakup Ferovog (end 19th c.) | [plavto.me](https://www.plavto.me/en/tourist-offer/durovica-tower-mehmeda-meda-tower-jakup-ferovog/) | [1710607212-5](https://www.plavto.me/files/images/1710607212-5.jpg), [1710607213-2](https://www.plavto.me/files/images/1710607213-2.jpg), [1710607213-3](https://www.plavto.me/files/images/1710607213-3.jpg), [1710607213-4](https://www.plavto.me/files/images/1710607213-4.jpg) | cut stone with light quoins, two rows of tall arched windows with white surrounds and brown shutters, arched ground-floor door, dark hipped roof with two chimneys, roofed wooden external staircase (added in the renovation), corner downpipes | position; footprint size; eaves 8.6 m; pitch 30°; window counts; door and stair placement |
+
+Other candidates checked for this batch: Opština Plav, Dom kulture, Pošta, Osnovni sud, Pijaca, the Hajro Šahmanović
+school and Hotel Plavsko jezero have verified OSM footprints but no photo or description reachable from the build
+environment, so they would only get restrained provisional models.
+
 ## Mosque orientation
 The qibla from Plav is 136° (SE). The long axes of the Sultanija (157°), Redžepagića (144°) and Šabovića (139°) footprints all
 point close to it, so their entrances are modelled on the NW end. This is an inference from the footprint and the qibla, not a
@@ -139,7 +158,7 @@ written fact.
 
 ## What is not done yet
 - Phase 3 (Plav-specific house families) has not started. The ordinary houses still use the earlier procedural system.
-- The remaining 15 buildings wait for the owner's approval of this batch.
+- Batch 1 (five buildings) approved 2026-11-20. Batch 2 (three towers) is modelled and waits for the owner to confirm their positions.
 - The Opština Plav building and other public buildings: no written description or usable photo was found.
 
 ## Municipality building and other central landmarks (research 2026-11-20)

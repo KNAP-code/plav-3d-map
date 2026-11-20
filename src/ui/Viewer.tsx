@@ -8,7 +8,7 @@ import { PRESETS, type StyleConfig } from "@/style/presets";
 import { AUDIT_COLORS, AuditLayer, Buildings, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
-import { LANDMARKS, landmarkFocus } from "@/geo/landmarks";
+import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
 import { T, type Lang } from "./i18n";
 import { AdaptiveQuality, Bench, StatsProbe, bump, formatBench, type BenchResult } from "./perf";
 import dynamic from "next/dynamic";
@@ -108,6 +108,8 @@ export default function Viewer() {
   const showStats = q.has("stats");
   // landmarks whose position still needs confirmation are only shown with #review / ?review=1
   const review = q.has("review");
+  // render scripts only (?closeup=1&place=key@buildingId): show a not-yet-placed landmark model on a stand-in footprint
+  if (q.get("closeup") === "1") for (const p of (q.get("place") ?? "").split(",")) { const [k, id] = p.split("@"); if (k && id) placeStandIn(k, id); }
   const [night, setNight] = useState(q.has("night"));
   const [traffic, setTraffic] = useState(!off.has("traffic"));
   const carCount = !traffic || benchFrames > 0 && !q.has("cars") ? 0 : quality === "low" ? 0 : quality === "medium" ? 24 : 40;
