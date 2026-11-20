@@ -1,0 +1,51 @@
+{
+ "note": "SwiftShader + Pixel 7 emulation, 60 frames; relative only. Mosques corrected from plavto.me photos. Compare docs/perf-rules-v2.json (29/42 calls, 349k/475k tris).",
+ "after": [
+  {
+   "label": "medium",
+   "query": "q=medium",
+   "frames": 60,
+   "avgFps": 2.2062635823101746,
+   "p50": 458,
+   "p95": 533.7999999998137,
+   "p99": 542.1000000000931,
+   "worst": 542.1000000000931,
+   "jsP50": 1.1000000000931323,
+   "jsP95": 6.5,
+   "calls": 29,
+   "tris": 350245,
+   "dpr": 1.25,
+   "px": "515\u00d71048",
+   "shadowUpdates": 0,
+   "reactRenders": 0,
+   "tier": "medium",
+   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+   "firstFrame": 1861.3000000000466,
+   "heap": 68,
+   "errors": []
+  },
+  {
+   "label": "high",
+   "query": "q=high",
+   "frames": 60,
+   "avgFps": 0.9848497283456166,
+   "p50": 1006.6999999999534,
+   "p95": 1172.3000000000466,
+   "p99": 1196.3999999999069,
+   "worst": 1196.3999999999069,
+   "jsP50": 1.3000000000465661,
+   "jsP95": 4.699999999953434,
+   "calls": 42,
+   "tris": 476359,
+   "dpr": 1.75,
+   "px": "721\u00d71468",
+   "shadowUpdates": 0,
+   "reactRenders": 0,
+   "tier": "high",
+   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+   "firstFrame": 1961.6000000000931,
+   "heap": 72,
+   "errors": []
+  }
+ ]
+}

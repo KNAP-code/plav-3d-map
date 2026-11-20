@@ -115,6 +115,55 @@ class Builder {
     if (frame) this.quad(at(u - w / 2 - 0.1, z0 - 0.1, off * 0.5), at(u + w / 2 + 0.1, z0 - 0.1, off * 0.5), at(u + w / 2 + 0.1, z1 + 0.1, off * 0.5), at(u - w / 2 - 0.1, z1 + 0.1, off * 0.5), frame);
     this.quad(at(u - w / 2, z0, off), at(u + w / 2, z0, off), at(u + w / 2, z1, off), at(u - w / 2, z1, off), glass, K.glass);
   }
+  /**
+   * Large glazed bay with a round or ogee (pointed with a small tip) head, a frame drawn behind it and glazing bars
+   * in front: vertical mullions about every `bar` m and one transom at the springing line.
+   */
+  glazedArch(s0: number, t0: number, s1: number, t1: number, u: number, w: number, z0: number, z1: number, glass: THREE.Color, frame: THREE.Color, o: { ogee?: boolean; bar?: number; off?: number } = {}) {
+    const off = o.off ?? 0.06, bar = o.bar ?? 0.9;
+    const L = Math.hypot(s1 - s0, t1 - t0), ds = (s1 - s0) / L, dt = (t1 - t0) / L, ns = dt, nt = -ds;
+    const at = (x: number, z: number, d: number): V3 => [s0 + ds * x + ns * d, t0 + dt * x + nt * d, z];
+    const outline = (hw: number, top: number): [number, number][] => {
+      const pts: [number, number][] = [];
+      if (o.ogee) {
+        // two arcs of radius ~0.9w meeting at a point, plus a short reverse-curve tip
+        const rise = Math.min(hw * 1.5, top - z0 - 0.2), zs = top - rise, n = 6;
+        for (let i = 0; i <= n; i++) { const k = i / n; pts.push([-hw + hw * (1 - Math.cos(k * Math.PI / 2)) * 0.92, zs + rise * 0.82 * Math.sin(k * Math.PI / 2)]); }
+        pts.push([0, top]);
+        for (let i = n; i >= 0; i--) { const k = i / n; pts.push([hw - hw * (1 - Math.cos(k * Math.PI / 2)) * 0.92, zs + rise * 0.82 * Math.sin(k * Math.PI / 2)]); }
+        return pts;
+      }
+      const zs = top - hw, n = 8;
+      for (let i = 0; i <= n; i++) { const a = Math.PI - (i / n) * Math.PI; pts.push([Math.cos(a) * hw, zs + Math.sin(a) * hw]); }
+      return pts;
+    };
+    const shape = (hw: number, bottom: number, top: number, color: THREE.Color, kind: number, d: number) => {
+      const pts = outline(hw, top), zs = Math.min(pts[0][1], pts[pts.length - 1][1]);
+      this.quad(at(u - hw, bottom, d), at(u + hw, bottom, d), at(u + hw, zs, d), at(u - hw, zs, d), color, kind);
+      for (let i = 0; i < pts.length - 1; i++)
+        this.tri(at(u, zs, d), at(u + pts[i][0], pts[i][1], d), at(u + pts[i + 1][0], pts[i + 1][1], d), color, kind, [0, 0], [0, 0], [0, 0]);
+      return zs;
+    };
+    shape(w / 2 + 0.14, z0 - 0.12, z1 + 0.14, frame, K.plain, off * 0.5);
+    const zs = shape(w / 2, z0, z1, glass, K.glass, off);
+    const nb = Math.max(1, Math.round(w / bar)), bw = 0.06;
+    for (let i = 1; i < nb; i++) { const x = u - w / 2 + (i / nb) * w; this.quad(at(x - bw, z0, off * 1.6), at(x + bw, z0, off * 1.6), at(x + bw, zs, off * 1.6), at(x - bw, zs, off * 1.6), frame); }
+    this.quad(at(u - w / 2, zs - bw, off * 1.6), at(u + w / 2, zs - bw, off * 1.6), at(u + w / 2, zs + bw, off * 1.6), at(u - w / 2, zs + bw, off * 1.6), frame);
+    if (z1 - z0 > 3.2) { const zm = z0 + (zs - z0) / 2; this.quad(at(u - w / 2, zm - bw, off * 1.6), at(u + w / 2, zm - bw, off * 1.6), at(u + w / 2, zm + bw, off * 1.6), at(u - w / 2, zm + bw, off * 1.6), frame); }
+  }
+  /** Dome like `dome`, with alternating colours on its segments so the lead ribs read. */
+  ribbedDome(cs: number, ct: number, r: number, z: number, color: THREE.Color, rib: THREE.Color, n = 24, rings = 6) {
+    for (let k = 0; k < rings; k++) {
+      const a0 = (k / rings) * Math.PI / 2, a1 = ((k + 1) / rings) * Math.PI / 2;
+      const r0 = r * Math.cos(a0), r1 = r * Math.cos(a1), z0 = z + r * Math.sin(a0), z1 = z + r * Math.sin(a1);
+      for (let i = 0; i < n; i++) {
+        const b0 = (i / n) * Math.PI * 2, b1 = ((i + 1) / n) * Math.PI * 2, c = i % 2 ? rib : color;
+        const p = (a: number, rr: number, zz: number): V3 => [cs + Math.cos(a) * rr, ct + Math.sin(a) * rr, zz];
+        this.tri(p(b0, r0, z0), p(b1, r0, z0), p(b1, r1, z1), c, K.plain, [0, 0], [1, 0], [1, 1]);
+        if (r1 > 1e-4) this.tri(p(b0, r0, z0), p(b1, r1, z1), p(b0, r1, z1), c, K.plain, [0, 0], [1, 1], [0, 1]);
+      }
+    }
+  }
   geometry() {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(this.pos, 3));
@@ -397,15 +446,22 @@ const KULA: LandmarkDef = {
  * timber balcony (šerefe), conical shingled cap and a finial. The written sources give only material and height
  * for each mosque; the form follows the documented Stara džamija minaret and is marked estimated per model.
  */
-function woodenMinaret(B: Builder, s: number, t: number, base: number, shaftTop: number, o: { r: number; balc: number; cap: number; wood: THREE.Color; dark: THREE.Color; capCol: THREE.Color; kind: number }) {
-  const rot = Math.PI / 8;
+function woodenMinaret(B: Builder, s: number, t: number, base: number, shaftTop: number, o: { r: number; balc: number; cap: number; wood: THREE.Color; dark: THREE.Color; capCol: THREE.Color; kind: number; balcR?: number; flare?: number; openings?: THREE.Color }) {
+  const rot = Math.PI / 8, br = o.r * (o.balcR ?? 1.25), fl = o.r * (o.flare ?? 1.6);
   B.frustum(s, t, 8, o.r, o.r * 0.93, base, shaftTop, o.wood, o.kind, false, rot);
   // İbrahimgil & Kudumovic (2023): Montenegrin wooden minarets have 8- or 16-sided shafts clad in fishbone-pattern small
   // planks, a "slightly emphasized" balcony with small openings, and rise out of the roof body.
-  B.frustum(s, t, 8, o.r * 1.25, o.r * 1.05, shaftTop - 0.25, shaftTop, o.dark, K.plain, false, rot); // bracket
-  B.frustum(s, t, 8, o.r * 1.25, o.r * 1.25, shaftTop, shaftTop + o.balc, o.dark, K.planks, false, rot); // enclosed balcony
-  B.frustum(s, t, 8, o.r * 1.6, o.r * 1.6, shaftTop + o.balc - 0.08, shaftTop + o.balc, o.dark, K.plain, false, rot);
-  B.frustum(s, t, 8, o.r * 1.6, 0, shaftTop + o.balc, shaftTop + o.balc + o.cap, o.capCol, K.shingle, false, rot);
+  B.frustum(s, t, 8, br, o.r * 0.95, shaftTop - 0.25, shaftTop, o.dark, K.plain, false, rot); // bracket
+  if (o.openings) {
+    // enclosed balcony: boarded parapet, a band of small openings, boarded head
+    const b = shaftTop, h = o.balc;
+    B.frustum(s, t, 8, br, br, b, b + h * 0.4, o.dark, K.planks, false, rot);
+    B.frustum(s, t, 8, br * 0.94, br * 0.94, b + h * 0.4, b + h * 0.82, o.openings, K.plain, false, rot);
+    for (let i = 0; i < 8; i++) { const a = rot + (i / 8) * Math.PI * 2; B.frustum(s + Math.cos(a) * br * 0.97, t + Math.sin(a) * br * 0.97, 4, 0.05, 0.05, b + h * 0.4, b + h * 0.82, o.dark); }
+    B.frustum(s, t, 8, br, br, b + h * 0.82, b + h, o.dark, K.planks, false, rot);
+  } else B.frustum(s, t, 8, br, br, shaftTop, shaftTop + o.balc, o.dark, K.planks, false, rot); // enclosed balcony
+  B.frustum(s, t, 8, fl, fl, shaftTop + o.balc - 0.08, shaftTop + o.balc, o.dark, K.plain, false, rot);
+  B.frustum(s, t, 8, fl, 0, shaftTop + o.balc, shaftTop + o.balc + o.cap, o.capCol, K.shingle, false, rot);
   const tip = shaftTop + o.balc + o.cap;
   B.frustum(s, t, 4, 0.05, 0.03, tip, tip + 0.9, C("#8c8c86"), K.plain);
   return tip + 0.9;
@@ -424,56 +480,77 @@ const SULTANIJA: LandmarkDef = {
   minaretRadius: 16,
   focusSide: -1,
   chip: { label: "Sultanija", match: /sultanija/i },
-  sources: ["https://www.plavto.me/en/tourist-offer/sultanija-mosque/", "OSM building 'Sultanija' and OSM minaret node (via Overture 2026-11-18.0)"],
+  sources: [
+    "https://www.plavto.me/en/tourist-offer/sultanija-mosque/",
+    "plavto.me gallery photos 1710606531-1, 1710606531-2, 1710606530-12 (see docs/ARCHITECTURE_REFERENCES.md; viewed for reference, not copied)",
+    "OSM building 'Sultanija' and OSM minaret node (via Overture 2026-11-18.0)",
+  ],
   verified: [
     "Position and L-shaped footprint: OSM building named Sultanija (17.7 × 15.1 m)",
     "Built of cut stone, including the dome and the slender minaret (plavto.me)",
     "Large domed building today; renovated and extended with domes and a tall minaret, reopened 2005 (adrialine.me, upoznajcrnugoru.com, volimprokletije.art.blog)",
     "Minaret 41.5 m, concrete (adrialine.me), rebuilt after the 1927 demolition; position = OSM minaret node in the notch of the L",
     "Orientation: the long +s axis points SE, close to the qibla, so the entrance is on the NW side",
+    "Photo (plavto.me 1710606531-1, -2, 1710606530-12): hall of light grey cut-stone blocks with rectangular windows in two rows; one large dark lead dome with ribs on a low light-stone drum",
+    "Photo: lower entrance wing in front of the hall with several small lead domes on its roof and tall round-arched bays of gridded glazing; a round-arched entrance",
+    "Photo: white cylindrical minaret on a square grey stone base, TWO balconies, tall dark pointed cap; it stands between the hall and the entrance wing (matches the OSM node)",
   ],
   estimated: [
-    "Which part of the L is the prayer hall: the square-ish SE part (11.8 × 15.2 m) is modelled as the domed hall, the NW wing as a lower entrance wing with a flat roof",
-    "Heights: hall walls 8.5 m, dome radius 5.4 m on an octagonal drum, entrance wing 5.2 m; minaret form (one balcony, pointed cap)",
-    "Sources mention domes in the plural; only the main dome is modelled because the count and placement of the others are unknown",
-    "Minaret material conflict: concrete (adrialine.me) vs the original stone minaret (plavto.me, demolished 1927); modelled light rendered",
-    "Stone colour (light grey-beige ashlar), lead-grey dome and minaret cap",
-    "Windows: two rows of arched windows on the hall, arched door in the middle of the NW wing; counts are estimates",
-    "No photo was available: proportions, cornice and window layout need checking against a photo",
+    "Which part of the L is the prayer hall: the square-ish SE part (11.8 × 15.2 m) is modelled as the domed hall, the NW wing as the lower entrance wing (consistent with the photos, but the plan is not documented)",
+    "Heights read from photo proportions, not measured: hall walls 8.5 m, entrance wing 6.5 m, dome radius 5.4 m; minaret base 7 m, balconies at about 22 m and 28.5 m, cap from 34 m (scaled to the 41.5 m total)",
+    "Small domes on the entrance wing: 6 in a 2 × 3 grid; the photos show several but not their exact count and layout",
+    "Window and bay counts per side (3 rectangular per row on the long sides, 2 at the rear; glazed bays 3 on the NW face, 2 on the NE face, 1 on each side of the minaret)",
+    "Exact colours of stone, lead and glazing",
+    "The white šadrvan pavilion with a small dome seen in the photos is not modelled: its position is not known",
   ],
   build(B) {
-    const stone = C("#d8d0c1"), stoneDark = C("#bdb4a4"), lead = C("#6f767c"), glass = C("#2f343a"), door = C("#3b2a1e");
+    const stone = C("#d3d0c8"), stoneDark = C("#b5b1a8"), lead = C("#4f565b"), leadRib = C("#3e4448"), glass = C("#2f343a"), frame = C("#9ea2a3"), white = C("#f1efe9"), grey = C("#a9a7a1");
     const hall: [number, number][] = [[-2.9, -7.6], [8.9, -7.6], [8.9, 7.6], [-2.9, 7.6]];
     const wing: [number, number][] = [[-8.8, -3.8], [-2.9, -3.8], [-2.9, 7.6], [-8.8, 7.6]];
-    const hE = 8.5, wE = 5.2;
+    const hE = 8.5, wE = 6.5;
     B.walls(hall, -1, hE, stone, K.stone); B.walls(wing, -1, wE, stone, K.stone);
     // plinth and cornices
     B.walls(hall, -1, 0.7, stoneDark, K.stone, 0.05); B.walls(wing, -1, 0.7, stoneDark, K.stone, 0.05);
     B.walls(hall, hE - 0.35, hE, stoneDark, K.plain, 0.12); B.walls(wing, wE - 0.3, wE, stoneDark, K.plain, 0.12);
     B.flat(hall, hE, stoneDark); B.flat(wing, wE, stoneDark);
-    // octagonal drum + dome over the hall
+    // low round drum + large ribbed lead dome over the hall (photo 1710606531-1)
     const dc = 3.0, r = 5.4;
-    B.frustum(dc, 0, 8, r * 1.08, r * 1.08, hE, hE + 1.1, stone, K.stone, false, Math.PI / 8);
-    B.frustum(dc, 0, 8, r * 1.14, r * 1.14, hE + 1.0, hE + 1.2, stoneDark, K.plain, false, Math.PI / 8);
-    B.dome(dc, 0, r, hE + 1.15, lead, 16, 6);
+    B.frustum(dc, 0, 16, r * 1.06, r * 1.06, hE, hE + 1.1, stone, K.stone);
+    B.frustum(dc, 0, 16, r * 1.12, r * 1.12, hE + 1.0, hE + 1.2, stoneDark, K.plain);
+    B.ribbedDome(dc, 0, r, hE + 1.15, lead, leadRib, 24, 6);
     B.frustum(dc, 0, 4, 0.06, 0.03, hE + 1.15 + r, hE + 2.6 + r, C("#c9b46a"), K.plain); // alem
-    // windows: two rows on the hall's three free sides, arched door + windows on the wing
-    for (const z of [[1.6, 3.6], [5.0, 6.8]] as const) {
-      for (const u of [3.0, 7.6, 12.2]) { B.archWindow(-2.9, -7.6, 8.9, -7.6, u * 11.8 / 15.2, 1.0, z[0], z[1], glass); B.archWindow(8.9, 7.6, -2.9, 7.6, u * 11.8 / 15.2, 1.0, z[0], z[1], glass); }
-      for (const u of [3.8, 11.4]) B.archWindow(8.9, -7.6, 8.9, 7.6, u, 1.0, z[0], z[1], glass);
+    // hall: rectangular windows in two rows (photo 1710606530-12)
+    for (const z of [[1.6, 3.6], [5.0, 6.9]] as const) {
+      for (const u of [3.0, 7.6, 12.2]) { B.rectWindow(-2.9, -7.6, 8.9, -7.6, u * 11.8 / 15.2, 1.1, z[0], z[1], glass, stoneDark); B.rectWindow(8.9, 7.6, -2.9, 7.6, u * 11.8 / 15.2, 1.1, z[0], z[1], glass, stoneDark); }
+      for (const u of [3.8, 11.4]) B.rectWindow(8.9, -7.6, 8.9, 7.6, u, 1.1, z[0], z[1], glass, stoneDark);
     }
-    B.archWindow(-8.8, 7.6, -8.8, -3.8, 5.7, 1.6, 0, 3.4, door, 0.08);
-    for (const u of [2.0, 9.4]) B.archWindow(-8.8, 7.6, -8.8, -3.8, u, 0.9, 1.6, 3.6, glass);
-    B.archWindow(-2.9, 7.6, -8.8, 7.6, 2.95, 0.9, 1.6, 3.6, glass);
-    // free-standing minaret on the OSM minaret node; 41.5 m per adrialine.me (concrete, rebuilt after the 1927 demolition)
+    // entrance wing: tall round-arched bays with gridded glazing (photo 1710606531-2), entrance in the middle of the NW face
+    for (const u of [2.0, 5.7, 9.4]) B.glazedArch(-8.8, 7.6, -8.8, -3.8, u, 2.6, 0.5, wE - 0.6, glass, frame);
+    B.archWindow(-8.8, 7.6, -8.8, -3.8, 5.7, 1.5, 0, 2.7, C("#3b2a1e"), 0.12); // doorway
+    for (const u of [1.6, 4.3]) B.glazedArch(-2.9, 7.6, -8.8, 7.6, u, 2.2, 0.5, wE - 0.6, glass, frame);
+    B.glazedArch(-8.8, -3.8, -2.9, -3.8, 4.2, 2.4, 0.5, wE - 0.6, glass, frame); // beside the minaret
+    B.glazedArch(-2.9, -3.8, -2.9, -7.6, 1.9, 2.4, 0.5, wE - 0.6, glass, frame); // hall face in the notch
+    // small lead domes on the wing roof
+    for (const s of [-7.3, -4.4]) for (const t of [-1.9, 1.9, 5.7]) {
+      B.frustum(s, t, 12, 1.15, 1.15, wE, wE + 0.4, stone, K.plain);
+      B.ribbedDome(s, t, 1.1, wE + 0.4, lead, leadRib, 12, 4);
+    }
+    // free-standing minaret on the OSM minaret node; 41.5 m per adrialine.me; form from photos 1710606531-1/-2
     const ms = -4.5, mt = -5.7, H = 41.5;
-    B.box(ms - 1.3, ms + 1.3, mt - 1.3, mt + 1.3, -1, 5.0, stoneDark, K.stone); // square base
-    B.frustum(ms, mt, 12, 1.4, 1.1, 5.0, 6.6, stone, K.plain, false); // transition
-    B.frustum(ms, mt, 12, 1.1, 1.0, 6.6, H - 10.5, stone, K.plain, false); // shaft
-    B.frustum(ms, mt, 12, 1.02, 1.6, H - 11.0, H - 10.2, stoneDark, K.plain, false); // corbelled balcony
-    B.frustum(ms, mt, 12, 1.6, 1.6, H - 10.2, H - 9.2, stone, K.plain, false); // parapet
-    B.frustum(ms, mt, 12, 0.9, 0.86, H - 10.2, H - 5.6, stone, K.plain, false); // upper shaft
-    B.frustum(ms, mt, 12, 1.0, 0.0, H - 5.6, H - 0.9, lead, K.plain, false); // pointed cap
+    B.box(ms - 1.3, ms + 1.3, mt - 1.3, mt + 1.3, -1, 7.0, grey, K.stone); // square grey stone base
+    B.frustum(ms, mt, 16, 1.45, 1.1, 7.0, 8.2, grey, K.plain); // transition
+    B.frustum(ms, mt, 16, 1.1, 1.0, 8.2, 21.4, white, K.plain); // shaft
+    const balcony = (z: number) => {
+      B.frustum(ms, mt, 16, 1.0, 1.55, z - 0.8, z, grey, K.plain); // corbel
+      B.frustum(ms, mt, 16, 1.55, 1.55, z, z + 1.0, white, K.plain); // parapet
+      B.frustum(ms, mt, 16, 1.6, 1.6, z + 0.95, z + 1.1, grey, K.plain); // rail
+    };
+    balcony(22.2);
+    B.frustum(ms, mt, 16, 0.98, 0.95, 22.2, 27.9, white, K.plain);
+    balcony(28.7);
+    B.frustum(ms, mt, 16, 0.92, 0.9, 28.7, 34.0, white, K.plain); // upper shaft
+    B.frustum(ms, mt, 16, 1.0, 1.0, 33.8, 34.1, grey, K.plain);
+    B.frustum(ms, mt, 16, 0.98, 0.0, 34.1, H - 0.9, C("#3a3f43"), K.plain); // tall dark pointed cap
     B.frustum(ms, mt, 4, 0.05, 0.03, H - 0.9, H, C("#c9b46a"), K.plain); // alem
   },
 };
@@ -490,7 +567,12 @@ const REDZEPAGICA_DZ: LandmarkDef = {
   minaretRadius: 14,
   focusSide: -1,
   chip: { label: "Redžepagića džamija", match: /redžepagića džamija/i },
-  sources: ["https://www.plavto.me/en/tourist-offer/redzepagic-mosque/", "https://upoznajcrnugoru.com/redzepagica-dzamija-plav/", "OSM building 'Redžepagića džamija' (via Overture 2026-11-18.0)"],
+  sources: [
+    "https://www.plavto.me/en/tourist-offer/redzepagic-mosque/",
+    "plavto.me gallery photos 1711363700-1, 1711363699-2 (exterior; see docs/ARCHITECTURE_REFERENCES.md; viewed for reference, not copied)",
+    "https://upoznajcrnugoru.com/redzepagica-dzamija-plav/",
+    "OSM building 'Redžepagića džamija' (via Overture 2026-11-18.0)",
+  ],
   verified: [
     "Position and footprint: OSM building named Redžepagića džamija (17.9 × 8.0 m)",
     "Stone walls in lime mortar with a plinth on the outer wall (plavto.me)",
@@ -499,42 +581,62 @@ const REDZEPAGICA_DZ: LandmarkDef = {
     "Wooden entrance porch and carved wooden entrance door (plavto.me, upoznajcrnugoru.com)",
     "Orientation: long axis points SE, close to the qibla, so the entrance is at the NW end",
     "Prayer hall 6.53 × 7.90 m, height 4.80 m, stone-concrete; recent extensive restoration added an L-shaped concrete mahfil (İbrahimgil & Kudumovic 2023, listed as the 1774 Fatıma Hanım mosque in Plav)",
-    "Minaret typology: rectangular mosque with the minaret rising from the roof; Montenegrin wooden minarets are 8/16-sided with fishbone plank cladding and a slightly emphasised balcony (same paper)",
+    "Photo (plavto.me 1711363700-1): bare rough-stone walls (not rendered), a stone string course, small round-arched windows with dressed-stone surrounds in two rows (larger below, smaller above), gutter and corner downpipe",
+    "Photo (1711363700-1, 1711363699-2): steep hipped roof of orange-red clay tiles with a short ridge, nearly pyramidal; the stone hall continues into a dark timber-boarded section under the same roof at the entrance end",
+    "Photo: the minaret rises from the end of the short ridge; dark weathered timber shaft in fishbone cladding, an enclosed balcony only slightly wider than the shaft with a band of small openings, a timber cone cap with a flared eave and a metal finial; it stands about 1.3–1.4 roof heights above the ridge",
   ],
   estimated: [
-    "Roof shape: hipped (the sources say tiles but not the shape); pitch 38°, eaves 0.8 m",
-    "Wall finish: whitewashed render over the stone (not stated; could be bare stone)",
-    "The OSM footprint (17.9 × 8.0 m) is much longer than the 7.9 m prayer hall; the rest is modelled as part of the same building under one hipped roof with a 3.2 m wooden porch at the NW end. The real split between hall, extension and porch is unknown",
-    "Minaret: octagonal fishbone-clad shaft (regional type), enclosed balcony and cone cap; position on the ridge near the entrance; the 14 m is read as the length above the eaves",
-    "Windows: 3 rectangular windows per long side and 2 at the rear (no source)",
-    "Harem, šadrvan and gasulhana exist (plavto.me) but their positions are unknown, so they are not modelled",
+    "Split of the 17.9 m footprint: stone hall 9.3 m at the SE end (the 7.90 m interior plus walls), timber entrance section 3.2 m, both under one hipped roof (12.5 m); the remaining 5.4 m at the NW end has no structure in the photos and is drawn only as a paved forecourt",
+    "Roof pitch 38° and eaves 0.8 m (photo proportion, not measured); minaret heights scaled from the photos to the 14 m total",
+    "Window counts per side (3 lower + 3 upper on each long side, 2 + 1 on the rear end) and the door position on the timber section",
+    "The šadrvan pavilion (hexagonal, grey roof, white arches) beside the entrance seen in photo 1711363700-1 is not modelled: its exact position is not known",
   ],
   build(B, { L, W }) {
-    const render = C("#efebe2"), plinth = C("#a7a49c"), tile = C("#a65a40"), wood = C("#6b4c37"), dark = C("#3e2c20"), glass = C("#30353b"), frame = C("#7a5a3e");
-    const eave = 4.8, pd = 3.2, hs = -L + pd, tan = Math.tan((38 * Math.PI) / 180);
+    const rock = C("#948876"), dressed = C("#b9ae9c"), tile = C("#ad5a3c"), wood = C("#5b4535"), dark = C("#3a2a1f"), glass = C("#30353b"), pave = C("#9d9a92");
+    const eave = 4.8, tan = Math.tan((38 * Math.PI) / 180);
+    const hs = L - 9.3, ws = hs - 3.2; // stone hall [hs..L], timber section [ws..hs], forecourt [-L..ws]
     const hallP: [number, number][] = [[hs, -W], [L, -W], [L, W], [hs, W]];
-    B.walls(hallP, 0.7, eave, render); B.walls(hallP, -1, 0.7, plinth, K.stone, 0.06);
-    // porch: timber floor, posts, low railing, back wall with the carved door
-    B.box(-L, hs, -W, W, -1, 0.45, plinth, K.stone);
-    B.box(-L, hs, -W, W, 0.45, 0.55, wood, K.planks);
-    for (const t of [-W + 0.15, -W / 3, W / 3, W - 0.15]) B.box(-L + 0.05, -L + 0.3, t - 0.12, t + 0.12, 0.55, eave, dark, K.plain, false);
-    for (const [t0, t1] of [[-W + 0.15, -W / 3], [W / 3, W - 0.15]]) B.box(-L + 0.1, -L + 0.2, t0, t1, 0.55, 1.45, wood, K.planks);
-    B.box(hs - pd + 0.05, hs, -W + 0.05, -W + 0.15, 0.55, 1.45, wood, K.planks); B.box(hs - pd + 0.05, hs, W - 0.15, W - 0.05, 0.55, 1.45, wood, K.planks);
-    B.box(-L, hs, -W, W, eave - 0.3, eave, dark, K.plain, false); // porch beam
-    B.rectWindow(hs, W, hs, -W, W, 1.3, 0.55, 2.75, C("#4a3020"), dark, 0.06); // carved door
-    // windows
+    B.walls(hallP, -1, eave, rock, K.stone);
+    B.walls(hallP, -1, 0.5, dressed, K.stone, 0.06); // plinth
+    B.walls(hallP, 2.55, 2.75, dressed, K.plain, 0.07); // string course
+    // timber-boarded entrance section
+    const wd: [number, number][] = [[ws, -W], [hs, -W], [hs, W], [ws, W]];
+    B.walls(wd, -1, 0.5, dressed, K.stone, 0.06);
+    B.walls(wd, 0.5, eave, wood, K.planks);
+    B.rectWindow(ws, W, ws, -W, W, 1.3, 0.5, 2.7, C("#4a3020"), dark, 0.06); // carved door
+    for (const [s0, t0, s1, t1] of [[ws, -W, hs, -W], [hs, W, ws, W]] as const) B.rectWindow(s0, t0, s1, t1, 1.6, 1.0, 2.9, 3.9, glass, dark);
+    B.box(-L, ws, -W, W, -0.6, 0.12, pave, K.stone); // forecourt
+    // windows: round-arched, dressed-stone surrounds, two rows
     const len = L - hs;
+    const arch = (s0: number, t0: number, s1: number, t1: number, u: number, w: number, z0: number, z1: number) => {
+      B.archWindow(s0, t0, s1, t1, u, w + 0.3, z0 - 0.15, z1 + 0.15, dressed, 0.03);
+      B.archWindow(s0, t0, s1, t1, u, w, z0, z1, glass, 0.06);
+    };
     for (let i = 0; i < 3; i++) {
       const u = ((i + 0.5) / 3) * len;
-      B.rectWindow(hs, -W, L, -W, u, 0.9, 1.7, 3.4, glass, frame);
-      B.rectWindow(L, W, hs, W, u, 0.9, 1.7, 3.4, glass, frame);
+      arch(hs, -W, L, -W, u, 0.6, 0.9, 2.2); arch(L, W, hs, W, u, 0.6, 0.9, 2.2);
+      arch(hs, -W, L, -W, u, 0.45, 3.1, 3.9); arch(L, W, hs, W, u, 0.45, 3.1, 3.9);
     }
-    for (const u of [W * 0.55, W * 1.45]) B.rectWindow(L, -W, L, W, u, 0.9, 1.7, 3.4, glass, frame);
-    // hipped tiled roof over hall and porch
-    const ov = 0.8;
-    const ridge = B.hipRoof(L + ov, W + ov, eave - ov * tan * 0.3, tan, tile);
-    // wooden minaret on the ridge near the entrance end, 14 m above the roof (see estimated)
-    woodenMinaret(B, -L + pd + 1.2, 0, eave, ridge + 9.6, { r: 0.85, balc: 1.7, cap: 2.0, wood, dark, capCol: tile.clone().multiplyScalar(0.8), kind: K.chevron });
+    for (const u of [W * 0.55, W * 1.45]) arch(L, -W, L, W, u, 0.6, 0.9, 2.2);
+    arch(L, -W, L, W, W, 0.45, 3.1, 3.9);
+    // one hipped tiled roof over hall + timber section, centred on them
+    const ov = 0.8, sc = (L + ws) / 2, hl = (L - ws) / 2 + ov, hw = W + ov, z = eave - ov * tan * 0.3;
+    const rr = Math.max(hl - hw, 0), h = hw * tan;
+    const P = (ss: number, t: number, zz: number): V3 => [sc + ss, t, zz];
+    B.tri(P(-hl, -hw, z), P(hl, -hw, z), P(rr, 0, z + h), tile, K.shingle, [0, 0], [2 * hl, 0], [hl + rr, h]);
+    B.tri(P(-hl, -hw, z), P(rr, 0, z + h), P(-rr, 0, z + h), tile, K.shingle, [0, 0], [hl + rr, h], [hl - rr, h]);
+    B.tri(P(hl, hw, z), P(-hl, hw, z), P(-rr, 0, z + h), tile, K.shingle, [0, 0], [2 * hl, 0], [hl + rr, h]);
+    B.tri(P(hl, hw, z), P(-rr, 0, z + h), P(rr, 0, z + h), tile, K.shingle, [0, 0], [hl + rr, h], [hl - rr, h]);
+    B.tri(P(hl, -hw, z), P(hl, hw, z), P(rr, 0, z + h), tile, K.shingle, [0, 0], [2 * hw, 0], [hw, h]);
+    B.tri(P(-hl, hw, z), P(-hl, -hw, z), P(-rr, 0, z + h), tile, K.shingle, [0, 0], [2 * hw, 0], [hw, h]);
+    B.quad(P(-hl, -hw, z), P(-hl, hw, z), P(hl, hw, z), P(hl, -hw, z), tile.clone().multiplyScalar(0.55));
+    const ridge = z + h;
+    // gutters and a corner downpipe (photo)
+    const gut = C("#5d5e5c");
+    B.box(sc - hl, sc + hl, -hw - 0.1, -hw + 0.05, z - 0.18, z, gut, K.plain); B.box(sc - hl, sc + hl, hw - 0.05, hw + 0.1, z - 0.18, z, gut, K.plain);
+    B.box(L + 0.05, L + 0.17, -W - 0.17, -W - 0.05, -1, z - 0.1, gut, K.plain, false);
+    // minaret at the NW end of the short ridge, about 1.35 roof heights above the ridge (photos), 14 m in all
+    woodenMinaret(B, sc - rr, 0, eave, ridge + 2.9, { r: 0.62, balc: 0.95, cap: 0.8, balcR: 1.15, flare: 1.3, wood, dark, capCol: C("#5e4636"), kind: K.chevron, openings: C("#1d1712") });
   },
 };
 
@@ -549,7 +651,11 @@ const SABOVICA: LandmarkDef = {
   minaretRadius: 12,
   focusSide: -1,
   chip: { label: "Šabovića džamija", match: /šabovića|sabovica/i },
-  sources: ["https://www.plavto.me/en/tourist-offer/sabovic-mosque/", "OSM building 'Sabovica' (via Overture 2026-11-18.0)"],
+  sources: [
+    "https://www.plavto.me/en/tourist-offer/sabovic-mosque/",
+    "plavto.me gallery photos 1711282504-7, 1711282504-8, 1711282503-9 (exterior; see docs/ARCHITECTURE_REFERENCES.md; viewed for reference, not copied)",
+    "OSM building 'Sabovica' (via Overture 2026-11-18.0)",
+  ],
   verified: [
     "Position and footprint: OSM building named Sabovica (16.1 × 9.3 m, polygonal NW end)",
     "Hewn stone walls (plavto.me)",
@@ -557,36 +663,53 @@ const SABOVICA: LandmarkDef = {
     "Pine minaret 7.5 m high rising from the roof (plavto.me)",
     "Entrance annex with three domes (plavto.me): a three-domed reinforced-concrete porch, narrower than the main front facade (İbrahimgil & Kudumovic 2023); modelled on the narrower NW part of the footprint",
     "Prayer hall 8.26 × 10.91 m, height 4.40 m; a new reinforced-concrete structure was built around the original stone walls; rectangular plan with the minaret rising from the roof (same paper)",
+    "Photo (plavto.me 1711282504-7): hall walls of cream-buff stone blocks with darker stone corner pilasters and a mid-height band; small round-arched windows in two rows",
+    "Photo (1711282504-7, -8): hipped roof in brown shingle imitation, moderate pitch; minaret rises from near the ridge with a dark timber fishbone-clad shaft, an enclosed balcony with small openings and a small cone cap with a finial",
+    "Photo (1711282504-8): the entrance annex is rendered in a tan-brown finish with a dark projecting cornice, flat roof, three small ribbed dark-lead domes in a row, and tall ogee-arched glazed bays with red frames; the entrance door is in the middle bay",
   ],
   estimated: [
-    "Roof shape: hipped, pitch 40° (shape not stated)",
-    "Eave 4.6 m (paper gives 4.40 m height), annex walls 3.4 m, porch dome radius 1.2 m",
-    "Outer finish: the paper says a concrete shell now surrounds the stone walls, so the visible finish may be render, not stone; modelled as stone until a photo shows it",
-    "Minaret: octagonal fishbone-clad shaft (regional type from the paper), enclosed balcony, cone cap; position on the ridge near the annex",
-    "Windows (3 arched per long side, 2 at the rear) and the door position: no source",
+    "Roof pitch 33° and eave 4.6 m (paper: 4.40 m); minaret proportions scaled from the photos so the top is about 6 m above the ridge",
+    "Annex height 3.6 m, dome radius 1.0 m (photo proportion)",
+    "The annex front in the photo looks flat with three bays, while the OSM outline is a four-sided polygon; the model keeps the OSM outline and puts one glazed bay on each face, the door on the NW-facing one",
+    "Window counts (3 per row on each long side, 2 per row at the rear)",
   ],
   build(B) {
-    const stone = C("#bfb5a4"), stoneDark = C("#9f9687"), roof = C("#7e6e60"), wood = C("#7a5a40"), dark = C("#3e2c20"), lead = C("#7a7f84"), glass = C("#30353b");
+    const block = C("#d8ccad"), quoin = C("#b3a283"), roof = C("#7d5c48"), wood = C("#4f4239"), dark = C("#2e2620"), lead = C("#575c60"), leadRib = C("#45494c"), glass = C("#30353b");
+    const render = C("#a98b72"), cornice = C("#4a3a32"), red = C("#8e3a33");
     const hall: [number, number][] = [[-4.0, -4.65], [8.1, -4.65], [8.1, 4.65], [-4.0, 4.65]];
     const annex: [number, number][] = [[-4.0, -4.65], [-4.0, 4.6], [-7.0, 3.2], [-8.0, 0.3], [-6.9, -2.8]];
-    const eave = 4.6, aE = 3.4, tan = Math.tan((40 * Math.PI) / 180);
-    B.walls(hall, -1, eave, stone, K.stone); B.walls(hall, -1, 0.6, stoneDark, K.stone, 0.05);
-    B.walls(annex, -1, aE, stone, K.stone); B.flat(annex, aE, stoneDark);
-    B.walls(annex, aE - 0.25, aE, stoneDark, K.plain, 0.1);
+    const eave = 4.6, aE = 3.6, tan = Math.tan((33 * Math.PI) / 180);
+    B.walls(hall, -1, eave, block, K.stone); B.walls(hall, -1, 0.5, quoin, K.stone, 0.05);
+    B.walls(hall, 2.35, 2.55, quoin, K.plain, 0.07); // mid-height band
+    for (const [cs, ct] of [[8.1, -4.65], [8.1, 4.65], [-4.0, -4.65], [-4.0, 4.65]] as const) B.box(cs - 0.35, cs + 0.35, ct - 0.35, ct + 0.35, -1, eave, quoin, K.stone, false); // corner pilasters
+    // annex: rendered walls, dark cornice, flat roof, three ribbed domes
+    B.walls(annex, -1, aE, render); B.flat(annex, aE + 0.25, cornice);
+    B.walls(annex, aE - 0.05, aE + 0.25, cornice, K.plain, 0.25);
     for (const t of [-2.3, 0.15, 2.3]) {
-      B.frustum(-6.0, t, 12, 1.25, 1.25, aE, aE + 0.35, stoneDark, K.plain);
-      B.dome(-6.0, t, 1.2, aE + 0.35, lead, 12, 4);
+      B.frustum(-6.0, t, 12, 1.05, 1.05, aE + 0.25, aE + 0.5, cornice, K.plain);
+      B.ribbedDome(-6.0, t, 1.0, aE + 0.5, lead, leadRib, 12, 4);
     }
-    B.archWindow(-8.0, 0.3, -7.0, 3.2, 1.55, 1.1, 0, 2.5, C("#3b2a1e"), 0.08);
-    for (let i = 0; i < 3; i++) {
-      const u = ((i + 0.5) / 3) * 12.1;
-      B.archWindow(-4.0, -4.65, 8.1, -4.65, u, 0.8, 1.6, 3.6, glass);
-      B.archWindow(8.1, 4.65, -4.0, 4.65, u, 0.8, 1.6, 3.6, glass);
+    const faces = annex.slice(1).map((p, i) => [p, annex[(i + 2) % annex.length]] as const); // the four outer faces
+    faces.forEach(([[s0, t0], [s1, t1]], i) => {
+      const len = Math.hypot(s1 - s0, t1 - t0);
+      B.glazedArch(s0, t0, s1, t1, len / 2, Math.min(2.2, len - 0.8), 0.15, aE - 0.35, glass, red, { ogee: true, bar: 0.75 });
+      if (i === 1) B.rectWindow(s0, t0, s1, t1, len / 2, 0.95, 0.0, 2.1, C("#6b4a2e"), red, 0.1); // door in the middle of the bay
+    });
+    // hall windows: small round-arched, two rows, light surround
+    const arch = (s0: number, t0: number, s1: number, t1: number, u: number, z0: number, z1: number) => {
+      B.archWindow(s0, t0, s1, t1, u, 0.85, z0 - 0.12, z1 + 0.12, quoin, 0.03);
+      B.archWindow(s0, t0, s1, t1, u, 0.6, z0, z1, glass, 0.06);
+    };
+    for (const z of [[1.0, 2.1], [2.95, 4.0]] as const) {
+      for (let i = 0; i < 3; i++) {
+        const u = ((i + 0.5) / 3) * 12.1;
+        arch(-4.0, -4.65, 8.1, -4.65, u, z[0], z[1]); arch(8.1, 4.65, -4.0, 4.65, u, z[0], z[1]);
+      }
+      for (const u of [2.9, 6.4]) arch(8.1, -4.65, 8.1, 4.65, u, z[0], z[1]);
     }
-    for (const u of [2.9, 6.4]) B.archWindow(8.1, -4.65, 8.1, 4.65, u, 0.8, 1.6, 3.6, glass);
     // hipped roof over the hall only (hall centre is offset from the footprint centre)
-    const ov = 0.7, hc = (8.1 + -4.0) / 2, hl = (8.1 + 4.0) / 2 + ov, hw = 4.65 + ov;
-    const r = Math.max(hl - hw, 0), h = hw * tan, z = eave - 0.15;
+    const ov = 0.6, hc = (8.1 + -4.0) / 2, hl = (8.1 + 4.0) / 2 + ov, hw = 4.65 + ov;
+    const r = Math.max(hl - hw, 0), h = hw * tan, z = eave - 0.1;
     const P = (s: number, t: number, zz: number): V3 => [hc + s, t, zz];
     B.tri(P(-hl, -hw, z), P(hl, -hw, z), P(r, 0, z + h), roof, K.shingle, [0, 0], [2 * hl, 0], [hl + r, h]);
     B.tri(P(-hl, -hw, z), P(r, 0, z + h), P(-r, 0, z + h), roof, K.shingle, [0, 0], [hl + r, h], [hl - r, h]);
@@ -596,8 +719,8 @@ const SABOVICA: LandmarkDef = {
     B.tri(P(-hl, hw, z), P(-hl, -hw, z), P(-r, 0, z + h), roof, K.shingle, [0, 0], [2 * hw, 0], [hw, h]);
     B.quad(P(-hl, -hw, z), P(-hl, hw, z), P(hl, hw, z), P(hl, -hw, z), roof.clone().multiplyScalar(0.55));
     const ridge = z + h;
-    // 7.5 m pine minaret rising from the roof, near the annex end of the ridge
-    woodenMinaret(B, hc - r + 0.6, 0, eave, ridge + 5.0, { r: 0.55, balc: 1.2, cap: 1.5, wood, dark, capCol: roof.clone().multiplyScalar(0.85), kind: K.chevron });
+    // pine minaret rising from the roof near the annex end of the ridge, about 6 m above the ridge (photos)
+    woodenMinaret(B, hc - r + 0.3, 0, eave, ridge + 3.4, { r: 0.58, balc: 0.9, cap: 0.8, balcR: 1.15, flare: 1.3, wood, dark, capCol: C("#4a3b31"), kind: K.chevron, openings: C("#1d1712") });
   },
 };
 

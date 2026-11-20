@@ -45,8 +45,9 @@ Estimated (needs visual verification):
 
 ## Sultanija, Redžepagića džamija, Šabovića džamija (2026-11-20)
 
-Modelled from the Tourist Organisation Plav texts and the OSM footprints. No photos were available, so roof shapes,
-proportions, window layouts and minaret forms are estimates. See docs/ARCHITECTURE_REFERENCES.md for each attribute's confidence.
+Modelled from the Tourist Organisation Plav texts and the OSM footprints, then corrected against the plavto.me gallery
+photos (viewed as references, not copied). Walls, roofs, domes, window types and minaret forms now follow the photos;
+heights, counts and the parts the photos do not show remain estimates. See docs/ARCHITECTURE_REFERENCES.md for each attribute's confidence.
 The Carska (Imperial) mosque is the Stara džamija (plavto.me), not Sultanija.
 
 ## Šehidska džamija

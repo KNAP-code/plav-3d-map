@@ -7,9 +7,9 @@ const [base, outDir, prefix] = process.argv.slice(2);
 const L = [
   ["kula", 283.4, -263.2, 58, 76, 15, -48],
   ["stara", 148.0, -169.8, 42, 76, 4, -156],
-  ["sultanija", 133.2, -66.4, 80, 76, 18, -157],
-  ["redzepagica", 304.2, -206.1, 44, 72, 6, -144],
-  ["sabovica", 123.1, -345.2, 38, 74, 4, -139],
+  ["sultanija", 133.2, -66.4, 135, 68, 22, -157],
+  ["redzepagica", 304.2, -206.1, 54, 76, 7, -144],
+  ["sabovica", 123.1, -345.2, 52, 74, 8, -139],
 ];
 const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });

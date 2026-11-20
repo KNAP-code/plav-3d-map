@@ -10,7 +10,7 @@ chips look at the entrance side. The full verified/estimated lists are in `src/g
 | source | what it has | could it be used here? | usage rights |
 |---|---|---|---|
 | Owner's own photos (kula, Stara džamija) | front and side views | yes | owner's |
-| [plavto.me](https://www.plavto.me/en/tourist-offer/) (Tourist Organisation Plav) | galleries for Sultanija (12+), Redžepagića džamija (14+), Šabovića (11), Imperial/Stara (19+), kula (11) | text read; images blocked from this environment | no licence stated; treat as all rights reserved |
+| [plavto.me](https://www.plavto.me/en/tourist-offer/) (Tourist Organisation Plav) | galleries for Sultanija (12), Redžepagića džamija (14), Šabovića (10), Imperial/Stara (19+), kula (11) | text read; the three mosque galleries viewed on 2026-11-20 after the owner approved access to the site; used as visual references only, not copied into the project | no licence stated; treat as all rights reserved |
 | [volimprokletije.art.blog](https://volimprokletije.art.blog/2020/12/21/dzamija-sultanija-u-plavu/) | 9 Sultanija photos by ef. Sead Jasavić | text read; images not viewable | no licence stated |
 | [adrialine.me](https://www.adrialine.me/_en/sultanija_mosque.html) | Sultanija photos incl. the dome, location map | text read; images not viewable | Copyright Adria Line DMC |
 | [upoznajcrnugoru.com](https://upoznajcrnugoru.com/redzepagica-dzamija-plav/) | one photo each of Redžepagića and Sultanija | text read; images blocked | all rights reserved |
@@ -21,8 +21,19 @@ chips look at the entrance side. The full verified/estimated lists are in `src/g
 | İbrahimgil & Kudumovic (2023), [GU J Sci Part B 11(2)](https://dergipark.org.tr/en/pub/gujsb/article/1117022) | measured table and typology of Montenegrin wooden-minaret mosques, incl. three in Plav | text read (figures not viewable) | no licence stated; facts cited |
 | balkanarchitecture.org, plavgusinje.me, ResearchGate | Plav pages | refused (robots / blocked) | n/a |
 
-No image could be opened from this environment (the network proxy and the fetch tool both refuse image hosts), so no
-building attribute below is taken from a photo except for the kula and the Stara džamija.
+Update 2026-11-20: the image block was a network allow-list in the build environment, not an access control on the
+sites. After the owner approved read-only access to plavto.me, volimprokletije.art.blog, adrialine.me and
+upoznajcrnugoru.com, the plavto.me galleries for the three mosques were viewed. The photos were looked at only to read the
+architecture; none is copied into the repository or the preview, and the comparison sheets link to them instead. The
+photos that each attribute comes from are named below and in `src/geo/landmarks.ts`.
+
+| mosque | exterior photos used (plavto.me) | what they show |
+|---|---|---|
+| Sultanija | [1710606531-1](https://www.plavto.me/files/images/1710606531-1.jpg), [1710606531-2](https://www.plavto.me/files/images/1710606531-2.jpg), [1710606530-12](https://www.plavto.me/files/images/1710606530-12.jpg) | street view with the whole minaret and dome; low view of the minaret between the hall and the entrance wing; elevated view of the hall and the wing's small domes |
+| Redžepagića džamija | [1711363700-1](https://www.plavto.me/files/images/1711363700-1.jpg), [1711363699-2](https://www.plavto.me/files/images/1711363699-2.jpg) | corner view of the stone hall, roof, timber section and šadrvan; roof and minaret |
+| Šabovića džamija | [1711282504-7](https://www.plavto.me/files/images/1711282504-7.jpg), [1711282504-8](https://www.plavto.me/files/images/1711282504-8.jpg), [1711282503-9](https://www.plavto.me/files/images/1711282503-9.jpg) | annex and long side; annex front straight on; long side through the gate |
+
+The other gallery images are interiors or aerial views and were not needed for the exterior models.
 
 ### Name check: Carska, Stara, Sultanija
 - plavto.me: the Imperial (Carska) mosque is the Old mosque (Stara), 1471, on the hill in the old town.
@@ -41,14 +52,13 @@ building attribute below is taken from a photo except for the kula and the Stara
 - Redžepagića kula: [42.595724, 19.945963](https://www.openstreetmap.org/?mlat=42.595724&mlon=19.945963#map=19/42.595724/19.945963) (confirmed point)
 
 ### Photos still needed (owner)
-- Sultanija: the entrance (NW) side with the whole minaret; the SE (qibla) side; a view showing the dome and any smaller domes.
-- Redžepagića džamija: the porch end (NW) straight on; one long side from the corner, showing the roof and where the minaret leaves it.
-- Šabovića džamija: the three-domed porch; one long side; the minaret close up.
+Most were covered by the plavto.me galleries. Still missing:
+- Sultanija: the SE (qibla) side, and a top or wide view that shows how many small domes the entrance wing has.
+- Redžepagića džamija: the NW end, to settle what occupies the last 5.4 m of the OSM footprint, and the šadrvan's position.
+- Šabovića džamija: the annex from above or the side, to settle its outline (flat front or polygon).
 
-Reference photographs: the only photographs available to this work are the project owner's own photos of the kula and the
-Stara džamija. The Tourist Organisation Plav pages (plavto.me) have photo galleries, but no licence is stated and the images
-could not be opened from the build environment, so they were not used. The written text of those pages was used. Wikimedia
-Commons has no Plav category. No Google imagery or extracted 3D geometry was used.
+Reference photographs: the owner's own photos (kula, Stara džamija) and, for the three other mosques, the plavto.me gallery
+photos listed above, viewed as references only. No Google imagery or extracted 3D geometry was used.
 
 | # | building | location (footprint centre) | references |
 |---|---|---|---|
@@ -76,39 +86,51 @@ roof pitch, minaret height above the ridge, window counts, rear wall.
 | attribute | value | confidence |
 |---|---|---|
 | footprint, position | OSM, L-shaped | verified |
-| walls | carved stone (builders from Debar, stone tied with grooves and lead) | verified (text) |
-| dome | stone dome | verified that it exists (text); size and drum estimated |
-| minaret | 41.5 m, concrete (adrialine.me), rebuilt after the original stone minaret was demolished in 1927; position = OSM minaret node in the notch of the L | height and position verified (text + OSM); material conflicts between sources; one balcony and the cap form estimated |
-| domes | "large domed building", "extended with domes" (plural) | main dome modelled; other domes not modelled (count and placement unknown) |
-| floors | one tall prayer hall | estimated |
-| layout | SE part = domed hall, NW wing = lower entrance wing with flat roof | estimated |
-| colours | light ashlar, lead-grey dome and cap | estimated |
-| windows, door | two rows of arched windows, arched door in the NW wing | estimated |
+| walls | carved stone (builders from Debar); light grey cut-stone blocks | verified (text + photo 1710606530-12) |
+| main dome | one large dark lead dome with ribs on a low light-stone drum, over the hall | verified (photo 1710606531-1); radius 5.4 m estimated from proportions |
+| small domes | several small lead domes on the lower entrance wing | verified (photos 1710606531-2, 1710606530-12); 6 in a 2 × 3 grid is an estimate |
+| entrance wing | lower than the hall, tall round-arched bays with gridded glazing, round-arched entrance | verified (photos 1710606531-1, -2); 6.5 m height and bay counts estimated |
+| hall windows | rectangular, two rows | verified (photo 1710606530-12); counts estimated |
+| minaret | 41.5 m concrete (adrialine.me); white cylindrical shaft on a square grey stone base, two balconies, tall dark pointed cap; between hall and wing at the OSM node | verified (text + photos 1710606531-1, -2 + OSM); balcony heights (about 22 and 28.5 m) and cap start (34 m) scaled from photo 1710606531-1 |
+| šadrvan | white pavilion with arches and a small dome near the mosque | seen in photos; not modelled (position unknown) |
+| layout | SE part = domed hall, NW part = entrance wing | consistent with photos; plan not documented |
+
+Changed from the previous model: one balcony became two; the lead cap became a tall dark pointed cap on a white shaft
+over a grey stone base; the flat wing roof gained six small domes; the wing's small arched windows became tall glazed bays;
+the hall's arched windows became rectangular; the dome is darker with ribs and sits on a round drum.
 
 ## 4. Redžepagića džamija (1774, rebuilt 1871)
 | attribute | value | confidence |
 |---|---|---|
 | footprint, position | OSM | verified |
-| walls | stone in lime mortar, plinth on the outer wall | verified (text) |
-| prayer hall | 6.53 × 7.90 m, height 4.80 m; an L-shaped concrete mahfil was added in a recent restoration | verified (İbrahimgil & Kudumovic 2023); how the rest of the 17.9 m footprint is divided is unknown |
-| roof | clay tiles | covering verified (text); hipped shape, 38° pitch estimated |
-| minaret | pine, 14 m, rising out of the roof | verified (text); octagonal fishbone-clad shaft follows the regional type (paper); position near the entrance and the 14 m reading (above the eaves) estimated |
-| porch | wooden entrance porch | verified that it exists (text); 3.2 m deep under the main roof, 4 posts estimated |
-| door | carved wooden door | verified (text) |
-| wall finish | whitewashed render | estimated (could be bare stone) |
-| windows | 3 per long side, 2 at the rear, rectangular | estimated |
-| harem, šadrvan, gasulhana | exist (text) | not modelled: positions unknown |
+| walls | bare rough stone in lime mortar (no render), dressed-stone plinth and a string course | verified (text + photo 1711363700-1) |
+| windows | small round-arched windows with dressed-stone surrounds, larger lower row, smaller upper row | verified (photo 1711363700-1); counts per side estimated |
+| roof | steep hipped roof of orange-red clay tiles with a short ridge, nearly pyramidal; gutters and a corner downpipe | verified (text + photos 1711363700-1, 1711363699-2); 38° pitch estimated |
+| timber section | dark timber-boarded section at the entrance end under the same roof | verified (photo 1711363700-1 + "wooden porch" in text); 3.2 m depth estimated |
+| prayer hall | 6.53 × 7.90 m interior, height 4.80 m | verified (İbrahimgil & Kudumovic 2023) |
+| minaret | pine, 14 m; rises from the end of the short ridge; dark fishbone-clad shaft; enclosed balcony only slightly wider than the shaft, with a band of small openings; timber cone cap with a flared eave and a finial | verified (text + photos 1711363700-1, 1711363699-2); heights scaled from the photos to the 14 m total |
+| rest of the footprint | the OSM outline is 17.9 m long; the roofed building in the photos is about 12.5 m | the remaining 5.4 m at the NW end is drawn only as a paved forecourt; needs checking |
+| šadrvan | hexagonal pavilion, grey roof, white arches with green trim, beside the entrance | seen in photo 1711363700-1; not modelled (position unknown) |
+
+Changed from the previous model: white render became bare stone; rectangular windows became small arched windows in two
+rows; the open 4-post porch became an enclosed timber section; the roof became a short-ridged hip over the hall and timber
+section only; the minaret was cut from about 23 m to 14 m with a slimmer balcony and a timber cap.
 
 ## 5. Šabovića džamija (c. 1900)
 | attribute | value | confidence |
 |---|---|---|
 | footprint, position | OSM "Sabovica" | verified |
-| walls | hewn stone | verified (text) |
-| roof | thermoplastic imitation shingles | covering verified (text); hipped shape, 40° pitch estimated |
-| minaret | pine, 7.5 m, rising from the roof | verified (text); octagonal fishbone-clad shaft follows the regional type (paper); position estimated |
-| entrance annex | three-domed reinforced-concrete porch, narrower than the main facade | verified (plavto.me + paper); placed on the narrower NW part of the footprint (inference) |
-| prayer hall | 8.26 × 10.91 m, height 4.40 m; concrete structure built around the original stone walls | verified (paper); visible finish may be render, not stone |
-| windows, door | 3 arched per long side, door on the annex | estimated |
+| hall walls | cream-buff stone blocks, darker stone corner pilasters, a mid-height band | verified (text + photo 1711282504-7) |
+| hall windows | small round-arched, two rows | verified (photo 1711282504-7); counts estimated |
+| roof | hipped, brown shingle imitation, moderate pitch | verified (text + photos 1711282504-7, -8); 33° estimated |
+| minaret | pine, 7.5 m, rising from near the ridge; dark fishbone-clad shaft, enclosed balcony with small openings, small cone cap, finial | verified (text + photos 1711282504-7, -8); proportions scaled from photos |
+| entrance annex | tan-brown rendered, dark projecting cornice, flat roof, three small ribbed dark-lead domes in a row, tall ogee-arched glazed bays with red frames, door in the middle bay | verified (text + paper + photo 1711282504-8) |
+| annex outline | photo shows a flat front with three bays; OSM outline has four faces | OSM outline kept; one bay per face, door position estimated |
+| prayer hall | 8.26 × 10.91 m, height 4.40 m | verified (paper) |
+
+Changed from the previous model: grey stone became cream blocks with corner pilasters; the stone annex with a small door
+became a rendered annex with ogee glazed bays and a dark cornice; the domes became ribbed; the roof became brown and
+flatter; the minaret became slimmer with an open-band balcony.
 
 ## Mosque orientation
 The qibla from Plav is 136° (SE). The long axes of the Sultanija (157°), Redžepagića (144°) and Šabovića (139°) footprints all
