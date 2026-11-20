@@ -157,7 +157,7 @@ Searched for more central landmarks on the approved sites: every plavto.me galle
 publications (the 129-page tourist catalogue, "Cultural Route Plav", the towers, mosques and mill brochures). They
 describe only mosques, towers, churches and accommodation; none shows or locates the Opština, Dom kulture, Pošta,
 Osnovni sud, Pijaca, school or Hotel Plavsko jezero. The tower texts give no addresses. plav.me, photomontenegro.me,
-avlija.me and monteislam.com are blocked from the build environment.
+avlija.me and monteislam.com were blocked from the build environment at that time (see Batch 4).
 
 What the photos did support:
 
@@ -171,6 +171,38 @@ The aerial photo 1710606530-12 also shows a large cream building with stepped re
 Sultanija. It sits where the OSM "Opština Plav" footprint is, but it shows four storeys with balconies against OSM's three
 levels, so it is not used as evidence for the Opština until the owner confirms it.
 
+## Batch 4: newly approved sites (2026-11-20)
+
+The owner approved read-only access to plav.me, photomontenegro.me, avlija.me and monteislam.com.
+
+| site | access result |
+|---|---|
+| plav.me | Every page, including robots.txt and the feed, returns a "Please wait while your request is being verified" bot check that tests for automated browsers. This is a technical access control, so it was not bypassed. Nothing was read. |
+| photomontenegro.me | The site map and three Plav pages loaded (www host). After a few image requests the same bot check appeared, so reading stopped there. Two photos were viewed as references: the Redžepagića kula (`wp-content/gallery/heritage/dsc_2934s.jpg`) and a winter view of Plav (`wp-content/gallery/gradovi-i-mjesta/cityscapes-plav-1.jpg`). The photos are watermarked and copyrighted, and they were not copied into the project. |
+| avlija.me | Open. Read "Islamsko kulturno nasljeđe: Plav" (2024) and "Islamsko kulturno nasljeđe: Kule" (2024). |
+| monteislam.com | Open. Its history section has no articles on Plav buildings. |
+
+**Independent position check.** photomontenegro.me publishes map pins for four landmarks: [Redžepagića kula](https://www.photomontenegro.me/radzepagica-kula/) and [Plavske džamije](https://www.photomontenegro.me/plavske-dzamije/). Converted to the project frame, each pin falls on or beside the footprint already used:
+
+| landmark | photomontenegro.me pin | distance to modelled footprint centre |
+|---|---|---|
+| Redžepagića kula | 42.595724, 19.945963 | 7.3 m (pin just outside the 8.6 m footprint; the same coordinates the owner confirmed) |
+| Redžepagića džamija | 42.596148, 19.946234 | 3.6 m (inside the footprint) |
+| Stara džamija | 42.596526, 19.944316 | 4.4 m (inside the footprint) |
+| Sultanija | 42.597450, 19.944220 | 7.7 m (just outside the L-shaped footprint) |
+
+No positions were changed.
+
+**Redžepagića kula: changes in this batch**
+- *Verified (photomontenegro.me, citing montenegro.travel):* there is a low entrance on the south side with loopholes (puškarnice) above it. The plan is rectangular, the walls are up to 1 m thick, and the third storey is timber. The modelled door was already on the south face, because that face is nearest the street. The door is now lower (1.9 m instead of 2.3 m), and two narrow loophole slits were added above it.
+- *Verified (avlija.me):* the kula is surrounded by kaldrma (cobbled paving). A cobbled apron was added around the base. *Its width (1.6 m) is estimated.*
+- *Verified (avlija.me):* it was built in 1671 by Hasan-beg Redžepagić. It first had a ground floor and two stone storeys under a stone-slab roof, and later gained a timber third storey and a shingle roof. This agrees with the model.
+- The photomontenegro.me photo matches the model: rubble stone, a timber čardak with diagonal braces, closed erkers on two faces, and a steep pyramid roof.
+
+**Other facts read (no model change).** avlija.me gives the Stara džamija as 16 × 10 m with a 10 m wooden minaret (already used). It dates Redžepagića džamija to 1774 as the vakuf of Fatima, Redžepaga's daughter, and Šabovića džamija to 1880 as the vakuf of Has Ferović. photomontenegro.me says Sultanija was rebuilt wider than the original, with domes and a tall minaret.
+
+**Civic buildings and the three towers.** None of the readable pages shows or locates the Opština, Osnovni sud, Pošta, Dom kulture, Pijaca, the school, the hotel, or the Bećiragića, Hadžimušovića and Đurovića kule. The civic buildings stay procedural, and the three towers stay off the main map.
+
 ## Mosque orientation
 The qibla from Plav is 136° (SE). The long axes of the Sultanija (157°), Redžepagića (144°) and Šabovića (139°) footprints all
 point close to it, so their entrances are modelled on the NW end. This is an inference from the footprint and the qibla, not a
@@ -179,7 +211,7 @@ written fact.
 ## What is not done yet
 - Phase 3 (Plav-specific house families) has not started. The ordinary houses still use the earlier procedural system.
 - Batch 1 (five buildings) approved 2026-11-20. Batch 2 (three towers) is modelled and waits for the owner to confirm their positions.
-- The Opština Plav building and other public buildings: no written description or usable photo was found.
+- The Opština Plav building and other public buildings: no written description or usable photo was found. plav.me, the most likely source, is behind a bot check (Batch 4).
 
 ## Municipality building and other central landmarks (research 2026-11-20)
 - Opština Plav: OSM building "Opština Plav" with building:levels = 3 (used). No written description, plan or usable photo

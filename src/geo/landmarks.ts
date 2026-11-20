@@ -309,12 +309,14 @@ const STARA: LandmarkDef = {
 
 /**
  * Redžepagića kula. Position confirmed by the project owner (2026-11-20): 42.595724 N, 19.945963 E,
- * OSM building way 221505346 (8.6 × 8.4 m footprint).
+ * OSM building way 221505346 (8.6 × 8.4 m footprint). photomontenegro.me gives the same coordinates and says the
+ * low entrance is on the south side with loopholes above it; avlija.me says the kula is surrounded by kaldrma.
  */
 const KULA: LandmarkDef = {
   name: "Redžepagića kula",
+  sources: ["https://www.photomontenegro.me/radzepagica-kula/", "avlija.me, Islamsko kulturno nasljeđe: Plav (2024)", "Photos supplied by the project owner"],
   verified: [
-    "Position and footprint: OSM way 221505346 at 42.595724, 19.945963 (confirmed on site knowledge by the project owner)",
+    "Position and footprint: OSM way 221505346 at 42.595724, 19.945963 (confirmed on site knowledge by the project owner; photomontenegro.me gives the same coordinates)",
     "Square rubble-stone tower, walls tapering towards the top (montenegrina.net, photos)",
     "Two stone storeys plus a later dark timber top storey (čardak) overhanging the stone on all sides (sources, photos)",
     "Timber storey: small white-framed windows in pairs, diagonal braces and a light horizontal beam (photo 2)",
@@ -322,10 +324,14 @@ const KULA: LandmarkDef = {
     "Steep hipped roof, reddish-brown covering, deep eaves, finial rod at the apex (photos)",
     "Round-arched wooden door at ground level in a lighter stone arch, small square openings in the stone (photos)",
     "Rubble-stone walls with larger, lighter dressed stones at the corners (photos)",
+    "Low entrance on the south side with loopholes (puškarnice) above it; rectangular plan, walls up to 1 m thick, third storey of timber built for living (photomontenegro.me, Radžepagića kula, citing montenegro.travel)",
+    "Built 1671 by Hasan-beg Redžepagić; originally ground floor and two stone storeys under a stone-slab roof, later a timber third storey and a shingle roof (avlija.me, Islamsko kulturno nasljeđe: Plav)",
+    "Cobbled paving (kaldrma) around the kula (avlija.me)",
   ],
   estimated: [
     "Heights: stone 10 m, timber storey 2.6 m, roof rise 3.4 m (from photo proportions: stone face ≈1.2× as tall as wide; no survey)",
-    "Which face is the front (door + roofed erker): the face towards the nearest street",
+    "Front (door + roofed erker) is the face towards the nearest street; that face points south, which matches the documented south entrance",
+    "Width of the kaldrma apron (1.6 m) and the loophole sizes: not measured; the door height is lowered to 1.9 m because the source calls the entrance low",
     "Rear face: no photo; modelled like the front without door or erker",
     "Exact sizes of the erkers and windows (from photo proportions; erkers enlarged on 2026-11-20 to hang about 1.5-2 m below the čardak as in both photos)",
     "Plinth course, threshold step, fascia board and rafter ends: plausible construction details, not distinct in the photos",
@@ -365,10 +371,15 @@ const KULA: LandmarkDef = {
       }
     }
     // front: arched door left of centre in a dressed-stone arch surround, threshold step (photo 2)
-    B.archWindow(L + 0.02, -W, L + 0.02, W, W * 0.8, 1.55, 0, 2.6, C("#cfc6b8"), 0.02);
-    B.archWindow(L - 0.01, -W, L - 0.01, W, W * 0.8, 1.05, 0, 2.3, door, 0.06);
+    // the source calls the south entrance low: 1.9 m door in a 2.2 m surround
+    B.archWindow(L + 0.02, -W, L + 0.02, W, W * 0.8, 1.45, 0, 2.2, C("#cfc6b8"), 0.02);
+    B.archWindow(L - 0.01, -W, L - 0.01, W, W * 0.8, 1.0, 0, 1.9, door, 0.06);
     B.box(L + 0.12, L + 0.6, -W + W * 0.8 - 0.8, -W + W * 0.8 + 0.8, -0.4, 0.12, plinth, K.stone);
+    // loopholes (puškarnice) above the entrance: narrow vertical slits
+    hole(1, W * 0.8 - 0.4, 2.9, 0.13, 0.6); hole(1, W * 0.8 + 0.4, 2.9, 0.13, 0.6);
     hole(1, W * 0.8, 5.4, 0.35, 0.4); hole(1, W * 1.35, 3.9, 0.65, 0.75);
+    // kaldrma: cobbled apron around the kula (avlija.me); width estimated
+    B.box(-L - 1.6, L + 1.6, -W - 1.6, W + 1.6, -0.6, 0.05, C("#938a7c"), K.stone, true);
     // other faces: small slit/square openings on both stone storeys
     for (const f of [0, 2, 3]) { const u = (f === 3 ? W : L) * 1.0; hole(f, u, 3.8, 0.3, 0.5); hole(f, u * 0.9, 7.2, 0.3, 0.5); }
     // timber storey, overhanging the stone top by 0.6 m
