@@ -61,6 +61,7 @@ because OSM has no roof, facade or balcony data for Plav.
 - Facade: window layout (grid, tall, paired, wide band, shopfront), window size varies per building, light window surrounds, and shutters on traditional houses and about 30% of other houses.
 - Wall and roof colours come from separate palettes for traditional houses, houses and blocks.
 - Details: an entrance (door, lintel, step, and a canopy on modern houses) on the wall facing the nearest street. Balconies on about half of the 2-3 storey houses (wooden on traditional houses) and on most blocks; there are none on shops. Chimneys on most pitched roofs.
+- Also estimated: gutters with one downpipe on pitched-roof houses; an exterior wooden stair to the upper floor on about 45% of 2-storey traditional houses; subtle weathering (rising damp, streaks under sills); three deciduous tree crown shapes (round, tall oval, broad), assigned per tree.
 - Details are a separate mesh per tile. It is drawn only near the camera (650 m on high, 420 m on medium, never on low) and casts no shadow.
 
 ## Streets (estimates vs mapped)

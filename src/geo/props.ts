@@ -26,9 +26,21 @@ export function treeGeometries(trunkColor: string) {
   ctrunk.translate(0, 0.9, 0);
   const leaf = mergeGeometries([paint(ni(crown), null), paint(ni(trunk), tc)])!;
   const conifer = mergeGeometries([paint(ni(c1), null), paint(ni(c2), null), paint(ni(ctrunk), tc)])!;
-  leaf.computeVertexNormals();
-  conifer.computeVertexNormals();
-  return { leaf, conifer };
+  // tall oval crown (poplar-like silhouette), same triangle count as the round crown
+  const oCrown = new THREE.DodecahedronGeometry(2.2, 0);
+  oCrown.scale(0.72, 1.75, 0.72);
+  oCrown.translate(0, 5.6, 0);
+  const oTrunk = new THREE.CylinderGeometry(0.18, 0.26, 2.4, 5, 1, true);
+  oTrunk.translate(0, 1.2, 0);
+  const oval = mergeGeometries([paint(ni(oCrown), null), paint(ni(oTrunk), tc)])!;
+  // broad two-lobed crown (fruit / garden tree): two low-poly icosahedra, lower and wider
+  const l1 = new THREE.IcosahedronGeometry(2.2, 0); l1.scale(1.1, 0.8, 1.0); l1.translate(-0.9, 3.9, 0.2);
+  const l2 = new THREE.IcosahedronGeometry(1.9, 0); l2.scale(1.0, 0.85, 1.1); l2.translate(1.0, 4.4, -0.3);
+  const bTrunk = new THREE.CylinderGeometry(0.2, 0.3, 2.6, 5, 1, true);
+  bTrunk.translate(0, 1.3, 0);
+  const broad = mergeGeometries([paint(ni(l1), null), paint(ni(l2), null), paint(ni(bTrunk), tc)])!;
+  for (const g of [leaf, conifer, oval, broad]) g.computeVertexNormals();
+  return { leaf, conifer, oval, broad };
 }
 
 /** Tree instances grouped into square tiles so they can be frustum-culled and thinned by distance. */
@@ -37,7 +49,7 @@ export type TreeSet = {
   tiles: { start: number; end: number; box: THREE.Box3; cx: number; cz: number }[];
 };
 
-export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: number, tile = 256): { leaf: TreeSet; conifer: TreeSet } {
+export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: number, tile = 256): { leaf: TreeSet; oval: TreeSet; broad: TreeSet; conifer: TreeSet } {
   const t = d.trees;
   const lc = leaf.map((c) => new THREE.Color(c));
   const cc = conifer.map((c) => new THREE.Color(c));
@@ -77,7 +89,15 @@ export function treeSets(d: AreaData, leaf: string[], conifer: string[], size: n
     for (const tl of tiles) { const c = tl.box.getCenter(new THREE.Vector3()); tl.cx = c.x; tl.cz = c.z; }
     return { matrices, colors, count: list.length, tiles };
   };
-  return { leaf: build(items.filter((i) => i.kind < 1), lc), conifer: build(items.filter((i) => i.kind >= 1), cc) };
+  // deciduous trees get one of three crown shapes (deterministic per tree): 55% round, 20% tall oval, 25% broad
+  const shape = (k: number) => { const h = (((k + 7) * 2246822519) >>> 0) / 4294967296; return h < 0.55 ? 0 : h < 0.75 ? 1 : 2; };
+  const dec = items.filter((i) => i.kind < 1);
+  return {
+    leaf: build(dec.filter((i) => shape(i.k) === 0), lc),
+    oval: build(dec.filter((i) => shape(i.k) === 1), lc),
+    broad: build(dec.filter((i) => shape(i.k) === 2), lc),
+    conifer: build(items.filter((i) => i.kind >= 1), cc),
+  };
 }
 
 /** Stylised minaret (pencil type common in the region): shaft, balcony, cone cap. */

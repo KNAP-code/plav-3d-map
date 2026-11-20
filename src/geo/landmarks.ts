@@ -231,13 +231,15 @@ const KULA: LandmarkDef = {
     "Timber storey: small white-framed windows in pairs, diagonal braces and a light horizontal beam (photo 2)",
     "Closed timber erker on the front face hanging below the čardak with its own small reddish roof; erkers at the side corners (photos)",
     "Steep hipped roof, reddish-brown covering, deep eaves, finial rod at the apex (photos)",
-    "Round-arched wooden door at ground level, small square openings in the stone (photos)",
+    "Round-arched wooden door at ground level in a lighter stone arch, small square openings in the stone (photos)",
+    "Rubble-stone walls with larger, lighter dressed stones at the corners (photos)",
   ],
   estimated: [
     "Heights: stone 10 m, timber storey 2.6 m, roof rise 3.4 m (from photo proportions: stone face ≈1.2× as tall as wide; no survey)",
     "Which face is the front (door + roofed erker): the face towards the nearest street",
     "Rear face: no photo; modelled like the front without door or erker",
     "Exact sizes of the erkers and windows (from photo proportions)",
+    "Plinth course, threshold step, fascia board and rafter ends: plausible construction details, not distinct in the photos",
   ],
   build(B, { L, W }) {
     const stone = C("#bdb3a3"), wood = C("#4a3426"), beam = C("#2f2118"), band = C("#b08a5e"), roof = C("#8f4c3a");
@@ -259,8 +261,24 @@ const KULA: LandmarkDef = {
       const q = (du: number, zz: number): V3 => [s0 + ds * (u + du) + ns, t0 + dt * (u + du) + nt, zz];
       B.quad(q(-w / 2, z), q(w / 2, z), q(w / 2, z + h), q(-w / 2, z + h), c);
     };
-    // front: arched door left of centre, small window above it, larger opening to the right (photo 2)
-    B.archWindow(L - 0.01, -W, L - 0.01, W, W * 0.8, 1.05, 0, 2.3, door, 0.04);
+    // plinth: slightly projecting base course of larger, darker stones
+    const plinth = C("#a39a8c");
+    B.box(-L - 0.12, L + 0.12, -W - 0.12, W + 0.12, -1, 0.55, plinth, K.stone, true);
+    // quoins: dressed corner stones, alternating long/short on the two faces, following the taper
+    const quoin = C("#d2cabd");
+    for (let k = 0, z = 0.55; z < hs - 0.3; k++, z += 0.6) {
+      const f = (z + 0.3) / hs, cs = L - taper * f, ct = W - taper * f, a = k % 2 ? 0.95 : 0.55, b = k % 2 ? 0.55 : 0.95;
+      for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const s0 = sx * cs, t0 = sy * ct, o = 0.035;
+        // face along s (normal ±t) and face along t (normal ±s)
+        B.quad([s0, t0 + sy * o, z], [s0 - sx * a, t0 + sy * o, z], [s0 - sx * a, t0 + sy * o, z + 0.52], [s0, t0 + sy * o, z + 0.52], quoin, K.stone);
+        B.quad([s0 + sx * o, t0, z], [s0 + sx * o, t0 - sy * b, z], [s0 + sx * o, t0 - sy * b, z + 0.52], [s0 + sx * o, t0, z + 0.52], quoin, K.stone);
+      }
+    }
+    // front: arched door left of centre in a dressed-stone arch surround, threshold step (photo 2)
+    B.archWindow(L + 0.02, -W, L + 0.02, W, W * 0.8, 1.55, 0, 2.6, C("#cfc6b8"), 0.02);
+    B.archWindow(L - 0.01, -W, L - 0.01, W, W * 0.8, 1.05, 0, 2.3, door, 0.06);
+    B.box(L + 0.12, L + 0.6, -W + W * 0.8 - 0.8, -W + W * 0.8 + 0.8, -0.4, 0.12, plinth, K.stone);
     hole(1, W * 0.8, 5.4, 0.35, 0.4); hole(1, W * 1.35, 3.9, 0.65, 0.75);
     // other faces: small slit/square openings on both stone storeys
     for (const f of [0, 2, 3]) { const u = (f === 3 ? W : L) * 1.0; hole(f, u, 3.8, 0.3, 0.5); hole(f, u * 0.9, 7.2, 0.3, 0.5); }
@@ -321,6 +339,15 @@ const KULA: LandmarkDef = {
     // steep hipped roof with deep eaves, finial rod
     const tan = 3.4 / (Math.min(Lt, Wt) + ov);
     const ridge = B.hipRoof(Lt + ov, Wt + ov, zr, tan, roof, K.shingle);
+    // dark fascia board along the eaves and rafter ends below it
+    const Le = Lt + ov, We = Wt + ov;
+    B.panel(-Le, -We, Le, -We, zr - 0.18, zr, beam, K.plain, 0.01); B.panel(Le, -We, Le, We, zr - 0.18, zr, beam, K.plain, 0.01);
+    B.panel(Le, We, -Le, We, zr - 0.18, zr, beam, K.plain, 0.01); B.panel(-Le, We, -Le, -We, zr - 0.18, zr, beam, K.plain, 0.01);
+    for (let i = -3; i <= 3; i++) {
+      const u = (i / 3.5) * Le, v = (i / 3.5) * We;
+      B.box(u - 0.06, u + 0.06, -We + 0.05, -Wt, zr - 0.28, zr - 0.16, beam, K.plain); B.box(u - 0.06, u + 0.06, Wt, We - 0.05, zr - 0.28, zr - 0.16, beam, K.plain);
+      B.box(-Le + 0.05, -Lt, v - 0.06, v + 0.06, zr - 0.28, zr - 0.16, beam, K.plain); B.box(Lt, Le - 0.05, v - 0.06, v + 0.06, zr - 0.28, zr - 0.16, beam, K.plain);
+    }
     B.frustum(0, 0, 4, 0.04, 0.03, ridge, ridge + 1.4, C("#555"), K.plain);
   },
 };

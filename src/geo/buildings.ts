@@ -295,6 +295,39 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
           box(front, u - 0.85, u + 0.85, 0.0, 0.85, zg - 0.6, zg + 0.02, dc("#b3ada4"));         // step / stoop
           if (!vr.trad) box(front, u - 0.85, u + 0.85, 0.0, 0.95, zg + 2.45, zg + 2.57, dc(vr.block ? "#c9c5bd" : "#8f8a84"), true); // canopy
         }
+        // gutters along eave edges of pitched roofs (not gable ends), one downpipe at the first eave corner
+        if (!isFlat && !vr.block) {
+          const gut = dc("#6d6f72"), eaveRing = offsetRing(ring, ov);
+          let piped = false;
+          for (let i = 0; i < eaveRing.length; i++) {
+            const pa = eaveRing[i], pb = eaveRing[(i + 1) % eaveRing.length], len = Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+            if (len < 1.5) continue;
+            const mid = toST([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2]);
+            const zm = roofZ(mid[0], mid[1]);
+            if (Math.abs(zm - zE) > 0.2) continue;
+            const ux = (pb[0] - pa[0]) / len, uy = (pb[1] - pa[1]) / len, nx = uy * 0.06, ny = -ux * 0.06;
+            quad([[pa[0] + nx, pa[1] + ny, zE - 0.2], [pb[0] + nx, pb[1] + ny, zE - 0.2], [pb[0] + nx, pb[1] + ny, zE - 0.02], [pa[0] + nx, pa[1] + ny, zE - 0.02]], gut);
+            if (!piped) {
+              piped = true;
+              // downpipe from the gutter to the ground at the edge start, set back to the wall line
+              const wx = pa[0] - (pa[0] - cx) / (Math.hypot(pa[0] - cx, pa[1] - cy) || 1) * ov * 0.9, wy = pa[1] - (pa[1] - cy) / (Math.hypot(pa[0] - cx, pa[1] - cy) || 1) * ov * 0.9;
+              quad([[wx - ux * 0.05, wy - uy * 0.05, zg - 0.2], [wx + ux * 0.05, wy + uy * 0.05, zg - 0.2], [wx + ux * 0.05, wy + uy * 0.05, zE - 0.1], [wx - ux * 0.05, wy - uy * 0.05, zE - 0.1]], gut);
+            }
+          }
+        }
+        // exterior wooden stair to the upper floor on some 2-storey traditional houses (estimate, regional type)
+        if (vr.trad && b.floors >= 2 && hash01(b.id, "stair") < 0.45) {
+          const cand = edges.filter((e) => e !== front && e !== longest && e.len >= 4.2);
+          const se = cand[0];
+          if (se) {
+            const wd = dc("#6b4a33"), steps = 7, rise = fh / steps, run = 0.42, u0 = 0.4;
+            for (let k = 0; k < steps; k++) box(se, u0 + k * run, u0 + (k + 1) * run, 0.05, 1.0, zg + k * rise - (k === 0 ? 0.3 : 0), zg + (k + 1) * rise, wd);
+            const ul = u0 + steps * run;
+            box(se, ul, ul + 1.1, 0.05, 1.0, zg + fh - 0.15, zg + fh, wd, true);                          // landing
+            box(se, u0, ul + 1.1, 0.96, 1.02, zg + fh, zg + fh + 0.9, wd);                                // rail at the landing
+            box(se, ul + 1.0, ul + 1.1, 0.05, 1.0, zg - 0.3, zg + fh - 0.15, wd);                         // post
+          }
+        }
         if (vr.balcony) {
           // balcony side: the longest wall, or the next longest when the entrance is there
           const others = edges.filter((e) => e !== front).sort((a, c) => c.len - a.len);

@@ -215,9 +215,9 @@ export function Trees({ data, style, quality }: { data: AreaData; style: StyleCo
       im.frustumCulled = false; // culled per tile below
       return { im, s, sig: new Int8Array(s.tiles.length).fill(-1), next: new Int8Array(s.tiles.length) };
     };
-    return [mk(geo.leaf, sets.leaf), mk(geo.conifer, sets.conifer)];
+    return [mk(geo.leaf, sets.leaf), mk(geo.oval, sets.oval), mk(geo.broad, sets.broad), mk(geo.conifer, sets.conifer)];
   }, [geo, sets, mat]);
-  useEffect(() => () => { meshes.forEach((m) => m.im.dispose()); geo.leaf.dispose(); geo.conifer.dispose(); }, [meshes, geo]);
+  useEffect(() => () => { meshes.forEach((m) => m.im.dispose()); Object.values(geo).forEach((g) => g.dispose()); }, [meshes, geo]);
   useEffect(() => () => mat.dispose(), [mat]);
 
   const { camera } = useThree();

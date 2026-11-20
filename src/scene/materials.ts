@@ -309,6 +309,12 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         diffuseColor.rgb = mix(diffuseColor.rgb, shutC, shutter);
         float win = inX * inY * valid;
         diffuseColor.rgb = mix(diffuseColor.rgb, uGlass, win * 0.92);
+        // subtle weathering: rising damp near the ground and faint streaks below window sills (estimate, procedural)
+        if (vW.y >= 0.0) {
+          float damp = smoothstep(nFl - 0.45, nFl, vW.y) * 0.08 * (0.6 + 0.4 * h21(vec2(floor(vW.x * 3.0), nSeed)));
+          float streak = step(0.0, wy1 + 0.04 - c.y) * 0.0 + (1.0 - smoothstep(0.0, 0.25, c.y - wy1)) * step(wy1, c.y) * inX * 0.06;
+          diffuseColor.rgb *= 1.0 - damp - streak;
+        }
         // plinth: darker base course below the ground-floor windows
         diffuseColor.rgb *= mix(1.0, 0.82, step(nFl, vW.y));
         diffuseColor.rgb *= mix(1.0, 0.9, step(0.0, vW.y) * step(nFl - 0.12, vW.y) * (1.0 - step(nFl, vW.y)));
@@ -337,7 +343,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v4" : "building-far-v4");
+  }, detail ? "building-near-v5" : "building-far-v5");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */

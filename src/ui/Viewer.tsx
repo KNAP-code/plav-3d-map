@@ -99,7 +99,7 @@ export default function Viewer() {
     // ?cam=x,y,distance,azimuthDeg,polarDeg (local metres) — handy for reproducible screenshots
     const cam = q.get("cam")?.split(",").map(Number);
     if (cam && cam.length >= 2) {
-      flyTo(controls.current, data, style, cam[0], cam[1], { distance: cam[2], azimuthDeg: cam[3], polarDeg: cam[4] }, smooth);
+      flyTo(controls.current, data, style, cam[0], cam[1], { distance: cam[2], azimuthDeg: cam[3], polarDeg: cam[4], lift: cam[5] }, smooth);
       return;
     }
     flyTo(controls.current, data, style, h.x, h.y, { azimuthDeg: h.azimuth, distance: h.distance, polarDeg: h.polar }, smooth);

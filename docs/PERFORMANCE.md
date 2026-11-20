@@ -90,3 +90,15 @@ Raw data is in `docs/perf-upgrade-2026-11-20.json`.
 
 The added cost is the near-camera detail meshes (balconies and entrances) on medium and high, which low never draws, plus the sidewalk and furniture meshes (two draw calls).
 The JS heap (50-92 MB) varied between runs with garbage-collection timing, so it is not comparable.
+
+## Phase 3 batch 1 (kula district detail, tree variety)
+
+The same setup as above (SwiftShader, Pixel 7 emulation, relative numbers only). Raw data is in `docs/perf-phase3-batch1.json`.
+
+| tier | p50 frame 9efb643 → this batch | draw calls | triangles |
+|---|---|---|---|
+| low | 123 → 128 ms | 25 → 27 | 262k → 262k |
+| medium | 347 → 337 ms | 27 → 29 | 360k → 365k |
+| high | 710 → 738 ms | 40 → 42 | 492k → 499k |
+
+The frame-time changes are within run-to-run noise. The two extra draw calls are the new tree crown shapes (oval, broad), which add no triangles per tree.
