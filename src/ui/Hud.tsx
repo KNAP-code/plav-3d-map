@@ -13,6 +13,9 @@ const I = {
   rotate: <><path d="M19 12a7 7 0 1 1-2.05-4.95" /><path d="M19 4v4h-4" /></>,
   layers: <><path d="m12 4 8 4-8 4-8-4z" /><path d="m4 12 8 4 8-4" /><path d="m4 16 8 4 8-4" /></>,
   chevron: <path d="m9 6 6 6-6 6" />,
+  moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+  car: <><path d="M5 16V11l2-4h10l2 4v5z" /><path d="M5 11h14" /><circle cx="8" cy="16.5" r="1.5" /><circle cx="16" cy="16.5" r="1.5" /></>,
 };
 const Icon = ({ d }: { d: React.ReactNode }) => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
@@ -20,6 +23,7 @@ const Icon = ({ d }: { d: React.ReactNode }) => (
 
 export const Hud = memo(function Hud(props: {
   data: AreaData; lang: Lang; setLang: (l: Lang) => void; quality: Quality; setQuality: (q: Quality) => void;
+  night: boolean; setNight: (n: boolean) => void; traffic: boolean; setTraffic: (t: boolean) => void;
   northRef: React.RefObject<SVGSVGElement | null>; elevRef: React.RefObject<HTMLSpanElement | null>; chips: Chip[];
   onZoom: (f: number) => void; onHome: () => void; onRotate: () => void; onNorth: () => void; onChip: (c: Chip) => void;
 }) {
@@ -59,6 +63,8 @@ export const Hud = memo(function Hud(props: {
         <button title={L.zoomOut} onClick={() => props.onZoom(0.66)}><Icon d={I.minus} /></button>
         <button title={L.home} onClick={props.onHome}><Icon d={I.home} /></button>
         <button title={L.rotate} onClick={props.onRotate}><Icon d={I.rotate} /></button>
+        <button title={props.night ? L.day : L.night} onClick={() => props.setNight(!props.night)} aria-pressed={props.night}><Icon d={props.night ? I.sun : I.moon} /></button>
+        <button title={L.traffic} onClick={() => props.setTraffic(!props.traffic)} aria-pressed={props.traffic} className={props.traffic ? "" : "off"}><Icon d={I.car} /></button>
         <button title={L.quality} onClick={() => setQuality(nextQ[quality])} className="txt">{qLabel[quality]}</button>
         <button onClick={() => setLang(lang === "bs" ? "en" : "bs")} className="txt">{lang === "bs" ? "EN" : "BS"}</button>
       </nav>

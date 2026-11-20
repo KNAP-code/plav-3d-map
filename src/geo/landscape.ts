@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { AreaData, Heightfield } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { densify, subdivide, triangulate, type P2 } from "./poly";
+import { LIT_CLASSES, polyLength, roadNodes, roadWidth } from "./roads";
 
 /** Height sampler that prefers the detailed core grid. */
 export function makeSampler(d: AreaData) {
@@ -93,15 +94,29 @@ const ROAD_KIND: Record<string, number> = {
 };
 const ROAD_LIFT = [0.22, 0.18, 0.14, 0.12];
 
-/** Road ribbons draped on the terrain. aKind: 0 marked asphalt, 1 asphalt, 2 path, 3 track. */
+/**
+ * Road ribbons draped on the terrain. aKind: 0 marked asphalt, 1 asphalt, 2 path, 3 track / unpaved.
+ * aUv: x = metres along the piece, y = 0..1 across. aEnd = metres to the nearest junction end of the
+ * piece (markings and edge bands fade out there). Junctions (3+ pieces) get a plain asphalt patch on top
+ * so overlapping ribbons and their markings don't show through each other.
+ * Heights follow the terrain mesh's own triangles (atTri) so roads don't dip into it.
+ */
 export function roadsGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeometry {
-  const pos: number[] = [], uv: number[] = [], kind: number[] = [];
-  const h = makeSampler(d);
+  const pos: number[] = [], uv: number[] = [], kind: number[] = [], end: number[] = [];
+  const h = (x: number, y: number) => (d.core.contains(x, y) ? d.core.atTri(x, y) : d.context.at(x, y));
+  const { deg, width, pos: npos } = roadNodes(d, style);
+  const isJ = (j: number | undefined) => j !== undefined && (deg.get(j) ?? 0) >= 3;
   for (const r of d.roads) {
-    const k = ROAD_KIND[r.c] ?? 1;
-    const w = style.roads.widths[r.c] ?? 3.5;
-    const pts = densify(r.pts as P2[], 5);
+    let k = ROAD_KIND[r.c] ?? 1;
+    // verified surface tags override the class look
+    if (r.surf === "unpaved" || r.surf === "gravel" || r.surf === "dirt" || r.surf === "ground") k = k < 2 ? 3 : k;
+    if (r.sc === "driveway" || r.sc === "parking_aisle") k = Math.max(k, 1);
+    const w = roadWidth(style, r);
+    const pts = densify(r.pts as P2[], 3);
     if (pts.length < 2) continue;
+    const total = polyLength(r.pts as [number, number][]);
+    const e0 = isJ(r.j0), e1 = isJ(r.j1);
+    const lit = LIT_CLASSES.has(r.c) && r.sc !== "driveway" && r.sc !== "parking_aisle" ? 0.25 : 0; // fraction = streetlit
     let acc = 0;
     const L: number[][] = [], R: number[][] = [], us: number[] = [];
     for (let i = 0; i < pts.length; i++) {
@@ -122,15 +137,32 @@ export function roadsGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeom
       R.push([rx, Math.max(h(rx, ry), hc - 0.4) + ROAD_LIFT[k] - d.datum, -ry]);
       us.push(acc);
     }
+    const scale = acc > 0 ? total / acc : 1;
+    const endAt = (u: number) => Math.min(e0 ? u * scale : 1e4, e1 ? (acc - u) * scale : 1e4);
     for (let i = 0; i < pts.length - 1; i++) {
       const quad = [[L[i], 0, us[i]], [R[i], 1, us[i]], [R[i + 1], 1, us[i + 1]], [L[i], 0, us[i]], [R[i + 1], 1, us[i + 1]], [L[i + 1], 0, us[i + 1]]] as const;
-      for (const [p, v, u] of quad) { pos.push(p[0], p[1], p[2]); uv.push(u, v); kind.push(k); }
+      for (const [p, v, u] of quad) { pos.push(p[0], p[1], p[2]); uv.push(u, v); kind.push(k + lit); end.push(endAt(u)); }
+    }
+  }
+  // junction patches: n-gon slightly above every ribbon meeting there
+  for (const [j, n] of deg) {
+    if (n < 3) continue;
+    const [x, y] = npos.get(j)!, r = (width.get(j) ?? 5) * 0.52, seg = 12;
+    const z = h(x, y) + ROAD_LIFT[0] + 0.04 - d.datum;
+    for (let i = 0; i < seg; i++) {
+      const a0 = (i / seg) * Math.PI * 2, a1 = ((i + 1) / seg) * Math.PI * 2;
+      const pa = [x + Math.cos(a0) * r, y + Math.sin(a0) * r], pb = [x + Math.cos(a1) * r, y + Math.sin(a1) * r];
+      const za = Math.max(h(pa[0], pa[1]) + ROAD_LIFT[0] + 0.04 - d.datum, z - 0.3), zb = Math.max(h(pb[0], pb[1]) + ROAD_LIFT[0] + 0.04 - d.datum, z - 0.3);
+      for (const [px, py, pz] of [[x, y, z], [pa[0], pa[1], za], [pb[0], pb[1], zb]]) {
+        pos.push(px, pz, -py); uv.push(12, 0.5); kind.push(1.25); end.push(0); // lit, moderate light pool
+      }
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("aUv", new THREE.Float32BufferAttribute(uv, 2));
   g.setAttribute("aKind", new THREE.Float32BufferAttribute(kind, 1));
+  g.setAttribute("aEnd", new THREE.Float32BufferAttribute(end, 1));
   fixUp(g);
   g.computeVertexNormals();
   return g;

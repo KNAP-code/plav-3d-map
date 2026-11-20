@@ -26,6 +26,8 @@ export type StyleConfig = {
   minaret: { color: string; cap: string };
   post: { ao: boolean; aoRadius: number; aoIntensity: number; tiltShift: boolean; tiltFocus: number; tiltFeather: number; tiltBlur: number; exposure: number };
   camera: { fov: number; startPolarDeg: number; startAzimuthDeg: number; startDistance: number };
+  /** Night mode targets (moonlight from the sun's direction, dark-blue ambient); lights come from emissive materials. */
+  night: { fog: string; fogNear: number; fogFar: number; moon: string; moonIntensity: number; sky: string; ground: string; ambient: number };
 };
 
 /** Default look: warm tabletop miniature, tuned against the Sarajevo.mapa.ba phone screenshots. */
@@ -39,7 +41,7 @@ export const plavWarm: StyleConfig = {
     mottle: 0.5, mottleScale: 0.075,
     context: "#93ae74", contextForest: "#5d8547", contextRock: "#b5ad9e",
   },
-  walls: ["#efe7d9", "#e5d6be", "#d6c9ba", "#c9b9ab", "#b4a69c", "#e9dcc2", "#f1e3b5", "#d9bfb6", "#cdbfb5", "#a59a92", "#e3d3b8", "#c2b4a8", "#f3eee6", "#d8d2c8"],
+  walls: ["#efe7d9", "#ecd9a8", "#e9c9a5", "#e5d6be", "#d6c9ba", "#c9b9ab", "#b4a69c", "#e9dcc2", "#f1e3b5", "#d9bfb6", "#cdbfb5", "#a59a92", "#e3d3b8", "#c2b4a8", "#f3eee6", "#d8d2c8"],
   roofs: ["#e8937b", "#de8068", "#efa08a", "#d47462", "#c86d5f", "#f0b29c", "#b98478", "#9b8f94", "#8d939e", "#e48f72", "#d9876f", "#a97a72"],
   window: { glass: "#474b55", frame: "#f3efe6", bayWidth: 3.1, floorHeight: 2.9 },
   roof: { pitchDeg: 30, overhang: 0.55, tileSpacing: 0.45, tileContrast: 0.26 },
@@ -53,6 +55,7 @@ export const plavWarm: StyleConfig = {
   minaret: { color: "#f4f1ea", cap: "#7f8c95" },
   post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: true, tiltFocus: 0.42, tiltFeather: 0.28, tiltBlur: 1, exposure: 1.0 },
   camera: { fov: 28, startPolarDeg: 40, startAzimuthDeg: 28, startDistance: 420 },
+  night: { fog: "#0e1626", fogNear: 1200, fogFar: 6500, moon: "#9db2e6", moonIntensity: 0.22, sky: "#22314f", ground: "#12151c", ambient: 0.38 },
 };
 
 /** Alternative for comparison: cooler alpine light, more slate roofs. */

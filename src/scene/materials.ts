@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { StyleConfig } from "@/style/presets";
+import { LAMP_SPACING } from "@/geo/roads";
 
 /**
  * Noise: one tileable 256² fbm texture generated once on the CPU. Shaders sample it instead of
@@ -173,33 +174,48 @@ export function roadMaterial(style: StyleConfig) {
   return patch(m, {
     uniforms: {
       uAsphalt: { value: c3(r.asphalt) }, uEdge: { value: c3(r.edge) }, uMark: { value: c3(r.marking) },
-      uPath: { value: c3(r.path) }, uTrack: { value: c3(r.track) },
+      uPath: { value: c3(r.path) }, uTrack: { value: c3(r.track) }, uLamp: { value: LAMP_SPACING },
     },
-    vertexHead: "attribute vec2 aUv; attribute float aKind; varying vec2 vRd; varying float vK; varying vec3 vWp2;",
-    vertexMain: "vRd = aUv; vK = aKind; vWp2 = (modelMatrix * vec4(transformed,1.0)).xyz;",
-    fragHead: "uniform vec3 uAsphalt, uEdge, uMark, uPath, uTrack; varying vec2 vRd; varying float vK; varying vec3 vWp2;",
+    vertexHead: "attribute vec2 aUv; attribute float aKind; attribute float aEnd; varying vec2 vRd; varying float vK; varying float vEnd; varying vec3 vWp2;",
+    vertexMain: "vRd = aUv; vK = aKind; vEnd = aEnd; vWp2 = (modelMatrix * vec4(transformed,1.0)).xyz;",
+    fragHead: "uniform vec3 uAsphalt, uEdge, uMark, uPath, uTrack; uniform float uLamp; varying vec2 vRd; varying float vK; varying float vEnd; varying vec3 vWp2; float gPool;",
     fragColor: /* glsl */ `
       {
         vec3 col;
         float n = fbm(vWp2.xz * 0.6);
-        if (vK < 1.5) {
+        float k = floor(vK + 0.01);
+        float nearJ = smoothstep(2.0, 6.0, vEnd);           // fade markings into junctions
+        if (k < 1.5) {
           col = uAsphalt * mix(0.93, 1.05, n);
+          // subtle wear: lighter wheel tracks, darker centre
+          float across = abs(vRd.y - 0.5);
+          col *= 1.0 + 0.035 * (smoothstep(0.12, 0.2, across) - smoothstep(0.28, 0.36, across));
           float edge = 1.0 - smoothstep(0.04, 0.09, min(vRd.y, 1.0 - vRd.y));
-          col = mix(col, uEdge, edge * 0.8);
-          if (vK < 0.5) {
+          col = mix(col, uEdge, edge * 0.8 * nearJ);
+          if (k < 0.5) {
             float dash = step(0.5, fract(vRd.x / 6.0));
             float centre = 1.0 - smoothstep(0.012, 0.03, abs(vRd.y - 0.5));
-            col = mix(col, uMark, centre * dash);
+            col = mix(col, uMark, centre * dash * nearJ);
+            // solid edge lines on marked roads
+            float side = 1.0 - smoothstep(0.012, 0.026, abs(min(vRd.y, 1.0 - vRd.y) - 0.1));
+            col = mix(col, uMark * 0.92, side * 0.85 * nearJ);
           }
-        } else if (vK < 2.5) {
+        } else if (k < 2.5) {
           col = uPath * mix(0.92, 1.05, n);
         } else {
           col = uTrack * mix(0.88, 1.06, n);
         }
         diffuseColor.rgb = col;
+        // night: warm pools under the (decorative) streetlights, which stand at uLamp/2 + k*uLamp
+        float lit = step(0.1, fract(vK + 0.001));
+        float d = (fract(vRd.x / uLamp - 0.5) - 0.5) * uLamp;
+        gPool = lit * exp(-d * d / 60.0) * (0.75 + 0.25 * (1.0 - abs(vRd.y - 0.5) * 2.0));
       }
     `,
-  }, "roads-v1");
+    fragEmissive: /* glsl */ `
+      if (uNight > 0.001) totalEmissiveRadiance += vec3(1.0, 0.62, 0.3) * (gPool * 0.32 + 0.012) * uNight;
+    `,
+  }, "roads-v2");
 }
 
 export function waterMaterial(style: StyleConfig) {
@@ -283,6 +299,8 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
     `,
     fragEmissive: /* glsl */ `
       if (uNight > 0.001) {
+        float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(0.8, 0.85, 1.0), uNight * 0.6);
         vec3 warm = mix(vec3(1.0, 0.72, 0.38), vec3(0.75, 0.85, 1.0), step(0.85, fract(gWin * 7.31)));
         totalEmissiveRadiance += warm * gWin * uNight * 1.6;
       }
@@ -349,4 +367,75 @@ export function landmarkMaterial() {
       if (uNight > 0.001) totalEmissiveRadiance += vec3(1.0, 0.74, 0.42) * gLm * uNight * 1.4;
     `,
   }, "landmark-v1");
+}
+
+/** Streetlight poles: dark grey metal; the lamp head (aLamp) glows at night. */
+export function streetlightMaterial() {
+  const m = new THREE.MeshStandardMaterial({ color: "#5c6066", roughness: 0.6, metalness: 0.3 });
+  return patch(m, {
+    vertexHead: "attribute float aLamp; varying float vLamp;",
+    vertexMain: "vLamp = aLamp;",
+    fragHead: "varying float vLamp;",
+    fragColor: "diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.9, 0.84), vLamp);",
+    fragEmissive: "totalEmissiveRadiance += vec3(1.0, 0.78, 0.45) * vLamp * uNight * 3.0;",
+  }, "streetlight-v1");
+}
+
+/**
+ * Night glow halos: camera-facing quads with a soft radial falloff, additive, no depth write.
+ * One instanced draw for every lamp (and reused for car lights). Hidden in daytime.
+ */
+export function glowMaterial(color: string, size: number) {
+  return new THREE.ShaderMaterial({
+    uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog), uNight: SCENE.uNight, uColor: { value: new THREE.Color(color) }, uSize: { value: size } },
+    vertexShader: /* glsl */ `
+      uniform float uSize; varying vec2 vQ;
+      #include <common>
+      #include <fog_pars_vertex>
+      void main() {
+        vQ = position.xy;
+        vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        mv.xy += position.xy * uSize;
+        vec4 mvPosition = mv;
+        gl_Position = projectionMatrix * mv;
+        #include <fog_vertex>
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uNight; uniform vec3 uColor; varying vec2 vQ;
+      #include <common>
+      #include <fog_pars_fragment>
+      void main() {
+        float r = length(vQ);
+        float a = exp(-r * r * 5.0) * 0.9 + exp(-r * r * 40.0) * 0.6;
+        gl_FragColor = vec4(uColor * a * uNight, 1.0);
+        #include <fog_fragment>
+      }
+    `,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true,
+  });
+}
+
+/** Cars: instance colour paints the body only; head/tail lights glow at night. */
+export function carMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uNight = SCENE.uNight;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float aPaint; attribute float aLight; varying float vLight;")
+      .replace("#include <color_vertex>", `
+        #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+          vColor.xyz = color.rgb;
+        #endif
+        #ifdef USE_INSTANCING_COLOR
+          vColor.xyz = mix(vColor.xyz, vColor.xyz * instanceColor.xyz, aPaint);
+        #endif
+        vLight = aLight;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uNight; varying float vLight;")
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>
+        totalEmissiveRadiance += (vLight > 1.5 ? vec3(1.0, 0.1, 0.06) * 2.0 : vec3(1.0, 0.93, 0.75) * 3.0) * step(0.5, vLight) * uNight;`);
+  };
+  m.customProgramCacheKey = () => "car-v1";
+  return m;
 }

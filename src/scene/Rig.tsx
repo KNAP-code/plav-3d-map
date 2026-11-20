@@ -9,6 +9,7 @@ import { N8AOPostPass } from "n8ao";
 import type { AreaData } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { shadowSync, type Quality } from "./World";
+import { SCENE } from "./materials";
 import { bump } from "@/ui/perf";
 
 const DEG = Math.PI / 180;
@@ -19,8 +20,9 @@ const DEG = Math.PI / 180;
  * - high: a 4096² map fitted around the view, re-rendered once each time the camera comes to rest.
  * Measured: the old follow-the-target map re-rendered on ~95% of moving frames.
  */
-export function Sun({ data, style, quality, controls, follow = true, enabled = true }: { data: AreaData; style: StyleConfig; quality: Quality; controls: React.RefObject<CameraControlsImpl | null>; follow?: boolean; enabled?: boolean }) {
+export function Sun({ data, style, quality, controls, follow = true, enabled = true, night = false }: { data: AreaData; style: StyleConfig; quality: Quality; controls: React.RefObject<CameraControlsImpl | null>; follow?: boolean; enabled?: boolean; night?: boolean }) {
   const light = useRef<THREE.DirectionalLight>(null);
+  const hemi = useRef<THREE.HemisphereLight>(null);
   const { gl, scene, invalidate } = useThree();
   const dir = useMemo(() => {
     const az = style.sun.azimuthDeg * DEG, el = style.sun.elevationDeg * DEG;
@@ -102,7 +104,8 @@ export function Sun({ data, style, quality, controls, follow = true, enabled = t
   return (
     <>
       <directionalLight ref={light} color={style.sun.color} intensity={style.sun.intensity} castShadow={enabled} />
-      <hemisphereLight args={[style.ambient.sky, style.ambient.ground, style.ambient.intensity]} />
+      <hemisphereLight ref={hemi} args={[style.ambient.sky, style.ambient.ground, style.ambient.intensity]} />
+      <DayNight style={style} night={night} light={light} hemi={hemi} />
     </>
   );
 }
@@ -222,4 +225,43 @@ export function flyTo(c: CameraControlsImpl, data: AreaData, style: StyleConfig,
   const py = ty + d * Math.cos(pol);
   const pz = tz + d * Math.sin(pol) * Math.cos(az);
   return c.setLookAt(px, py, pz, tx, ty, tz, smooth);
+}
+
+/**
+ * Day/night blend: eases SCENE.uNight (read by every patched material: lit windows, road light pools,
+ * lamps, car lights) and the sun/ambient/fog colours over ~1.6 s. Only renders frames while blending.
+ */
+function DayNight({ style, night, light, hemi }: { style: StyleConfig; night: boolean; light: React.RefObject<THREE.DirectionalLight | null>; hemi: React.RefObject<THREE.HemisphereLight | null> }) {
+  const { scene, invalidate } = useThree();
+  const c = useMemo(() => ({
+    sunD: new THREE.Color(style.sun.color), sunN: new THREE.Color(style.night.moon),
+    skyD: new THREE.Color(style.ambient.sky), skyN: new THREE.Color(style.night.sky),
+    gndD: new THREE.Color(style.ambient.ground), gndN: new THREE.Color(style.night.ground),
+    fogD: new THREE.Color(style.sky.fog), fogN: new THREE.Color(style.night.fog),
+  }), [style]);
+  const t = useRef(SCENE.uNight.value);
+  useEffect(() => { invalidate(); }, [night, invalidate]);
+  const apply = (k: number) => {
+    SCENE.uNight.value = k;
+    const l = light.current, h = hemi.current;
+    if (l) { l.color.lerpColors(c.sunD, c.sunN, k); l.intensity = THREE.MathUtils.lerp(style.sun.intensity, style.night.moonIntensity, k); }
+    if (h) { h.color.lerpColors(c.skyD, c.skyN, k); h.groundColor.lerpColors(c.gndD, c.gndN, k); h.intensity = THREE.MathUtils.lerp(style.ambient.intensity, style.night.ambient, k); }
+    if (scene.background instanceof THREE.Color) scene.background.lerpColors(c.fogD, c.fogN, k);
+    if (scene.fog instanceof THREE.Fog) {
+      scene.fog.color.lerpColors(c.fogD, c.fogN, k);
+      scene.fog.near = THREE.MathUtils.lerp(style.sky.fogNear, style.night.fogNear, k);
+      scene.fog.far = THREE.MathUtils.lerp(style.sky.fogFar, style.night.fogFar, k);
+    }
+  };
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+    const target = night ? 1 : 0;
+    if (t.current === target) return;
+    t.current = target > t.current ? Math.min(target, t.current + dt / 1.6) : Math.max(target, t.current - dt / 1.6);
+    const k = t.current * t.current * (3 - 2 * t.current); // smoothstep easing
+    apply(k);
+    invalidate();
+  });
+  useEffect(() => { apply(t.current * t.current * (3 - 2 * t.current)); }, [c]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }

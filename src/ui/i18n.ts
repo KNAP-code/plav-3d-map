@@ -10,7 +10,7 @@ export const T = {
     aboutText:
       "Stilizovana 3D minijatura centra Plava napravljena od otvorenih geografskih podataka. Položaji i tlocrti zgrada su stvarni (OpenStreetMap i Microsoft ML footprints). Visine zgrada i oblici krovova su procjene, jer ti podaci za Plav još ne postoje u OpenStreetMap-u. Drveće je postavljeno prema ESA WorldCover pikselima šume (10 m), a vrsta i veličina su stilizovane.",
     data: "Izvori podataka", stats: "Statistika", buildings: "zgrada", trees: "stabala", estimated: "procijenjene visine",
-    close: "Zatvori",
+    close: "Zatvori", day: "Dan", night: "Noć", traffic: "Saobraćaj (ukrasni)",
   },
   en: {
     subtitle: "Interactive miniature · prototype",
@@ -21,6 +21,6 @@ export const T = {
     aboutText:
       "A stylised 3D miniature of central Plav built from open geographic data. Building positions and footprints are real (OpenStreetMap and Microsoft ML footprints). Building heights and roof shapes are estimates, because that information does not yet exist in OpenStreetMap for Plav. Trees are placed from ESA WorldCover 10 m tree-cover pixels; species and size are stylised.",
     data: "Data sources", stats: "Statistics", buildings: "buildings", trees: "trees", estimated: "estimated heights",
-    close: "Close",
+    close: "Close", day: "Day", night: "Night", traffic: "Traffic (decorative)",
   },
 } as const;

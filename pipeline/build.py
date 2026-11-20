@@ -22,6 +22,7 @@ import numpy as np
 import pyarrow.parquet as pq
 import rasterio
 import shapely
+import shapely.ops
 from PIL import Image
 from pyproj import Transformer
 from scipy import ndimage
@@ -333,25 +334,75 @@ def build(area_id: str):
                                  "height": 24.0, "hSrc": "estimated"})
 
     # ---------- roads
+    # Segments are split at every Overture connector so each road piece is a graph edge whose
+    # endpoints are junction nodes ("j0"/"j1" = connector index). The viewer uses this topology for
+    # junction patches and for the decorative traffic routes.
     seg = pq.read_table(cache / "segments.parquet").to_pylist()
     roads, road_buf = [], []
+    conn_idx: dict[str, int] = {}
+    def node_id(cid):
+        if cid not in conn_idx:
+            conn_idx[cid] = len(conn_idx)
+        return conn_idx[cid]
     for r in seg:
         if r["subtype"] not in ("road",):
             continue
-        geom = to_local(shapely.from_wkb(r["geometry"]), origin).intersection(core_rect)
+        full = to_local(shapely.from_wkb(r["geometry"]), origin)
         flags = set()
         for f in r["road_flags"] or []:
             flags.update(f.get("values") or [])
-        for ls in lines_of(geom):
-            if ls.length < 1:
+        surf = None
+        for f in r["road_surface"] or []:
+            if f.get("between") is None:
+                surf = f.get("value")
+        spd = None
+        for f in r["speed_limits"] or []:
+            ms = (f.get("max_speed") or {})
+            if f.get("between") is None and ms.get("value"):
+                spd = ms["value"] * (1.609 if ms.get("unit") == "mph" else 1)
+        cons = sorted([(c["at"], c["connector_id"]) for c in (r["connectors"] or [])])
+        if not cons or cons[0][0] > 1e-6:
+            cons = [(0.0, None)] + cons
+        if cons[-1][0] < 1 - 1e-6:
+            cons = cons + [(1.0, None)]
+        for (a0, c0), (a1, c1) in zip(cons[:-1], cons[1:]):
+            if a1 - a0 < 1e-6:
                 continue
-            ls = ls.simplify(0.3)
-            roads.append({"c": r["class"] or "unknown", "n": (r["names"] or {}).get("primary"),
-                          "bridge": "is_bridge" in flags, "tunnel": "is_tunnel" in flags,
-                          "pts": coords_list(ls)})
+            piece = shapely.ops.substring(full, a0, a1, normalized=True) if (a0 > 0 or a1 < 1) else full
+            clipped = piece.intersection(core_rect)
+            inside = piece.within(core_rect)
+            for ls in lines_of(clipped):
+                if ls.length < 1:
+                    continue
+                ls = ls.simplify(0.3)
+                rec = {"c": r["class"] or "unknown", "n": (r["names"] or {}).get("primary"),
+                       "bridge": "is_bridge" in flags, "tunnel": "is_tunnel" in flags,
+                       "pts": coords_list(ls)}
+                if r.get("subclass"):
+                    rec["sc"] = r["subclass"]
+                if surf:
+                    rec["surf"] = surf
+                if spd:
+                    rec["spd"] = round(spd)
+                # graph endpoints only when the piece was not cut by the area boundary
+                if inside and c0:
+                    rec["j0"] = node_id(c0)
+                if inside and c1:
+                    rec["j1"] = node_id(c1)
+                roads.append(rec)
             w = {"secondary": 7, "tertiary": 6, "residential": 5, "unclassified": 4.5, "service": 3.5,
                  "pedestrian": 4, "track": 3, "living_street": 4.5}.get(r["class"], 1.6)
-            road_buf.append(ls.buffer(w / 2 + 0.8, cap_style="flat"))
+            for ls in lines_of(clipped):
+                if ls.length >= 1:
+                    road_buf.append(ls.buffer(w / 2 + 0.8, cap_style="flat"))
+
+    # pedestrian crossings (OSM highway=crossing nodes via Overture infrastructure)
+    crossings = []
+    for r in it:
+        if r["class"] == "crossing":
+            p = to_local(shapely.from_wkb(r["geometry"]), origin).centroid
+            if core_rect.contains(p):
+                crossings.append([r1(p.x), r1(p.y)])
 
     # ---------- land use overlays
     overlays = []
@@ -423,7 +474,7 @@ def build(area_id: str):
 
     (out / "buildings.json").write_text(json.dumps({"rules": RULES_VERSION, "buildings": buildings, "minarets": minarets},
                                                    ensure_ascii=False, separators=(",", ":")))
-    (out / "vectors.json").write_text(json.dumps({"roads": roads, "water": water_out, "streams": streams,
+    (out / "vectors.json").write_text(json.dumps({"roads": roads, "crossings": crossings, "water": water_out, "streams": streams,
                                                   "overlays": overlays}, ensure_ascii=False, separators=(",", ":")))
 
     landmarks = [{"name": b["name"], "x": r1(np.mean([p[0] for p in b["fp"]])), "y": r1(np.mean([p[1] for p in b["fp"]])),

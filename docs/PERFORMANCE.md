@@ -59,3 +59,19 @@ Before / after screenshots: `screenshots/perf-compare-landing.jpg` (old MQ · ne
 Open the preview with `#stats` (live overlay: fps while moving, p95 frame time, draw calls, triangles, DPR, tier, GPU)
 or `#bench` (runs the fixed flight and prints percentiles). Add `#low` / `#medium` / `#high` in a separate load to force a tier.
 Targets (50–60 fps flagship, ≥ 30 fps mid-range) are **not yet verified** on real devices.
+
+## Phase 4 check (landmarks, house variation, roads, streetlights, traffic, night)
+
+Same benchmark and machine (SwiftShader, Pixel 7 emulation, 30 frames), with traffic on (`cars=1`):
+
+| Config | DPR | p50 frame | JS p50 | calls | triangles |
+|---|---|---|---|---|---|
+| medium (before phase 4) | 1.25 | 299 ms | 1.1 ms | 23 | 279 k |
+| medium + traffic | 1.25 | 287 ms | 1.3 ms | 25 | 328 k |
+| medium + traffic + night | 1.25 | 289 ms | 1.1 ms | 27 | 330 k |
+| low (no traffic) | 1.0 | 103 ms | 1.0 ms | 24 | 254 k |
+| high + traffic | 1.75 | 603 ms | 1.6 ms | 37 | 447 k |
+
+The new content adds 2–4 draw calls (landmarks, streetlights, cars, glow halos only at night) and about 50 k triangles.
+Frame time is within run-to-run noise. Traffic needs frames to animate, so while it is on the idle view redraws at about 30 fps
+(full rate during interaction). Traffic is off on Low, can be switched off in the HUD, and pauses while the tab is hidden.

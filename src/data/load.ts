@@ -24,7 +24,11 @@ export type Building = {
   obb: [number, number, number, number, number]; v: number;
 };
 export type Minaret = { x: number; y: number; g: number; height: number };
-export type Road = { c: string; n: string | null; bridge: boolean; tunnel: boolean; pts: [number, number][] };
+export type Road = {
+  c: string; n: string | null; bridge: boolean; tunnel: boolean; pts: [number, number][];
+  /** Overture subclass (driveway, parking_aisle, ...), surface, max speed km/h, junction node ids at the ends */
+  sc?: string; surf?: string; spd?: number; j0?: number; j1?: number;
+};
 export type PolyJ = { outer: [number, number][]; holes: [number, number][][] };
 export type Water = PolyJ & { kind: "lake" | "river"; name: string | null; level: number | null };
 export type Stream = { c: string; n: string | null; pts: [number, number][] };
@@ -40,6 +44,7 @@ export type AreaData = {
   buildings: Building[];
   minarets: Minaret[];
   roads: Road[];
+  crossings: [number, number][];
   water: Water[];
   streams: Stream[];
   overlays: Overlay[];
@@ -59,6 +64,17 @@ export class Heightfield {
     const i = iy * nx + ix;
     const a = this.h[i], b = this.h[i + 1], c = this.h[i + nx], d = this.h[i + nx + 1];
     return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  }
+  /** Height exactly as the terrain mesh draws it (same two-triangle split per cell), so draped lines sit on it. */
+  atTri(x: number, y: number): number {
+    const { x0, y0, nx, ny, step } = this.g;
+    let fx = (x - x0) / step, fy = (y - y0) / step;
+    fx = Math.min(Math.max(fx, 0), nx - 1.0001);
+    fy = Math.min(Math.max(fy, 0), ny - 1.0001);
+    const ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+    const i = iy * nx + ix;
+    const a = this.h[i], b = this.h[i + 1], c = this.h[i + nx], d = this.h[i + nx + 1];
+    return tx >= ty ? a + (b - a) * tx + (d - b) * ty : a + (c - a) * ty + (d - c) * tx;
   }
   contains(x: number, y: number) {
     const { x0, y0, nx, ny, step } = this.g;
@@ -109,7 +125,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
     meta, core, context, coverCore, coverContext,
     datum: meta.core.base,
     buildings: b.buildings, minarets: b.minarets,
-    roads: v.roads, water: v.water, streams: v.streams, overlays: v.overlays,
+    roads: v.roads, crossings: v.crossings ?? [], water: v.water, streams: v.streams, overlays: v.overlays,
     trees: new Float32Array(treeBuf),
     bytes: coreBuf.byteLength + ctxBuf.byteLength + bjs.length + vjs.length + treeBuf.byteLength,
   };

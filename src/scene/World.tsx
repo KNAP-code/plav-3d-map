@@ -7,8 +7,10 @@ import type { AreaData, Building } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { buildBuildingTile } from "@/geo/buildings";
 import { overlaysGeometry, roadsGeometry, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
-import { minaretGeometry, treeGeometries, treeSets, type TreeSet } from "@/geo/props";
-import { buildingMaterial, landmarkMaterial, roadMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
+import { carGeometry, minaretGeometry, streetlightGeometry, treeGeometries, treeSets, type TreeSet } from "@/geo/props";
+import { streetlights } from "@/geo/roads";
+import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
+import { SCENE, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
 import { bump } from "@/ui/perf";
 
@@ -242,6 +244,127 @@ export function Minarets({ data, style, provisional = true }: { data: AreaData; 
           <mesh geometry={g.cap} material={cap} castShadow />
         </group>
       ))}
+    </group>
+  );
+}
+
+/**
+ * Decorative streetlights along lit road classes (no lamp survey data exists): one instanced draw for the
+ * poles and, at night only, one instanced draw of additive glow halos at the lamp heads.
+ */
+export function Streetlights({ data, style }: { data: AreaData; style: StyleConfig }) {
+  const lamps = useMemo(() => streetlights(data, style), [data, style]);
+  const geo = useMemo(() => streetlightGeometry(), []);
+  const mat = useMemo(() => streetlightMaterial(), []);
+  const quad = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
+  const glow = useMemo(() => glowMaterial("#ffb866", 4.2), []);
+  const { poles, halos } = useMemo(() => {
+    const poles = new THREE.InstancedMesh(geo, mat, Math.max(lamps.length, 1));
+    const halos = new THREE.InstancedMesh(quad, glow, Math.max(lamps.length, 1));
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3();
+    const h = (x: number, y: number) => (data.core.contains(x, y) ? data.core.atTri(x, y) : data.context.at(x, y)) - data.datum;
+    lamps.forEach((l, i) => {
+      // arm points along local +x; ang is the world direction (x, y) of the arm, scene z = -y
+      q.setFromAxisAngle(up, l.ang);
+      p.set(l.x, h(l.x, l.y) - 0.1, -l.y);
+      poles.setMatrixAt(i, m.compose(p, q, one));
+      p.set(l.x + Math.cos(l.ang) * 1.2, h(l.x, l.y) + 5.75, -l.y - Math.sin(l.ang) * 1.2);
+      halos.setMatrixAt(i, m.compose(p, q.identity(), one));
+    });
+    poles.count = halos.count = lamps.length;
+    poles.castShadow = true;
+    poles.computeBoundingSphere();
+    halos.frustumCulled = false;
+    halos.renderOrder = 10;
+    halos.visible = false;
+    return { poles, halos };
+  }, [lamps, geo, mat, quad, glow, data]);
+  useEffect(() => () => { poles.dispose(); halos.dispose(); geo.dispose(); mat.dispose(); quad.dispose(); glow.dispose(); }, [poles, halos, geo, mat, quad, glow]);
+  useFrame(() => { halos.visible = SCENE.uNight.value > 0.02; });
+  return (
+    <group>
+      <primitive object={poles} />
+      <primitive object={halos} />
+    </group>
+  );
+}
+
+const CAR_COLOURS = ["#c8372d", "#f2f0ea", "#2f5d8c", "#e3e1da", "#3a3d42", "#9aa3ab", "#d9a03a", "#2e6b4a", "#f2f0ea", "#8c2430"];
+
+/**
+ * Decorative traffic: `count` instanced cars on the real road graph (see geo/traffic.ts). One draw call
+ * for the cars, plus (at night) one for headlight glows. Needs frames to animate, so while it runs the
+ * view is redrawn at ~30 fps when idle (full rate during interaction); paused when the tab is hidden.
+ */
+export function Traffic({ data, style, count }: { data: AreaData; style: StyleConfig; count: number }) {
+  const sim = useMemo(() => new TrafficSim(data, style, count, 7), [data, style, count]);
+  const poses = useMemo<CarPose[]>(() => sim.cars.map(() => ({ x: 0, y: 0, ang: 0 })), [sim]);
+  useEffect(() => { (window as unknown as { __plavCars?: CarPose[] }).__plavCars = poses; }, [poses]);
+  const geo = useMemo(() => carGeometry(), []);
+  const mat = useMemo(() => carMaterial(), []);
+  const quad = useMemo(() => new THREE.PlaneGeometry(2, 2), []);
+  const glow = useMemo(() => glowMaterial("#fff1d0", 2.6), []);
+  const { cars, lights } = useMemo(() => {
+    const n = Math.max(sim.cars.length, 1);
+    const cars = new THREE.InstancedMesh(geo, mat, n);
+    const lights = new THREE.InstancedMesh(quad, glow, n * 2);
+    const c = new THREE.Color();
+    for (let i = 0; i < n; i++) cars.setColorAt(i, c.set(CAR_COLOURS[(i * 7) % CAR_COLOURS.length]));
+    cars.count = sim.cars.length; lights.count = sim.cars.length * 2;
+    cars.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    lights.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    cars.frustumCulled = false; lights.frustumCulled = false;
+    cars.castShadow = false; cars.receiveShadow = true;
+    lights.renderOrder = 11; lights.visible = false;
+    return { cars, lights };
+  }, [sim, geo, mat, quad, glow]);
+  useEffect(() => () => { cars.dispose(); lights.dispose(); }, [cars, lights]);
+  useEffect(() => () => { geo.dispose(); mat.dispose(); quad.dispose(); glow.dispose(); }, [geo, mat, quad, glow]);
+
+  const { invalidate } = useThree();
+  // idle ticker: keep animating at ~30 fps; stops automatically while the tab is hidden
+  useEffect(() => {
+    if (!sim.cars.length) return;
+    let id = 0, last = 0;
+    const tick = (t: number) => {
+      id = requestAnimationFrame(tick);
+      if (document.hidden || t - last < 32) return;
+      last = t;
+      invalidate();
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [sim, invalidate]);
+
+  const tmp = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), one: new THREE.Vector3(1, 1, 1), up: new THREE.Vector3(0, 1, 0), last: 0 }), []);
+  useFrame(() => {
+    const now = performance.now();
+    const dt = tmp.last ? (now - tmp.last) / 1000 : 0;
+    tmp.last = now;
+    if (document.hidden) return;
+    sim.step(dt, poses);
+    const night = SCENE.uNight.value > 0.02;
+    lights.visible = night;
+    for (let i = 0; i < poses.length; i++) {
+      const { x, y, ang } = poses[i];
+      const z = (data.core.contains(x, y) ? data.core.atTri(x, y) : data.context.at(x, y)) - data.datum + 0.18;
+      tmp.q.setFromAxisAngle(tmp.up, ang);
+      cars.setMatrixAt(i, tmp.m.compose(tmp.p.set(x, z, -y), tmp.q, tmp.one));
+      if (night) {
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        for (const side of [-0.6, 0.6]) {
+          tmp.p.set(x + ca * 2.3 + sa * side, z + 0.75, -(y + sa * 2.3 - ca * side));
+          lights.setMatrixAt(i * 2 + (side < 0 ? 0 : 1), tmp.m.compose(tmp.p, tmp.q, tmp.one));
+        }
+      }
+    }
+    cars.instanceMatrix.needsUpdate = true;
+    if (night) lights.instanceMatrix.needsUpdate = true;
+  }, -4);
+  return (
+    <group>
+      <primitive object={cars} />
+      <primitive object={lights} />
     </group>
   );
 }

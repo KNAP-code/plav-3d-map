@@ -186,14 +186,23 @@ export function formatBench(r: BenchResult) {
  * the tier down when the median stays too slow. Never steps up on its own (avoids flip-flopping and
  * repeated shader compiles); the user can still pick a tier from the HUD.
  */
-export function AdaptiveQuality({ tier, onStepDown }: { tier: string; onStepDown: () => void }) {
-  const st = useRef({ t: 0, buf: new Float32Array(90), n: 0, skip: 60 });
+export function AdaptiveQuality({ tier, onStepDown, controls }: { tier: string; onStepDown: () => void; controls?: React.RefObject<CameraControlsImpl | null> }) {
+  const st = useRef({ t: 0, buf: new Float32Array(90), n: 0, skip: 60, moved: 0 });
+  // only frames driven by camera movement count (idle traffic ticks are throttled to ~30 fps on purpose)
+  useEffect(() => {
+    let c: CameraControlsImpl | null = null, raf = 0;
+    const onUpdate = () => { st.current.moved = performance.now(); };
+    const attach = () => { c = controls?.current ?? null; if (!c) { raf = requestAnimationFrame(attach); return; } c.addEventListener("update", onUpdate); };
+    if (controls) attach();
+    return () => { cancelAnimationFrame(raf); c?.removeEventListener("update", onUpdate); };
+  }, [controls]);
   useEffect(() => { st.current.n = 0; st.current.skip = 60; st.current.t = 0; }, [tier]); // ignore frames right after a switch (shader compiles)
   useFrame(() => {
     const s = st.current, now = performance.now();
     const dt = s.t ? now - s.t : 0;
     s.t = now;
     if (!dt || dt > 250) return; // first frame after idle
+    if (controls && now - s.moved > 120) return; // not a camera-driven frame
     if (s.skip > 0) { s.skip--; return; }
     s.buf[s.n++] = dt;
     if (s.n < s.buf.length) return;

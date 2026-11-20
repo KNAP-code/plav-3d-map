@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { Buildings, Landmarks, Minarets, Roads, Terrain, Trees, Water, type Quality } from "@/scene/World";
+import { Buildings, Landmarks, Minarets, Roads, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { T, type Lang } from "./i18n";
@@ -26,6 +26,7 @@ function params() {
   else if (h === "low" || h === "medium" || h === "high") p.set("q", h);
   else if (h === "bench") p.set("bench", "300");
   else if (h === "review") p.set("review", "1");
+  else if (h === "night") p.set("night", "1");
   return p;
 }
 
@@ -55,6 +56,9 @@ export default function Viewer() {
   const showStats = q.has("stats");
   // landmarks whose position still needs confirmation are only shown with #review / ?review=1
   const review = q.has("review");
+  const [night, setNight] = useState(q.has("night"));
+  const [traffic, setTraffic] = useState(!off.has("traffic"));
+  const carCount = !traffic || benchFrames > 0 && !q.has("cars") ? 0 : quality === "low" ? 0 : quality === "medium" ? 24 : 40;
   const t0 = useRef(performance.now());
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
 
@@ -138,15 +142,17 @@ export default function Viewer() {
             {!off.has("terrain") && <Terrain data={data} style={style} quality={quality} />}
             {!off.has("water") && <Water data={data} style={style} />}
             {!off.has("roads") && <Roads data={data} style={style} />}
+            {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
+            {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
             {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
             {!off.has("buildings") && !off.has("landmarks") && <Landmarks data={data} provisional={review} />}
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} />}
           </Suspense>
-          <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} />
+          <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} night={night} />
           <Controls data={data} controlsRef={controls} hud={hudRefs} onReady={onControlsReady} />
           {off.has("post") ? <PlainRender /> : <Effects style={style} quality={quality} ao={!off.has("ao")} tilt={!off.has("tilt")} />}
-          {adaptive && <AdaptiveQuality tier={quality} onStepDown={stepDown} />}
+          {adaptive && <AdaptiveQuality tier={quality} onStepDown={stepDown} controls={controls} />}
           {showStats && <StatsProbe el={statsEl} tier={quality} />}
           {benchFrames > 0 && <Bench frames={benchFrames} data={data} controls={controls} tier={quality} onDone={setBench} />}
           <FirstFrame onFirst={onFirst} />
@@ -156,6 +162,7 @@ export default function Viewer() {
         <Hud
           data={data} lang={lang} setLang={setLang} quality={quality} setQuality={setQuality}
           northRef={northRef} elevRef={elevRef} chips={chips}
+          night={night} setNight={setNight} traffic={traffic} setTraffic={setTraffic}
           onZoom={onZoom} onHome={onHome} onRotate={onRotate} onNorth={onNorth} onChip={onChip}
         />
       )}

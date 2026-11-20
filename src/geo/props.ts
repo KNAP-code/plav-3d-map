@@ -95,3 +95,55 @@ export function minaretGeometry(height: number) {
   cap.translate(0, shaftH + height * 0.08 + height * 0.08, 0);
   return { body, cap };
 }
+
+/**
+ * Streetlight: thin pole, short arm and lamp head (aLamp = 1 on the head, which glows at night).
+ * Local frame: pole at the origin, arm along +x (towards the road).
+ */
+export function streetlightGeometry() {
+  const ni = (g: THREE.BufferGeometry) => (g.index ? g.toNonIndexed() : g);
+  const pole = new THREE.CylinderGeometry(0.07, 0.1, 6.2, 5, 1, true); pole.translate(0, 3.1, 0);
+  const arm = new THREE.BoxGeometry(1.3, 0.08, 0.08); arm.translate(0.6, 6.05, 0);
+  const head = new THREE.BoxGeometry(0.55, 0.14, 0.26); head.translate(1.2, 5.95, 0);
+  const parts = [ni(pole), ni(arm), ni(head)].map((g, i) => {
+    g.deleteAttribute("uv");
+    const n = g.getAttribute("position").count;
+    g.setAttribute("aLamp", new THREE.BufferAttribute(new Float32Array(n).fill(i === 2 ? 1 : 0), 1));
+    return g;
+  });
+  const g = mergeGeometries(parts)!;
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * Toy car, ~4.2 × 1.8 m, facing +x. aPaint = 1 where the instance colour applies (body),
+ * aLight = 1 headlights, 2 taillights (both glow at night).
+ */
+export function carGeometry() {
+  const parts: THREE.BufferGeometry[] = [];
+  const add = (g: THREE.BufferGeometry, col: string, paint: number, light: number) => {
+    const ng = g.index ? g.toNonIndexed() : g;
+    ng.deleteAttribute("uv");
+    const n = ng.getAttribute("position").count, c = new THREE.Color(col);
+    const cols = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b; }
+    ng.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+    ng.setAttribute("aPaint", new THREE.BufferAttribute(new Float32Array(n).fill(paint), 1));
+    ng.setAttribute("aLight", new THREE.BufferAttribute(new Float32Array(n).fill(light), 1));
+    parts.push(ng);
+  };
+  const body = new THREE.BoxGeometry(4.1, 0.72, 1.76); body.translate(0, 0.62, 0);
+  const cabin = new THREE.BoxGeometry(2.1, 0.58, 1.56); cabin.translate(-0.25, 1.27, 0);
+  const wheels = new THREE.BoxGeometry(3.0, 0.5, 1.84); wheels.translate(0, 0.27, 0);
+  const head = new THREE.BoxGeometry(0.05, 0.16, 1.4); head.translate(2.06, 0.74, 0);
+  const tail = new THREE.BoxGeometry(0.05, 0.16, 1.4); tail.translate(-2.06, 0.74, 0);
+  add(body, "#ffffff", 1, 0);
+  add(cabin, "#2e3540", 0, 0);
+  add(wheels, "#1d1f22", 0, 0);
+  add(head, "#f4f1e6", 0, 1);
+  add(tail, "#9b1c1c", 0, 2);
+  const g = mergeGeometries(parts)!;
+  g.computeVertexNormals();
+  return g;
+}
