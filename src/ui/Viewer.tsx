@@ -30,6 +30,7 @@ function params() {
     else if (h === "bench") p.set("bench", "300");
     else if (h === "review") p.set("review", "1");
     else if (h === "night") p.set("night", "1");
+    else if (h === "data") p.set("est", "0");
   }
   return p;
 }
@@ -113,6 +114,8 @@ export default function Viewer() {
   if (q.get("closeup") === "1") for (const p of (q.get("place") ?? "").split(",")) { const [k, id] = p.split("@"); if (k && id) placeStandIn(k, id); }
   const [night, setNight] = useState(q.has("night"));
   const [traffic, setTraffic] = useState(!off.has("traffic"));
+  // estimated details (sidewalks, house details, gardens, headstones); ?est=0 / #data shows verified data only
+  const [estimates, setEstimates] = useState(q.get("est") !== "0");
   const carCount = !traffic || benchFrames > 0 && !q.has("cars") ? 0 : quality === "low" ? 0 : quality === "medium" ? 24 : 40;
   const t0 = useRef(performance.now());
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
@@ -228,7 +231,7 @@ export default function Viewer() {
             {!off.has("water") && <Water data={data} style={style} />}
             {!off.has("roads") && <Roads data={data} style={style} />}
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
-            {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} />}
+            {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} estimates={estimates} quality={quality} />}
             {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
             {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} onPick={audit ? setPicked : undefined} />}
             {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
@@ -250,6 +253,7 @@ export default function Viewer() {
           data={data} lang={lang} setLang={setLang} quality={quality} setQuality={setQuality}
           northRef={northRef} elevRef={elevRef} chips={chips}
           night={night} setNight={setNight} traffic={traffic} setTraffic={setTraffic}
+          estimates={estimates} setEstimates={setEstimates}
           onZoom={onZoom} onHome={onHome} onRotate={onRotate} onNorth={onNorth} onChip={onChip}
         />
       )}

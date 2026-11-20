@@ -112,3 +112,26 @@ export function densify(pts: P2[], maxLen: number): P2[] {
   out.push(pts[pts.length - 1]);
   return out;
 }
+
+/**
+ * Cut triangles along a regular grid (the terrain cells) instead of subdividing them: each piece then lies inside one
+ * terrain cell, so draping by vertex height follows the ground with far fewer triangles than uniform subdivision.
+ */
+export function gridClip(tris: P2[], x0: number, y0: number, step: number): P2[] {
+  const out: P2[] = [];
+  for (let i = 0; i < tris.length; i += 3) {
+    const t = [tris[i], tris[i + 1], tris[i + 2]];
+    const xs = t.map((p) => p[0]), ys = t.map((p) => p[1]);
+    const i0 = Math.floor((Math.min(...xs) - x0) / step), i1 = Math.floor((Math.max(...xs) - x0) / step);
+    const j0 = Math.floor((Math.min(...ys) - y0) / step), j1 = Math.floor((Math.max(...ys) - y0) / step);
+    if (i0 === i1 && j0 === j1) { out.push(t[0], t[1], t[2]); continue; }
+    for (let a = i0; a <= i1; a++) for (let b = j0; b <= j1; b++) {
+      const bx0 = x0 + a * step, by0 = y0 + b * step, bx1 = bx0 + step, by1 = by0 + step;
+      const poly = clipConvex(t, [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]]);
+      if (poly.length < 3) continue;
+      // CCW check: clipConvex keeps the subject's winding
+      for (let k = 1; k < poly.length - 1; k++) out.push(poly[0], poly[k], poly[k + 1]);
+    }
+  }
+  return out;
+}

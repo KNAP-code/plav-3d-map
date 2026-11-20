@@ -24,6 +24,7 @@ const Icon = ({ d }: { d: React.ReactNode }) => (
 export const Hud = memo(function Hud(props: {
   data: AreaData; lang: Lang; setLang: (l: Lang) => void; quality: Quality; setQuality: (q: Quality) => void;
   night: boolean; setNight: (n: boolean) => void; traffic: boolean; setTraffic: (t: boolean) => void;
+  estimates: boolean; setEstimates: (e: boolean) => void;
   northRef: React.RefObject<SVGSVGElement | null>; elevRef: React.RefObject<HTMLSpanElement | null>; chips: Chip[];
   onZoom: (f: number) => void; onHome: () => void; onRotate: () => void; onNorth: () => void; onChip: (c: Chip) => void;
 }) {
@@ -51,6 +52,8 @@ export const Hud = memo(function Hud(props: {
           <p className="mono">
             {s.total} {L.buildings} (OSM {s.OpenStreetMap} · Microsoft ML {s["Microsoft ML Buildings"]}) · {s.height_estimated} {L.estimated} · {s.trees} {L.trees}
           </p>
+          <h3>{L.estTitle}</h3>
+          <p>{L.estText}</p>
           <h3>{L.data}</h3>
           <ul>{data.meta.sources.attribution.map((a) => <li key={a}>{a}</li>)}</ul>
           <p className="mono small">Overture {data.meta.sources.overture_release} · {data.meta.generated.slice(0, 10)}</p>
@@ -65,6 +68,7 @@ export const Hud = memo(function Hud(props: {
         <button title={L.rotate} onClick={props.onRotate}><Icon d={I.rotate} /></button>
         <button title={props.night ? L.day : L.night} onClick={() => props.setNight(!props.night)} aria-pressed={props.night}><Icon d={props.night ? I.sun : I.moon} /></button>
         <button title={L.traffic} onClick={() => props.setTraffic(!props.traffic)} aria-pressed={props.traffic} className={props.traffic ? "" : "off"}><Icon d={I.car} /></button>
+        <button title={props.estimates ? L.estOn : L.estOff} onClick={() => props.setEstimates(!props.estimates)} aria-pressed={props.estimates} className={`txt ${props.estimates ? "" : "off"}`}>≈</button>
         <button title={L.quality} onClick={() => setQuality(nextQ[quality])} className="txt">{qLabel[quality]}</button>
         <button onClick={() => setLang(lang === "bs" ? "en" : "bs")} className="txt">{lang === "bs" ? "EN" : "BS"}</button>
       </nav>

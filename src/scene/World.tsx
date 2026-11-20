@@ -6,12 +6,13 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { AreaData, Building } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { buildBuildingTile } from "@/geo/buildings";
-import { overlaysGeometry, roadsGeometry, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
+import { overlaysGeometry, roadsGeometry, splitNonIndexed, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
 import { carGeometry, minaretGeometry, streetlightGeometry, treeGeometries, treeSets, type TreeSet } from "@/geo/props";
 import { streetlights } from "@/geo/roads";
 import { furnitureGeometry, sidewalksGeometry } from "@/geo/street";
 import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
-import { SCENE, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
+import { bridgeGeometry, headstoneMatrices, pierGeometry, pitchGeometry, powerGeometry, sidewalkGeometry, zebraGeometry } from "@/geo/streetscape";
+import { SCENE, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, treeMaterial, waterMaterial } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
 import { bump } from "@/ui/perf";
 
@@ -204,30 +205,66 @@ export function AuditLayer({ data, gaps }: { data: AreaData; gaps: { x: number; 
   return <mesh geometry={g} material={m} renderOrder={5} />;
 }
 
-/** Sidewalks with kerbs on main streets (estimate) and mapped street furniture/walls: two draw calls, receive shadows only. */
-export function StreetDetails({ data, style }: { data: AreaData; style: StyleConfig }) {
-  const sw = useMemo(() => sidewalksGeometry(data, style), [data, style]);
+/**
+ * Street details. With streets.json: estimated sidewalks (only when estimates are shown), bridge decks, mapped
+ * zebra crossings, pitch markings, piers, mapped power lines and estimated cemetery headstones. Older areas fall
+ * back to the kerb ribbons along main streets. Mapped furniture/walls in both cases.
+ */
+export function StreetDetails({ data, style, estimates = true, quality = "high" }: { data: AreaData; style: StyleConfig; estimates?: boolean; quality?: Quality }) {
+  const lift = 0.22; // carriageway lift, as in landscape.ts
+  const geos = useMemo(() => {
+    if (!data.streets) return { sw: sidewalksGeometry(data, style), fixed: [] as THREE.BufferGeometry[] };
+    const fixed = [bridgeGeometry(data, lift), zebraGeometry(data, lift, (c) => style.roads.widths[c] ?? 5), pitchGeometry(data), pierGeometry(data)]
+      .filter((g) => g.getAttribute("position").count > 0);
+    return { sw: sidewalkGeometry(data, lift), fixed };
+  }, [data, style]);
   const fu = useMemo(() => furnitureGeometry(data), [data]);
-  const m = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide }), []);
-  useDispose(useMemo(() => [sw, fu, m], [sw, fu, m]));
+  const power = useMemo(() => powerGeometry(data), [data]);
+  const stones = useMemo(() => headstoneMatrices(data), [data]);
+  const m = useMemo(() => pavingMaterial(), []);
+  const plain = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide }), []);
+  const wireM = useMemo(() => new THREE.LineBasicMaterial({ color: "#3b3f45", transparent: true, opacity: 0.75 }), []);
+  const stoneMesh = useMemo(() => {
+    if (!stones.length) return null;
+    const g = new THREE.BoxGeometry(0.42, 1, 0.14); g.deleteAttribute("uv");
+    console.info(`[plav] headstones (estimate): ${stones.length}`);
+    const im = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: "#e8e5dc", roughness: 0.8 }), stones.length);
+    stones.forEach((mm, i) => im.setMatrixAt(i, mm));
+    im.computeBoundingSphere();
+    im.castShadow = true; im.receiveShadow = true;
+    return im;
+  }, [stones]);
+  useDispose(useMemo(() => [geos.sw, ...geos.fixed, fu, m, plain, wireM, power.solid, power.wires], [geos, fu, m, plain, wireM, power]));
+  useEffect(() => () => { if (stoneMesh) { stoneMesh.geometry.dispose(); (stoneMesh.material as THREE.Material).dispose(); stoneMesh.dispose(); } }, [stoneMesh]);
+  const showSw = !data.streets || estimates;
   return (
     <group>
-      <mesh geometry={sw} material={m} receiveShadow />
-      {fu.getAttribute("position").count > 0 && <mesh geometry={fu} material={m} castShadow receiveShadow />}
+      {showSw && <mesh geometry={geos.sw} material={m} receiveShadow />}
+      {geos.fixed.map((g, i) => <mesh key={i} geometry={g} material={m} castShadow receiveShadow />)}
+      {fu.getAttribute("position").count > 0 && <mesh geometry={fu} material={plain} castShadow receiveShadow />}
+      {power.solid.getAttribute("position").count > 0 && <mesh geometry={power.solid} material={plain} castShadow />}
+      {power.wires.getAttribute("position").count > 0 && <lineSegments geometry={power.wires} material={wireM} />}
+      {estimates && quality !== "low" && stoneMesh && <primitive object={stoneMesh} />}
     </group>
   );
 }
 
 export function Roads({ data, style }: { data: AreaData; style: StyleConfig }) {
-  const g = useMemo(() => roadsGeometry(data, style), [data, style.roads.widths]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ~500 m tiles (culled), plus the night-only light-pool overlays on unmarked streets
+  const n = Math.max(2, Math.round((2 * data.meta.extent.halfW) / 500));
+  const tiles = useMemo(() => { const g = roadsGeometry(data, style); const t = splitNonIndexed(g, n); g.dispose(); return t; }, [data, style.roads.widths, n]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nightTiles = useMemo(() => { const g = roadsGeometry(data, style, "night"); const t = splitNonIndexed(g, n); g.dispose(); return t; }, [data, style.roads.widths, n]); // eslint-disable-line react-hooks/exhaustive-deps
   const m = useMemo(() => roadMaterial(style), [style]);
   const og = useMemo(() => overlaysGeometry(data, style), [data, style]);
   const om = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), []);
-  useDispose(useMemo(() => [g, m, og, om], [g, m, og, om]));
+  useDispose(useMemo(() => [...tiles, ...nightTiles, m, og, om], [tiles, nightTiles, m, og, om]));
+  const night = useRef<THREE.Group>(null);
+  useFrame(() => { if (night.current) night.current.visible = SCENE.uNight.value > 0.02; });
   return (
     <group>
       <mesh geometry={og} material={om} receiveShadow />
-      <mesh geometry={g} material={m} receiveShadow />
+      {tiles.map((g, i) => <mesh key={i} geometry={g} material={m} receiveShadow />)}
+      <group ref={night} visible={false}>{nightTiles.map((g, i) => <mesh key={i} geometry={g} material={m} />)}</group>
     </group>
   );
 }

@@ -3,6 +3,10 @@ import type { AreaData, Heightfield } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { densify, subdivide, triangulate, type P2 } from "./poly";
 import { LIT_CLASSES, polyLength, roadNodes, roadWidth } from "./roads";
+import { carriageTriangles } from "./streetscape";
+
+/** Classes whose carriageway is part of the unioned asphalt surface from streets.json (same list as pipeline/streets.py). */
+const CARRIAGE = new Set(["secondary", "tertiary", "primary", "residential", "unclassified", "living_street", "service", "unknown"]);
 
 /** Height sampler that prefers the detailed core grid. */
 export function makeSampler(d: AreaData) {
@@ -101,22 +105,34 @@ const ROAD_LIFT = [0.22, 0.18, 0.14, 0.12];
  * so overlapping ribbons and their markings don't show through each other.
  * Heights follow the terrain mesh's own triangles (atTri) so roads don't dip into it.
  */
-export function roadsGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeometry {
+/** part "night": only the unmarked light-pool overlays (shown at night only); "day": everything else. */
+export function roadsGeometry(d: AreaData, style: StyleConfig, part: "day" | "night" = "day"): THREE.BufferGeometry {
   const pos: number[] = [], uv: number[] = [], kind: number[] = [], end: number[] = [];
   const h = (x: number, y: number) => (d.core.contains(x, y) ? d.core.atTri(x, y) : d.context.at(x, y));
   const { deg, width, pos: npos } = roadNodes(d, style);
   const isJ = (j: number | undefined) => j !== undefined && (deg.get(j) ?? 0) >= 3;
+  // With streets.json, car roads are one unioned asphalt surface (filleted junctions); their ribbons only carry the
+  // markings and the night light pools (kind 4 = marked, 5 = unmarked), drawn just above it. Bridges get decks.
+  const surface = !!d.streets;
   for (const r of d.roads) {
     let k = ROAD_KIND[r.c] ?? 1;
+    if (surface && (r.bridge || r.tunnel)) continue;
+    const overlay = surface && CARRIAGE.has(r.c);
     // verified surface tags override the class look
     if (r.surf === "unpaved" || r.surf === "gravel" || r.surf === "dirt" || r.surf === "ground") k = k < 2 ? 3 : k;
     if (r.sc === "driveway" || r.sc === "parking_aisle") k = Math.max(k, 1);
     const w = roadWidth(style, r);
-    const pts = densify(r.pts as P2[], 3);
+    const pts = densify(r.pts as P2[], overlay ? 6 : 3);
     if (pts.length < 2) continue;
     const total = polyLength(r.pts as [number, number][]);
     const e0 = isJ(r.j0), e1 = isJ(r.j1);
     const lit = LIT_CLASSES.has(r.c) && r.sc !== "driveway" && r.sc !== "parking_aisle" ? 0.25 : 0; // fraction = streetlit
+    if (overlay) {
+      if (k > 0.5 && !lit) continue; // unmarked, unlit: the asphalt surface alone is enough
+      k = k < 0.5 ? 4 : 5;
+    }
+    if ((part === "night") !== (overlay && k === 5)) continue;
+    const lift = overlay ? ROAD_LIFT[0] + 0.05 : ROAD_LIFT[Math.min(k, 3)];
     let acc = 0;
     const L: number[][] = [], R: number[][] = [], us: number[] = [];
     for (let i = 0; i < pts.length; i++) {
@@ -133,8 +149,8 @@ export function roadsGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeom
       if (i > 0) acc += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]);
       const lx = p[0] + nx, ly = p[1] + ny, rx = p[0] - nx, ry = p[1] - ny;
       const hc = h(p[0], p[1]);
-      L.push([lx, Math.max(h(lx, ly), hc - 0.4) + ROAD_LIFT[k] - d.datum, -ly]);
-      R.push([rx, Math.max(h(rx, ry), hc - 0.4) + ROAD_LIFT[k] - d.datum, -ry]);
+      L.push([lx, Math.max(h(lx, ly), hc - 0.4) + lift - d.datum, -ly]);
+      R.push([rx, Math.max(h(rx, ry), hc - 0.4) + lift - d.datum, -ry]);
       us.push(acc);
     }
     const scale = acc > 0 ? total / acc : 1;
@@ -145,8 +161,12 @@ export function roadsGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeom
     }
   }
   // junction patches: n-gon slightly above every ribbon meeting there
+  if (surface && part === "day") {
+    const t = carriageTriangles(d, ROAD_LIFT[0]);
+    for (let i = 0; i < t.length; i += 3) { pos.push(t[i], t[i + 1], t[i + 2]); uv.push(0, 0.5); kind.push(6); end.push(0); }
+  }
   for (const [j, n] of deg) {
-    if (n < 3) continue;
+    if (n < 3 || surface) continue;
     const [x, y] = npos.get(j)!, r = (width.get(j) ?? 5) * 0.52, seg = 12;
     const z = h(x, y) + ROAD_LIFT[0] + 0.04 - d.datum;
     for (let i = 0; i < seg; i++) {
@@ -247,4 +267,30 @@ export function fixUp(g: THREE.BufferGeometry) {
         }
       }
   }
+}
+
+/** Split a non-indexed geometry into n×n tiles by triangle centroid so the renderer can frustum-cull them. */
+export function splitNonIndexed(g: THREE.BufferGeometry, n: number): THREE.BufferGeometry[] {
+  const p = g.getAttribute("position") as THREE.BufferAttribute;
+  if (!p || p.count === 0) return [];
+  g.computeBoundingBox();
+  const bb = g.boundingBox!, w = bb.max.x - bb.min.x || 1, dd = bb.max.z - bb.min.z || 1;
+  const buckets: number[][] = Array.from({ length: n * n }, () => []);
+  for (let t = 0; t < p.count; t += 3) {
+    const cx = (p.getX(t) + p.getX(t + 1) + p.getX(t + 2)) / 3, cz = (p.getZ(t) + p.getZ(t + 1) + p.getZ(t + 2)) / 3;
+    const i = Math.min(n - 1, Math.floor(((cx - bb.min.x) / w) * n)), j = Math.min(n - 1, Math.floor(((cz - bb.min.z) / dd) * n));
+    buckets[j * n + i].push(t);
+  }
+  const names = Object.keys(g.attributes);
+  return buckets.filter((b) => b.length).map((b) => {
+    const out = new THREE.BufferGeometry();
+    for (const name of names) {
+      const a = g.getAttribute(name) as THREE.BufferAttribute, sz = a.itemSize, arr = new Float32Array(b.length * 3 * sz);
+      let o = 0;
+      for (const t of b) for (let v = 0; v < 3; v++) for (let k = 0; k < sz; k++) arr[o++] = a.array[(t + v) * sz + k];
+      out.setAttribute(name, new THREE.BufferAttribute(arr, sz));
+    }
+    out.computeBoundingSphere();
+    return out;
+  });
 }

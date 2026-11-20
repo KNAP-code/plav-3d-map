@@ -37,6 +37,13 @@ export type PolyJ = { outer: [number, number][]; holes: [number, number][][] };
 export type Water = PolyJ & { kind: "lake" | "river"; name: string | null; level: number | null };
 export type Stream = { c: string; n: string | null; pts: [number, number][] };
 export type Overlay = PolyJ & { k: string };
+export type Streets = {
+  carriage: PolyJ[]; sidewalks: PolyJ[];
+  bridges: { c: string; n: string | null; w: number; pts: [number, number][] }[];
+  towers: { k: string; x: number; y: number }[]; lines: { k: string; pts: [number, number][] }[];
+  piers: PolyJ[]; pitches: { x: number; y: number; ang: number; L: number; W: number }[];
+  cemeteries: (PolyJ & { name: string | null })[];
+};
 
 export type AreaData = {
   meta: AreaMeta;
@@ -57,6 +64,8 @@ export type AreaData = {
   /** mapped street furniture (benches, fountains, bus stops, parking signs...) and walls; empty if not exported */
   furniture: { points: { k: string; x: number; y: number }[]; walls: { k: string; pts: [number, number][] }[] };
   trees: Float32Array; // x, y, scale, kind
+  /** street surfaces and mapped infrastructure (pipeline/streets.py); null for areas built before it existed */
+  streets: Streets | null;
   bytes: number;
 };
 
@@ -110,6 +119,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const meta: AreaMeta = await metaR.json();
   let done = 0;
   const tick = <T,>(p: Promise<T>) => p.then((v) => { done++; onProgress?.(done / 7); return v; });
+  const streetsP = fetch(`${base}/streets.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const [coreBuf, ctxBuf, bjs, vjs, treeBuf, coverCore, coverContext] = await Promise.all([
     tick(bin(`${base}/${meta.core.file}`)),
@@ -131,8 +141,9 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const b = JSON.parse(bjs);
   const v = JSON.parse(vjs);
   const furniture = (await furnP) ?? { points: [], walls: [] };
+  const streets = (await streetsP) as Streets | null;
   return {
-    furniture,
+    furniture, streets,
     meta, core, context, coverCore, coverContext,
     datum: meta.core.base,
     buildings: b.buildings, removed: b.removed ?? [], minarets: b.minarets,

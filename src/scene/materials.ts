@@ -184,8 +184,25 @@ export function roadMaterial(style: StyleConfig) {
         vec3 col;
         float n = fbm(vWp2.xz * 0.6);
         float k = floor(vK + 0.01);
-        float nearJ = smoothstep(2.0, 6.0, vEnd);           // fade markings into junctions
-        if (k < 1.5) {
+        float nearJ = smoothstep(4.0, 9.0, vEnd);           // fade markings out before junctions
+        float keep = 1.0;
+        if (k > 5.5) {
+          // unioned carriageway surface: asphalt with large-scale patching (repairs) and fine grain
+          float big = fbm(vWp2.xz * 0.045);
+          col = uAsphalt * mix(0.92, 1.06, n) * mix(1.0, 0.9, smoothstep(0.62, 0.68, big)) * mix(1.04, 1.0, smoothstep(0.3, 0.36, big));
+        } else if (k > 3.5) {
+          // markings / light-pool overlay on the carriageway surface; everything else is discarded
+          col = uAsphalt * mix(0.93, 1.05, n);
+          float m = 0.0;
+          if (k < 4.5) {
+            float dash = step(0.5, fract(vRd.x / 6.0));
+            float centre = 1.0 - smoothstep(0.012, 0.03, abs(vRd.y - 0.5));
+            float side = 1.0 - smoothstep(0.012, 0.026, abs(min(vRd.y, 1.0 - vRd.y) - 0.1));
+            m = max(centre * dash, side * 0.85) * nearJ;
+            col = mix(col, uMark, m);
+          }
+          keep = m;
+        } else if (k < 1.5) {
           col = uAsphalt * mix(0.93, 1.05, n);
           // subtle wear: lighter wheel tracks, darker centre
           float across = abs(vRd.y - 0.5);
@@ -210,12 +227,13 @@ export function roadMaterial(style: StyleConfig) {
         float lit = step(0.1, fract(vK + 0.001));
         float d = (fract(vRd.x / uLamp - 0.5) - 0.5) * uLamp;
         gPool = lit * exp(-d * d / 32.0) * (0.75 + 0.25 * (1.0 - abs(vRd.y - 0.5) * 2.0));
+        if (k > 3.5 && k < 5.5 && keep < 0.05 && (uNight < 0.01 || gPool < 0.04)) discard;
       }
     `,
     fragEmissive: /* glsl */ `
       if (uNight > 0.001) totalEmissiveRadiance += vec3(1.0, 0.62, 0.3) * (gPool * 0.3 + 0.006) * uNight;
     `,
-  }, "roads-v2");
+  }, "roads-v3");
 }
 
 export function waterMaterial(style: StyleConfig) {
@@ -477,4 +495,28 @@ export function carMaterial() {
   };
   m.customProgramCacheKey = () => "car-v1";
   return m;
+}
+
+/**
+ * Street details (sidewalks, bridges, piers, pitch lines): vertex colours; on up-facing surfaces a 0.5 m paving-slab
+ * joint pattern in world space (fades out with distance so it never shimmers).
+ */
+export function pavingMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+  return patch(m, {
+    vertexHead: "varying vec3 vPw; varying float vUp;",
+    vertexMain: "vPw = (modelMatrix * vec4(transformed, 1.0)).xyz; vUp = normal.y;",
+    fragHead: "varying vec3 vPw; varying float vUp;",
+    fragColor: /* glsl */ `
+      {
+        vec2 q = vPw.xz / 0.5;
+        vec2 fw = max(fwidth(q), vec2(1e-4));
+        vec2 g = abs(fract(q) - 0.5);
+        float joint = (1.0 - smoothstep(0.47 - fw.x, 0.5, g.x)) * (1.0 - smoothstep(0.47 - fw.y, 0.5, g.y));
+        float fade = 1.0 - smoothstep(0.25, 0.5, max(fw.x, fw.y));
+        float up = smoothstep(0.8, 0.95, abs(vUp));
+        diffuseColor.rgb *= mix(1.0, mix(0.86, 1.0, joint) * mix(0.96, 1.04, h21(floor(q))), up * fade);
+      }
+    `,
+  }, "paving-v1");
 }
