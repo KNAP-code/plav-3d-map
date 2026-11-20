@@ -19,7 +19,7 @@ only as evidence. It never creates, moves or reshapes a footprint.
 
 A roof shows up at 10 m as a higher built-up index (NDBI) and a lower vegetation index (NDVI) than the grass around it.
 We calibrated the test on the 764 OSM footprints, which people mapped, against the same shapes moved 40–120 m onto
-open ground with no footprint within 15 m (1,000+ samples):
+open ground with no footprint within 15 m (949 samples):
 
 | Footprint size | OSM houses with a built signal | Open ground with a built signal (false positives) | OSM houses that look like vegetation |
 |---|---|---|---|
