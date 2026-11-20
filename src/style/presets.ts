@@ -34,8 +34,8 @@ export type StyleConfig = {
 export const plavWarm: StyleConfig = {
   name: "plav-warm",
   sky: { top: "#bcd3e6", horizon: "#eef0ea", fog: "#e6ebe8", fogNear: 1800, fogFar: 9000 },
-  sun: { color: "#fff1dc", intensity: 3.1, azimuthDeg: 215, elevationDeg: 48, shadowSoftness: 2.5 },
-  ambient: { sky: "#e6eef7", ground: "#b8ad94", intensity: 1.35 },
+  sun: { color: "#ffedd2", intensity: 3.2, azimuthDeg: 215, elevationDeg: 41, shadowSoftness: 2.5 },
+  ambient: { sky: "#dde8f5", ground: "#b4a98e", intensity: 1.3 },
   ground: {
     grass: "#84b84e", grassDark: "#6ea545", forestFloor: "#4f8a39", dirt: "#c6b08a", built: "#b9a98c",
     mottle: 0.5, mottleScale: 0.075,

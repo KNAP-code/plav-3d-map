@@ -158,6 +158,12 @@ export function terrainMaterial(style: StyleConfig, cover: THREE.Texture, contex
         // built-up / bare land: mottled dirt patches between the grass, like a model base
         float patchy = smoothstep(0.66 - w.b * 0.22, 0.70 - w.b * 0.2, n1 + n2 * 0.3) * uMottle;
         col = mix(col, mix(uDirt, uBuilt, 0.35), patchy * clamp(w.b * 1.2 + 0.15, 0.0, 1.0));
+        // macro variation (estimate of natural meadow tones): drier warm patches and lusher cool hollows
+        float macro = fbm(p * 0.14 + 3.7);
+        col = mix(col, col * vec3(1.1, 1.02, 0.78), smoothstep(0.5, 0.72, macro) * 0.75);
+        col = mix(col, col * vec3(0.86, 0.97, 0.9), smoothstep(0.45, 0.25, macro) * 0.6);
+        // fine grass grain near the camera
+        col *= mix(0.96, 1.04, fbm(vWp.xz * 0.9));
         col = mix(col, uForest, smoothstep(0.25, 0.75, w.r));
         // steep slopes show rock
         float steep = 1.0 - normalize(vNw).y;
@@ -165,7 +171,7 @@ export function terrainMaterial(style: StyleConfig, cover: THREE.Texture, contex
         diffuseColor.rgb = col;
       }
     `,
-  }, context ? "terrain-ctx-v1" : "terrain-core-v1");
+  }, context ? "terrain-ctx-v2" : "terrain-core-v2");
 }
 
 export function roadMaterial(style: StyleConfig) {

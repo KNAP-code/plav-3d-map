@@ -222,13 +222,29 @@ export function waterGeometry(d: AreaData): THREE.BufferGeometry {
       for (const [x, y] of tris) pos.push(x, z, -y);
     } else {
       tris = subdivide(tris, 10);
-      for (const [x, y] of tris) pos.push(x, h(x, y) + 1.25 - d.datum, -y);
+      // river surface: lowest ground within ~7 m (the carved bed) plus a fixed depth, so the surface is smooth
+      // instead of following every bump of the 30 m DEM; cached per vertex position
+      const lvl = new Map<string, number>();
+      const at = (x: number, y: number) => {
+        const k = `${x.toFixed(1)},${y.toFixed(1)}`;
+        let v = lvl.get(k);
+        if (v === undefined) {
+          v = Infinity;
+          for (const [dx, dy] of [[0, 0], [7, 0], [-7, 0], [0, 7], [0, -7], [5, 5], [-5, -5], [5, -5], [-5, 5]]) v = Math.min(v, h(x + dx, y + dy));
+          lvl.set(k, v);
+        }
+        return v;
+      };
+      for (const [x, y] of tris) pos.push(x, at(x, y) + 1.05 - d.datum, -y);
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   fixUp(g);
-  g.computeVertexNormals();
+  // water reads as one smooth sheet: every normal points up (faceted DEM normals showed as dark triangles)
+  const n = new Float32Array(pos.length);
+  for (let i = 1; i < n.length; i += 3) n[i] = 1;
+  g.setAttribute("normal", new THREE.BufferAttribute(n, 3));
   return g;
 }
 

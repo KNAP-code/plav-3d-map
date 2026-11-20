@@ -46,3 +46,9 @@ Plav and northern Montenegro, and the same building always gets the same look (d
 | 1,151 haystacks | On mapped meadows and farmland (OSM, 9.0 km²) within 350 m of a house, about one candidate per 0.6 ha, sometimes in small groups. |
 
 Fences and haystacks are not drawn on the Low tier.
+
+## Terrain, water and light (batch 5, stylisation, not data)
+
+- The large-scale dry and lush variation in the grass is a shader noise pattern. It does not come from any survey.
+- River surfaces sit 1.05 m above the lowest ground within about 7 m, and their normals all point straight up. This removes the streaks from the 30 m DEM. The river courses are still OSM.
+- The sun is warmer and slightly higher (41°), and the sky and ground ambient light was retuned. This is an art choice, not a time of day.
