@@ -443,6 +443,7 @@ export function buildBuildingTile(list: Building[], datum: number, style: StyleC
   g.computeBoundingBox();
   g.computeBoundingSphere();
   g.userData.ranges = ranges;
+  g.userData.list = list;
   return { main: g, details };
 }
 

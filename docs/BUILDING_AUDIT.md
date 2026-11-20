@@ -81,9 +81,34 @@ The five cells at about 19.9473 E, 42.5993-42.6011 N form one north-south strip.
   was not found and needs confirming before any use beyond viewing.
 - No data was traced or extracted from Google imagery.
 
+## Verification status (option A: OSM + checked ML footprints)
+
+All 2,029 candidate buildings are kept. None of the ML footprints is treated as verified.
+
+| status | shown | meaning |
+|---|---|---|
+| landmark_verified | 2 | Stara džamija and Redžepagića kula, position confirmed by the owner or by the mapped footprint |
+| osm_mapped | 544 | human-mapped in OpenStreetMap, not separately checked against imagery |
+| ml_unverified | 1483 | Microsoft machine detection, not checked |
+
+## Review flags (shown buildings, a building can have several)
+
+| flag | count | check |
+|---|---|---|
+| isolated_ml | 173 | ML footprint with no WorldCover built-up pixel within 25 m. It could be a barn or shed in a field, or a false detection. |
+| skewed_to_street | 133 | ML footprint within 12 m of a street, rotated 25-65° against it while being clearly rectangular. Detections are often rotated; real houses can be too. |
+| odd_shape | 6 | rectangularity under 0.55 or aspect over 6 |
+| large_ml | 6 | ML footprint over 600 m² (often two buildings merged into one) |
+| on_street | 5 | OSM footprint with >= 15% of its area on the mapped carriageway (the street or the building is off) |
+| duplicate (>= 30% overlap) | 0 | |
+| partial overlap (5-30%, >= 2 m²) | 0 | |
+
+315 shown buildings carry at least one flag. A flag means "look at this"; it does not prove the footprint is wrong.
+
 ## Inspection mode
 
 Open the preview with `#audit`:
+- yellow: flagged for manual review; tap any building for its details
 - green: OpenStreetMap footprint
 - blue: Microsoft ML footprint
 - light blue: ML outbuilding
@@ -92,7 +117,17 @@ Open the preview with `#audit`:
 - red on the ground: removed footprint
 - magenta: built-up cell with no footprint
 
+Tapping a building shows its source, verification status, area, floors, whether height and roof are estimated, its
+flags in plain words, and a link to the OSM way. "Next building to review" flies to the flagged buildings in turn.
 `#osm` shows OSM footprints only. `#audit,osm` combines both.
+
+## Remaining uncertainties
+
+1. 1,483 ML footprints are unverified. Of these, 315 buildings are flagged. Confirming or removing them needs a person with imagery they may legally use (for example, editing OSM with the Esri or Bing layers in the iD editor).
+2. 16 built-up cells have no footprint (table above), including one north-south strip at 19.9473 E.
+3. All heights and roof shapes are estimates, except 7 heights from source data and the two landmark models.
+4. OSM data comes from the Overture release, not live OSM.
+5. No orthophoto with a confirmed licence for derived data was available, so no footprint was checked against imagery in this environment.
 
 ## Performance (SwiftShader, Pixel 7 emulation, relative only)
 

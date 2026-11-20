@@ -71,13 +71,20 @@ export function Terrain({ data, style, quality }: { data: AreaData; style: Style
  * kept in geometry.userData.ranges for selection.
  */
 /** Audit view colours: green OSM, blue Microsoft ML, light blue ML outbuilding, orange OSM overlapping a street, purple = height from source. */
-export const AUDIT_COLORS = { osm: "#3fae64", ms: "#4f86d9", outbuilding: "#7cc7d6", osmOnStreet: "#f29d38", heightSrc: "#9b6ad6", removed: "#e0453a", gap: "#d6338f" };
-const auditTint = (b: Building) =>
-  b.hSrc !== "estimated" ? AUDIT_COLORS.heightSrc
+export const AUDIT_COLORS = { review: "#f2c84b", osm: "#3fae64", ms: "#4f86d9", outbuilding: "#7cc7d6", osmOnStreet: "#f29d38", heightSrc: "#9b6ad6", removed: "#e0453a", gap: "#d6338f" };
+export type AuditEntry = { flags: string[]; status: string; osm: string | null; area: number };
+export const REVIEW_FLAGS = new Set(["overlap", "odd_shape", "large_ml", "isolated_ml", "skewed_to_street", "on_street", "duplicate", "duplicate_ml_of_osm"]);
+export const needsReview = (e?: AuditEntry) => !!e && e.flags.some((f) => REVIEW_FLAGS.has(f));
+const auditTint = (b: Building, e?: AuditEntry) =>
+  needsReview(e) ? AUDIT_COLORS.review
+  : b.hSrc !== "estimated" ? AUDIT_COLORS.heightSrc
   : b.src === "osm" ? ((b.onStreet ?? 0) >= 0.15 ? AUDIT_COLORS.osmOnStreet : AUDIT_COLORS.osm)
   : b.kind === "outbuilding" ? AUDIT_COLORS.outbuilding : AUDIT_COLORS.ms;
 
-export function Buildings({ data, style, quality, provisional = true, audit = false }: { data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean }) {
+export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, onPick }: {
+  data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean;
+  auditMap?: Map<string, AuditEntry>; onPick?: (b: Building) => void;
+}) {
   const near = TIERS[quality].buildingNear;
   const skip = useMemo(() => landmarkReplacements(data, { provisional }).ids, [data, provisional]);
   const geos = useMemo(() => {
@@ -94,8 +101,8 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
     }
     bump("geometryBuilds");
     const road = roadLookup(data);
-    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, audit ? auditTint : undefined));
-  }, [data, skip, audit, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, audit ? (bb) => auditTint(bb, auditMap?.get(bb.id)) : undefined));
+  }, [data, skip, audit, auditMap, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const mNear = useMemo(() => buildingMaterial(style, true), [style]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
   useDispose(useMemo(() => geos.flatMap((g) => [g.main, g.details]), [geos]));
@@ -122,7 +129,15 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
   return (
     <>
       <group ref={group}>
-        {geos.map((g, i) => <mesh key={i} geometry={g.main} material={mNear} castShadow receiveShadow />)}
+        {geos.map((g, i) => (
+          <mesh key={i} geometry={g.main} material={mNear} castShadow receiveShadow
+            onClick={onPick ? (e) => {
+              // non-indexed geometry: face -> vertex -> building via the per-building vertex ranges
+              e.stopPropagation();
+              const v = (e.faceIndex ?? -1) * 3, r = g.main.userData.ranges as Int32Array, list = g.main.userData.list as Building[];
+              for (let k = 0; k < r.length; k += 5) if ((v >= r[k + 1] && v < r[k + 2]) || (v >= r[k + 3] && v < r[k + 4])) { onPick(list[r[k]]); break; }
+            } : undefined} />
+        ))}
       </group>
       {detailNear > 0 && (
         <group ref={details}>

@@ -18,6 +18,9 @@ from shapely.strtree import STRtree
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from build import CONFIG, HERE, ROOT, TO_UTM, TO_LL, to_local  # noqa: E402
 
+# landmark footprints whose position was verified (owner confirmation or named OSM building + photos)
+LANDMARK_IDS = {"d8f69ad5-7153-4d6e-955e-b92a1d3e95f6", "4a1e5139-8dfc-4753-80af-dac7d0240aaf"}
+REVIEW_FLAGS = ("overlap", "odd_shape", "large_ml", "isolated_ml", "skewed_to_street", "on_street", "duplicate", "duplicate_ml_of_osm")
 ROAD_W = {"secondary": 7.5, "tertiary": 6.5, "residential": 5.2, "unclassified": 4.8, "living_street": 4.5,
           "service": 3.6, "pedestrian": 4.0}  # same carriageway widths as pipeline/build.py reconciliation
 
@@ -88,6 +91,9 @@ def main(area_id="plav-centre", label="current", shown_path=None):
             frac = inter / min(a, y["geom"].area)
             if frac >= 0.3:
                 dup_pairs.append((i, j, frac))
+            elif frac >= 0.05 and inter >= 2.0:
+                # partial overlap of two footprints: at least one outline is wrong
+                flags.setdefault(("ov", i), []).append(j)
         # overlap with street carriageways
         ov = 0.0
         for k in st_tree.query(x["geom"]):
@@ -101,6 +107,52 @@ def main(area_id="plav-centre", label="current", shown_path=None):
         loser = j if (xi["src"] == "osm" and xj["src"] != "osm") else i if (xj["src"] == "osm" and xi["src"] != "osm") \
             else (i if xi["geom"].area < xj["geom"].area else j)
         flags[loser].append("duplicate_ml_of_osm" if R[loser]["src"] != "osm" and R[i if loser == j else j]["src"] == "osm" else "duplicate")
+
+    for k in [k for k in flags if isinstance(k, tuple)]:
+        i = k[1]
+        flags[i].append("overlap")
+        for j in flags[k]:
+            flags[j].append("overlap")
+        del flags[k]
+
+    # plausibility checks (heuristics; they mark footprints for manual review, they do not prove an error)
+    with rasterio.open(HERE / "cache" / area_id / "worldcover.tif") as src_:
+        wc_arr = src_.read(1); wc_inv = ~src_.transform
+    origin0, _ = area_setup(area_id)
+    def wc_near(x, y, r=25.0):
+        g = np.arange(-r, r + 0.1, 10.0)
+        gx, gy = np.meshgrid(g, g)
+        lon, lat = TO_LL.transform((x + gx).ravel() + origin0[0], (y + gy).ravel() + origin0[1])
+        col, row = wc_inv * (np.asarray(lon), np.asarray(lat))
+        return wc_arr[np.clip(np.asarray(row).astype(int), 0, wc_arr.shape[0] - 1), np.clip(np.asarray(col).astype(int), 0, wc_arr.shape[1] - 1)]
+    street_lines = [shapely.LineString(rd["pts"]) for rd in vec["roads"] if rd["c"] in ROAD_W and len(rd["pts"]) >= 2]
+    sl_tree = STRtree(street_lines)
+    for i, x in enumerate(R):
+        g = x["geom"]; a = g.area
+        mrr = g.minimum_rotated_rectangle
+        rect = a / mrr.area if mrr.area else 1.0
+        cs = np.asarray(mrr.exterior.coords)
+        e1, e2 = np.hypot(*(cs[1] - cs[0])), np.hypot(*(cs[2] - cs[1]))
+        aspect = max(e1, e2) / max(min(e1, e2), 0.1)
+        if rect < 0.55 or aspect > 6:
+            flags[i].append("odd_shape")
+        if x["src"] == "ms" and a > 600:
+            flags[i].append("large_ml")      # ML detection may merge several buildings
+        if x["src"] == "ms":
+            c = g.centroid
+            if not np.any(wc_near(c.x, c.y) == 50):
+                flags[i].append("isolated_ml")   # no built-up land-cover pixel within 25 m
+            # orientation vs the nearest street within 12 m: footprints near a street are usually parallel or perpendicular to it
+            near = [street_lines[k] for k in sl_tree.query(g.buffer(12))]
+            if near:
+                ln = min(near, key=lambda l: l.distance(g))
+                if ln.distance(g) <= 12:
+                    t = ln.project(c); p0 = ln.interpolate(max(t - 3, 0)); p1 = ln.interpolate(min(t + 3, ln.length))
+                    sa = math.degrees(math.atan2(p1.y - p0.y, p1.x - p0.x))
+                    ba = math.degrees(math.atan2(cs[1][1] - cs[0][1], cs[1][0] - cs[0][0]))
+                    d = abs(((ba - sa) % 90 + 90) % 90); d = min(d, 90 - d)
+                    if d > 25 and rect > 0.8:
+                        flags[i].append("skewed_to_street")
 
     # position check: every shown footprint must sit where its source geometry is (local metres, UTM 34N)
     raw_by_id = {x["id"]: x for x in R}
@@ -149,8 +201,8 @@ def main(area_id="plav-centre", label="current", shown_path=None):
         c = x["geom"].centroid
         per.append({"id": x["id"], "src": x["src"], "shown": x["id"] in shown_ids, "removed": removed.get(x["id"]), "flags": sorted(set(flags[i])),
                     "area": round(x["geom"].area, 1), "x": round(c.x, 1), "y": round(c.y, 1),
-                    "fp": [[round(p[0], 1), round(p[1], 1)] for p in np.asarray(x["geom"].exterior.coords)[:-1]],
-                    "heightSrc": "osm" if x["h"] or x["fl"] else "estimated", "osmRecord": x["rec"]})
+                    "heightSrc": "osm" if x["h"] or x["fl"] else "estimated", "osmRecord": x["rec"],
+                    "status": "landmark_verified" if x["id"] in LANDMARK_IDS else "osm_mapped" if x["src"] == "osm" else "ml_unverified"})
     fc = Counter(fl for p in per for fl in p["flags"])
     shown_src = Counter(b["src"] for b in shown)
     shown_flags = Counter(fl for p in per if p["shown"] for fl in p["flags"])
@@ -162,6 +214,8 @@ def main(area_id="plav-centre", label="current", shown_path=None):
         "flags_all": dict(fc), "flags_shown": dict(shown_flags),
         "height_from_source": sum(1 for p in per if p["shown"] and p["heightSrc"] == "osm"),
         "procedural_invented": 0,
+        "status_shown": dict(Counter(p["status"] for p in per if p["shown"])),
+        "review_shown": sum(1 for p in per if p["shown"] and any(f in REVIEW_FLAGS for f in p["flags"])),
         "removed_by_reason": dict(Counter(removed.values())),
         "outbuildings": sum(1 for b in shown if b.get("kind") == "outbuilding"),
         "duplicates_shown": sum(1 for p in per if p["shown"] and any(f.startswith("duplicate") for f in p["flags"])),

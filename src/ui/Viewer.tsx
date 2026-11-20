@@ -3,9 +3,9 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
-import { loadArea, type AreaData } from "@/data/load";
+import { loadArea, type AreaData, type Building } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { AUDIT_COLORS, AuditLayer, Buildings, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
+import { AUDIT_COLORS, AuditLayer, Buildings, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, flyTo } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { landmarkFocus } from "@/geo/landmarks";
@@ -33,14 +33,21 @@ function params() {
   return p;
 }
 
-type AuditInfo = { summary: Record<string, any>; gaps: { x: number; y: number; lat: number; lon: number }[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
+type AuditInfo = { summary: Record<string, any>; gaps: { x: number; y: number; lat: number; lon: number }[]; map: Map<string, AuditEntry> }; // eslint-disable-line @typescript-eslint/no-explicit-any
+const FLAG_TEXT: Record<string, string> = {
+  overlap: "overlaps another footprint", odd_shape: "irregular or very elongated outline", large_ml: "large ML footprint (may merge several buildings)",
+  isolated_ml: "ML footprint with no built-up land cover within 25 m", skewed_to_street: "rotated against the nearest street",
+  on_street: "overlaps a mapped street", duplicate: "duplicate footprint", duplicate_ml_of_osm: "ML copy of an OSM building",
+};
+const STATUS_TEXT: Record<string, string> = { osm_mapped: "OpenStreetMap (human-mapped)", ml_unverified: "Microsoft ML detection: unverified", landmark_verified: "landmark: position verified" };
 
 /** Developer audit panel: legend and counts from public/data/<area>/audit.json (pipeline/audit_buildings.py). */
-function AuditPanel({ info, osmOnly, shown }: { info: AuditInfo | null; osmOnly: boolean; shown: number }) {
+function AuditPanel({ info, osmOnly, shown, picked, onNext }: { info: AuditInfo | null; osmOnly: boolean; shown: number; picked: Building | null; onNext: () => void }) {
   const s = info?.summary;
+  const e = picked ? info?.map.get(picked.id) : undefined;
   const row = (c: string, t: string) => <div><span style={{ display: "inline-block", width: 12, height: 12, background: c, marginRight: 6, borderRadius: 2, verticalAlign: -1 }} />{t}</div>;
   return (
-    <div className="stats" style={{ top: 96, left: 12, right: "auto", maxWidth: 330, whiteSpace: "normal", lineHeight: 1.45 }}>
+    <div className="stats" style={{ top: 96, left: 12, right: "auto", maxWidth: 330, maxHeight: "calc(100% - 200px)", overflowY: "auto", pointerEvents: "auto", whiteSpace: "normal", lineHeight: 1.45 }}>
       <b>Geographic audit</b> {osmOnly ? "(OSM only)" : ""}<br />
       {s ? <>
         Overture {s.release}: {s.raw_in_area} source footprints ({s.raw_by_source.osm} OSM, {s.raw_by_source.ms} Microsoft ML)<br />
@@ -48,8 +55,20 @@ function AuditPanel({ info, osmOnly, shown }: { info: AuditInfo | null; osmOnly:
         Duplicates shown: {s.duplicates_shown} · invented: {s.procedural_invented}<br />
         Height from source: {s.height_from_source} · position check max {s.position_check_m?.max} m<br />
         Coverage of WorldCover built-up 50 m cells: {s.coverage?.pct}% ({s.coverage?.osm_only_pct}% with OSM alone), {s.coverage?.gap_cells} gap cells<br />
+        <b>To review: {s.review_shown}</b> ({Object.entries(s.flags_shown ?? {}).map(([k, v]) => `${v} ${k}`).join(", ")})<br />
+        <button onClick={onNext} style={{ marginTop: 4, pointerEvents: "auto" }}>Next building to review →</button>
       </> : "loading audit.json…"}
+      {picked && (
+        <div style={{ marginTop: 6, padding: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+          <b>{picked.name ?? "Building"}</b> · {STATUS_TEXT[e?.status ?? ""] ?? picked.src}<br />
+          {e?.area ?? "?"} m² · {picked.floors} floor(s), height {picked.hSrc === "estimated" ? "estimated" : "from source"} · roof estimated<br />
+          {e?.flags.length ? e.flags.map((f) => <div key={f}>⚠ {FLAG_TEXT[f] ?? f}</div>) : <div>no automatic flags</div>}
+          {e?.osm && <a href={`https://www.openstreetmap.org/way/${e.osm.replace(/^w/, "").replace(/@.*/, "")}`} target="_blank" rel="noreferrer" style={{ color: "#9cd3ff", pointerEvents: "auto" }}>open in OpenStreetMap</a>}
+          <div style={{ opacity: 0.6, fontSize: 11 }}>id {picked.id}</div>
+        </div>
+      )}
       <div style={{ marginTop: 6 }}>
+        {row(AUDIT_COLORS.review, "flagged for manual review (tap for details)")}
         {row(AUDIT_COLORS.osm, "OpenStreetMap footprint")}
         {row(AUDIT_COLORS.ms, "Microsoft ML footprint")}
         {row(AUDIT_COLORS.outbuilding, "ML footprint < 30 m², shown as outbuilding")}
@@ -98,12 +117,26 @@ export default function Viewer() {
   // #osm: only human-mapped OpenStreetMap footprints (Microsoft ML detections hidden); #audit: geographic audit view
   const osmOnly = q.has("osm"), audit = q.has("audit");
   const [auditInfo, setAuditInfo] = useState<AuditInfo | null>(null);
+  const [picked, setPicked] = useState<Building | null>(null);
+  const reviewIdx = useRef(-1);
   useEffect(() => {
     loadArea(`./data/${areaId}`, setProgress)
       .then((d) => setData(osmOnly ? { ...d, buildings: d.buildings.filter((b) => b.src === "osm") } : d))
       .catch((e) => setError(String(e)));
-    if (audit) fetch(`./data/${areaId}/audit.json`).then((r) => r.json()).then((a) => setAuditInfo({ summary: a.summary, gaps: a.gaps ?? [] })).catch(() => {});
+    if (audit) fetch(`./data/${areaId}/audit.json`).then((r) => r.json()).then((a) => setAuditInfo({ summary: a.summary, gaps: a.gaps ?? [],
+      map: new Map((a.buildings as { id: string; shown: boolean; flags: string[]; status: string; osmRecord: string | null; area: number }[]).filter((b) => b.shown).map((b) => [b.id, { flags: b.flags, status: b.status, osm: b.osmRecord, area: b.area }])) })).catch(() => {});
   }, [areaId, osmOnly, audit]);
+
+  // fly to the next building flagged for manual review (audit mode)
+  const nextReview = useCallback(() => {
+    if (!data || !auditInfo || !controls.current) return;
+    const list = data.buildings.filter((b) => needsReview(auditInfo.map.get(b.id)));
+    if (!list.length) return;
+    reviewIdx.current = (reviewIdx.current + 1) % list.length;
+    const b = list[reviewIdx.current];
+    setPicked(b);
+    flyTo(controls.current, data, style, b.obb[0], b.obb[1], { distance: 90, polarDeg: 55 });
+  }, [data, auditInfo, style]);
 
   const chips: Chip[] = useMemo(() => {
     if (!data) return [];
@@ -187,7 +220,7 @@ export default function Viewer() {
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
             {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} />}
             {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
-            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit} />}
+            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} onPick={audit ? setPicked : undefined} />}
             {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
             {!off.has("buildings") && !off.has("landmarks") && <Landmarks data={data} provisional={review} />}
@@ -211,7 +244,7 @@ export default function Viewer() {
         />
       )}
       {showStats && <div className="stats" ref={statsEl} />}
-      {audit && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} />}
+      {audit && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} picked={picked} onNext={nextReview} />}
       {bench && <div className="stats bench">{formatBench(bench)}{"\n"}first frame {firstFrameMs ? (firstFrameMs / 1000).toFixed(1) : "?"} s</div>}
       {q.has("tune") && <Tune style={style} setStyle={setStyle} />}
     </div>
