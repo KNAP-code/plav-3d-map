@@ -117,3 +117,27 @@ comparing builds. They are not phone frame rates.
 The atmosphere adds no geometry and no passes. The grade and vignette are merged into the existing post pass. During
 a day/sunset/night change, the shadow map is refitted once per frame for about 2 s. Real-device fps is still
 unmeasured: open the preview with `#stats` (live fps) or `#bench` on a phone.
+
+## Phase 1 terrain (real mountains, preview v21)
+
+**Measured** in headless Chromium with SwiftShader (CPU) under Pixel 7 emulation: 30 frames of the in-app `#bench`
+orbit. Use these numbers only to compare builds. **They are not phone frame rates.** Raw data: `docs/perf-terrain-phase1.json`.
+
+| Tier | v20 p50 / p95 | v21 p50 / p95 | Draw calls | Triangles |
+|---|---|---|---|---|
+| Low | 190 / 297 ms | 166 / 257 ms | 33 → 41 | 411k → 494k |
+| Medium | 544 / 736 ms | 566 / 778 ms | 37 → 45 | 644k → 768k |
+| High | 959 / 1079 ms | 833 / 989 ms | 51 → 59 | 788k → 783k |
+
+The frame-time changes are within run-to-run noise on SwiftShader. On High the triangle count barely changes, because
+the old 301 × 301 context ring at full density is gone. Load under 4× CPU throttling (`scripts/perf.mjs`): gzip
+transfer goes from 3.46 MB to 6.52 MB (+3.06 MB: terrain levels 1.4 MB raw, land-cover textures 1.8 MB, tree band 0.3 MB).
+First frame on Pixel 7 Medium goes from 9.1 s to 10.8 s, and on iPhone 13 Medium from 10.0 s to 10.2 s. On the landing
+camera, phone draw calls go from 52 to 63 and triangles from 787k to 977k (Medium).
+
+**Estimated, not measured:** on a mid-range phone GPU the extra cost should be about 120k triangles and 8–10 draw calls
+of a single simple shader. The chunks build lazily at stride 4 first, so the first frame does not wait for full-detail
+far terrain. Real-device fps is still unmeasured. Open the preview with `#stats` (live fps) or `#bench` on a phone.
+
+Levers if a phone struggles: raise `farTol` for that tier (World.tsx TIERS), bake L2's cover at 60 m instead of 30 m
+(−0.75 MB), or load the far levels after the first frame.

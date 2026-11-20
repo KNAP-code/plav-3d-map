@@ -74,21 +74,26 @@ for ele, b, e, name, r in labels:
     if any(abs(px - qx) < 150 for qx in placed):
         continue
     placed.append(px)
-    d.line([(px, py - 4), (px, py - 70)], fill=(255, 255, 255), width=1)
+    up = py > 140  # label above the summit unless it would leave the frame
+    ly = py - 70 if up else py + 70
+    d.line([(px, py - 4 if up else py + 4), (px, ly)], fill=(255, 255, 255), width=1)
     d.ellipse([px - 4, py - 4, px + 4, py + 4], outline=(255, 255, 255), width=2)
     txt = f"{name.split(' / ')[0]}  {ele} m · {r / 1000:.1f} km"
     tw = d.textlength(txt, font=font)
-    d.rectangle([px - tw / 2 - 5, py - 94, px + tw / 2 + 5, py - 72], fill=(30, 34, 40))
-    d.text((px - tw / 2, py - 92), txt, fill=(255, 255, 255), font=font)
+    by = ly - 24 if up else ly
+    d.rectangle([px - tw / 2 - 5, by, px + tw / 2 + 5, by + 22], fill=(30, 34, 40))
+    d.text((px - tw / 2, by + 2), txt, fill=(255, 255, 255), font=font)
+CROP = 560  # the lower part of each frame is only foreground meadow
 for k, c in enumerate(centres):
     lab = {0: "N", 60: "NE 60°", 120: "SE 120°", 180: "S", 240: "SW 240°", 300: "NW 300°"}[c]
-    d.text((k * W + W / 2 - 30, H - 34), lab, fill=(255, 255, 255), font=big, stroke_width=2, stroke_fill=(0, 0, 0))
+    d.text((k * W + W / 2 - 30, CROP - 34), lab, fill=(255, 255, 255), font=big, stroke_width=2, stroke_fill=(0, 0, 0))
 lon, lat = local_to_ll(ox, oy)
 cap = (f"Ground-level 360° panorama, eye {eye} m above the east shore of Plavsko jezero ({float(lat):.5f} N, {float(lon):.5f} E). "
        f"Dashed yellow = skyline computed from the 30 m Copernicus DEM; markers = OSM summits at their DEM bearing/elevation angle.")
 d.rectangle([0, 0, W * 6, 30], fill=(30, 34, 40))
 d.text((10, 6), cap, fill=(255, 255, 255), font=font)
+pano = pano.crop((0, 0, W * 6, CROP))
 pano.save(out, quality=88)
-small = pano.resize((W * 6 // 2, H // 2))
+small = pano.resize((W * 6 // 2, CROP // 2))
 small.save(out.replace(".jpg", "-small.jpg"), quality=85)
 print(out, len(placed), "labels")

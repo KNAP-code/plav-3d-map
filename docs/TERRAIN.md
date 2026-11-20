@@ -142,7 +142,7 @@ from Redžepagića kula: geodesic (true) / in the scene (grid).
 | Bogiçevica | 2204 | 2198 | 2194 | 2197 | L2 | 11.77 / 11.76 | 104.9° / 105.6° |
 
 Across all 1,043 named OSM summits inside the extent, GLO-30 minus OSM has a median of −3.2 m, with 90% within 36 m.
-SRTM minus OSM has a median of −8.4 m. **The rendered mesh reproduces GLO-30**: median −0.2 m on L1, −1.1 m on L2 and
+SRTM minus OSM has a median of −8.4 m. **The rendered mesh reproduces GLO-30**: median +0.2 m on L1, −1.1 m on L2 and
 −1.9 m on L3. In the worst 10% it is −2 m, −3 m and −12.5 m.
 
 **Known and not corrected:** narrow, sharp summits are 40–65 m lower in *both* 30 m DEMs than their surveyed heights.
