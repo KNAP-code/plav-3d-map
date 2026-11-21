@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { AreaData } from "@/data/load";
 
 /** Low-poly "toy" trees: crown + trunk merged into one geometry per type (one draw call each). */
@@ -13,33 +13,47 @@ export function treeGeometries(trunkColor: string) {
     return g;
   };
   const ni = (g: THREE.BufferGeometry) => (g.index ? g.toNonIndexed() : g);
-  const crown = new THREE.DodecahedronGeometry(2.8, 0);
+  /** Phase 5: lumpy, smooth-shaded crown (subdivided icosahedron with deterministic jitter; normals kept smooth) */
+  const lumpy = (r: number, seed: number) => {
+    const g = mergeVertices(new THREE.IcosahedronGeometry(r, 1));
+    const p = g.getAttribute("position") as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const k = 1 + 0.16 * Math.sin(x * 2.1 + seed) * Math.cos(z * 1.7 - seed) + 0.1 * Math.sin(y * 2.9 + seed * 2);
+      p.setXYZ(i, x * k, y * k * (y < 0 ? 0.8 : 1), z * k);
+    }
+    g.computeVertexNormals();
+    const n = g.toNonIndexed();
+    return n;
+  };
+  const crown = lumpy(2.8, 1.3);
   crown.scale(1, 0.92, 1);
   crown.translate(0, 5.0, 0);
   const trunk = new THREE.CylinderGeometry(0.22, 0.32, 2.9, 5, 1, true);
   trunk.translate(0, 1.45, 0);
-  const c1 = new THREE.ConeGeometry(2.3, 4.2, 7, 1, true);
+  const c1 = new THREE.ConeGeometry(2.3, 4.2, 10, 2, true);
   c1.translate(0, 3.6, 0);
-  const c2 = new THREE.ConeGeometry(1.7, 3.6, 7);
+  const c2 = new THREE.ConeGeometry(1.7, 3.6, 10, 2);
   c2.translate(0, 5.9, 0);
   const ctrunk = new THREE.CylinderGeometry(0.2, 0.28, 1.8, 5, 1, true);
   ctrunk.translate(0, 0.9, 0);
   const leaf = mergeGeometries([paint(ni(crown), null), paint(ni(trunk), tc)])!;
   const conifer = mergeGeometries([paint(ni(c1), null), paint(ni(c2), null), paint(ni(ctrunk), tc)])!;
   // tall oval crown (poplar-like silhouette), same triangle count as the round crown
-  const oCrown = new THREE.DodecahedronGeometry(2.2, 0);
+  const oCrown = lumpy(2.2, 2.7);
   oCrown.scale(0.72, 1.75, 0.72);
   oCrown.translate(0, 5.6, 0);
   const oTrunk = new THREE.CylinderGeometry(0.18, 0.26, 2.4, 5, 1, true);
   oTrunk.translate(0, 1.2, 0);
   const oval = mergeGeometries([paint(ni(oCrown), null), paint(ni(oTrunk), tc)])!;
   // broad two-lobed crown (fruit / garden tree): two low-poly icosahedra, lower and wider
-  const l1 = new THREE.IcosahedronGeometry(2.2, 0); l1.scale(1.1, 0.8, 1.0); l1.translate(-0.9, 3.9, 0.2);
-  const l2 = new THREE.IcosahedronGeometry(1.9, 0); l2.scale(1.0, 0.85, 1.1); l2.translate(1.0, 4.4, -0.3);
+  const l1 = lumpy(2.2, 4.1); l1.scale(1.1, 0.8, 1.0); l1.translate(-0.9, 3.9, 0.2);
+  const l2 = lumpy(1.9, 5.3); l2.scale(1.0, 0.85, 1.1); l2.translate(1.0, 4.4, -0.3);
   const bTrunk = new THREE.CylinderGeometry(0.2, 0.3, 2.6, 5, 1, true);
   bTrunk.translate(0, 1.3, 0);
   const broad = mergeGeometries([paint(ni(l1), null), paint(ni(l2), null), paint(ni(bTrunk), tc)])!;
-  for (const g of [leaf, conifer, oval, broad]) g.computeVertexNormals();
+  // crowns keep their smooth normals (computed per crown above); only the conifers and trunks are recomputed
+  conifer.computeVertexNormals();
   return { leaf, conifer, oval, broad };
 }
 
@@ -112,6 +126,19 @@ export function minaretGeometry(height: number) {
   const top = new THREE.CylinderGeometry(0.75, 0.85, height * 0.08, 10);
   top.translate(0, shaftH + height * 0.04, 0);
   const ni = (g: THREE.BufferGeometry) => (g.index ? g.toNonIndexed() : g);
+  /** Phase 5: lumpy, smooth-shaded crown (subdivided icosahedron with deterministic jitter; normals kept smooth) */
+  const lumpy = (r: number, seed: number) => {
+    const g = mergeVertices(new THREE.IcosahedronGeometry(r, 1));
+    const p = g.getAttribute("position") as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const k = 1 + 0.16 * Math.sin(x * 2.1 + seed) * Math.cos(z * 1.7 - seed) + 0.1 * Math.sin(y * 2.9 + seed * 2);
+      p.setXYZ(i, x * k, y * k * (y < 0 ? 0.8 : 1), z * k);
+    }
+    g.computeVertexNormals();
+    const n = g.toNonIndexed();
+    return n;
+  };
   const body = mergeGeometries([ni(shaft), ni(balcony), ni(top)])!;
   const cap = new THREE.ConeGeometry(0.95, height * 0.16, 10);
   cap.translate(0, shaftH + height * 0.08 + height * 0.08, 0);
@@ -124,6 +151,19 @@ export function minaretGeometry(height: number) {
  */
 export function streetlightGeometry() {
   const ni = (g: THREE.BufferGeometry) => (g.index ? g.toNonIndexed() : g);
+  /** Phase 5: lumpy, smooth-shaded crown (subdivided icosahedron with deterministic jitter; normals kept smooth) */
+  const lumpy = (r: number, seed: number) => {
+    const g = mergeVertices(new THREE.IcosahedronGeometry(r, 1));
+    const p = g.getAttribute("position") as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const k = 1 + 0.16 * Math.sin(x * 2.1 + seed) * Math.cos(z * 1.7 - seed) + 0.1 * Math.sin(y * 2.9 + seed * 2);
+      p.setXYZ(i, x * k, y * k * (y < 0 ? 0.8 : 1), z * k);
+    }
+    g.computeVertexNormals();
+    const n = g.toNonIndexed();
+    return n;
+  };
   const pole = new THREE.CylinderGeometry(0.07, 0.1, 6.2, 5, 1, true); pole.translate(0, 3.1, 0);
   const arm = new THREE.BoxGeometry(1.3, 0.08, 0.08); arm.translate(0.6, 6.05, 0);
   const head = new THREE.BoxGeometry(0.55, 0.14, 0.26); head.translate(1.2, 5.95, 0);

@@ -63,6 +63,11 @@ type Patch = {
   fragEmissive?: string;
   /** replaces three's fog chunk (custom aerial perspective) */
   fragFog?: string;
+  /** after the normal map chunk: may perturb `normal` (view space) */
+  fragNormal?: string;
+  /** after the roughness / metalness chunks */
+  fragRough?: string;
+  fragMetal?: string;
 };
 
 function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
@@ -77,6 +82,9 @@ function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
       .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${p.fragEmissive ?? ""}`);
     if (p.fragOut) shader.fragmentShader = shader.fragmentShader.replace("#include <opaque_fragment>", `${p.fragOut}\n#include <opaque_fragment>`);
     if (p.fragFog) shader.fragmentShader = shader.fragmentShader.replace("#include <fog_fragment>", p.fragFog);
+    if (p.fragNormal) shader.fragmentShader = shader.fragmentShader.replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>\n${p.fragNormal}`);
+    if (p.fragRough) shader.fragmentShader = shader.fragmentShader.replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>\n${p.fragRough}`);
+    if (p.fragMetal) shader.fragmentShader = shader.fragmentShader.replace("#include <metalnessmap_fragment>", `#include <metalnessmap_fragment>\n${p.fragMetal}`);
   };
   m.customProgramCacheKey = () => key;
   return m;
@@ -470,16 +478,84 @@ export function tuftMaterial(style: StyleConfig) {
  * aStyle: floor() % 4 = window layout (grid, tall, paired, band), +4 = shop ground floor, fract = building seed.
  * At night (uNight) a deterministic share of windows glows warm (some cool), as emissive light.
  */
+/**
+ * Phase 5 physically based material set (pipeline/materials_pbr.py -> data/textures/building_pbr.png): 8 tileable
+ * 512 px layers stacked vertically; R albedo factor, G roughness, BA normal xy. Loaded once into a texture array.
+ * Metres per tile, per layer (keep in sync with TEX_M in the pipeline script).
+ */
+export const PBR_M = [2.0, 3.0, 2.0, 3.2, 2.4, 2.4, 2.0, 2.0];
+const PBR = { tex: null as THREE.DataArrayTexture | null, u: { value: null as THREE.DataArrayTexture | null }, ready: { value: 0 }, loading: false, listeners: [] as (() => void)[] };
+export function pbrTexture(onReady?: () => void) {
+  if (onReady) PBR.listeners.push(onReady);
+  if (!PBR.tex) {
+    PBR.tex = new THREE.DataArrayTexture(new Uint8Array(4), 1, 1, 1);
+    PBR.tex.needsUpdate = true;
+    PBR.u.value = PBR.tex;
+  }
+  if (!PBR.loading && typeof window !== "undefined") {
+    PBR.loading = true;
+    const im = new Image();
+    im.onload = () => {
+      const N = im.width, L = Math.round(im.height / N);
+      const cv = document.createElement("canvas"); cv.width = N; cv.height = N * L;
+      const ctx = cv.getContext("2d", { willReadFrequently: true })!;
+      ctx.drawImage(im, 0, 0);
+      const data = new Uint8Array(ctx.getImageData(0, 0, N, N * L).data.buffer);
+      const t = new THREE.DataArrayTexture(data, N, N, L);
+      t.format = THREE.RGBAFormat; t.type = THREE.UnsignedByteType;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      t.generateMipmaps = true; t.anisotropy = 8; t.colorSpace = THREE.NoColorSpace; t.flipY = false;
+      t.needsUpdate = true;
+      PBR.tex = t; PBR.u.value = t; PBR.ready.value = 1;
+      for (const f of PBR.listeners.splice(0)) f();
+    };
+    im.src = "./data/textures/building_pbr.png";
+  }
+  return PBR;
+}
+
+/** Soft sky environment for glass and metal reflections (gradient sky over a warm ground), prefiltered once. */
+let skyEnvTex: THREE.Texture | null = null;
+export function skyEnvironment(gl: THREE.WebGLRenderer) {
+  if (skyEnvTex) return skyEnvTex;
+  const sc = new THREE.Scene();
+  const g = new THREE.SphereGeometry(10, 32, 16);
+  const col: number[] = [];
+  const zen = new THREE.Color("#7fa6d6"), hor = new THREE.Color("#dfe6ea"), gnd = new THREE.Color("#6f6a55"), sun = new THREE.Color("#fff4dc");
+  const p = g.getAttribute("position");
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i) / 10, x = p.getX(i) / 10, z = p.getZ(i) / 10;
+    let c = y >= 0 ? hor.clone().lerp(zen, Math.pow(y, 0.6)) : hor.clone().lerp(gnd, Math.min(1, -y * 4));
+    const sd = Math.max(0, x * -0.55 + y * 0.55 + z * 0.62); // rough sun direction glow (az 232, el 33)
+    c = c.lerp(sun, Math.pow(sd, 24) * 0.8);
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  sc.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const pm = new THREE.PMREMGenerator(gl);
+  skyEnvTex = pm.fromScene(sc, 0.02).texture;
+  pm.dispose(); g.dispose();
+  return skyEnvTex;
+}
+
 export function buildingMaterial(style: StyleConfig, detail: boolean) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, side: THREE.DoubleSide });
   return patch(m, {
     uniforms: {
       uGlass: { value: c3(style.window.glass) },
       uSpacing: { value: style.roof.tileSpacing }, uContrast: { value: style.roof.tileContrast },
+      uPbr: pbrTexture().u, uPbrOn: pbrTexture().ready,
+      uBay: { value: style.window.bayWidth }, uFh: { value: style.window.floorHeight },
     },
     vertexHead: "attribute vec2 aUv; attribute float aFloors; attribute float aPart; attribute float aStyle; varying vec2 vW; varying float vFl; varying float vPart; varying float vSt;",
     vertexMain: "vW = aUv; vFl = aFloors; vPart = aPart; vSt = aStyle;",
-    fragHead: "uniform vec3 uGlass; uniform float uSpacing; uniform float uContrast; varying vec2 vW; varying float vFl; varying float vPart; varying float vSt; float gWin;",
+    fragHead: `uniform vec3 uGlass; uniform float uSpacing; uniform float uContrast; varying vec2 vW; varying float vFl; varying float vPart; varying float vSt; float gWin;
+      uniform highp sampler2DArray uPbr; uniform float uPbrOn; uniform float uBay; uniform float uFh;
+      float gPbr = 0.0; float gRough = 0.86; float gMetal = 0.0; vec3 gNts = vec3(0.0, 0.0, 1.0); vec2 gUvM = vec2(0.0);
+      const float PBR_M[8] = float[8](${PBR_M.map((v) => v.toFixed(2)).join(", ")});
+      vec4 pbr(vec2 uvm, float layer) { return texture(uPbr, vec3(uvm / PBR_M[int(layer)], layer)); }
+      vec3 nts(vec4 t, float k) { vec2 n = (t.ba * 2.0 - 1.0) * k; return normalize(vec3(n, 1.0)); }`,
     fragColor: detail ? /* glsl */ `
       gWin = 0.0;
       float nFl = floor(vFl + 0.5);
@@ -522,7 +598,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float oY = smoothstep(wy0 - fr * 1.4 - fw.y, wy0 - fr * 1.4 + fw.y, c.y) * (1.0 - smoothstep(wy1 + fr * 2.2 - fw.y, wy1 + fr * 2.2 + fw.y, c.y));
         float frame = oX * oY * valid * fade * (shop && ground ? 0.0 : 1.0);
         // shutters beside the windows: traditional houses and ~30% of other houses (not blocks, not shopfronts)
-        bool shut = (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < (p4 ? 0.45 : 0.3))) && !(shop && ground) && kind < 1.5;
+        bool shut = (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < (p4 ? (uPbrOn > 0.5 ? 0.14 : 0.45) : 0.3))) && !(shop && ground) && kind < 1.5;
         float sw = (wx - fr) * 0.75;
         float sX = (smoothstep(wx - fr - sw - fx, wx - fr - sw + fx, cx) * (1.0 - smoothstep(wx - fr - fx, wx - fr + fx, cx)))
                  + (smoothstep(1.0 - wx + fr - fx, 1.0 - wx + fr + fx, cx) * (1.0 - smoothstep(1.0 - wx + fr + sw - fx, 1.0 - wx + fr + sw + fx, cx)));
@@ -531,22 +607,35 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         vec3 shutC = shPick < 0.45 ? vec3(0.36, 0.25, 0.17) : shPick < 0.75 ? vec3(0.3, 0.39, 0.32) : shPick < 0.9 ? vec3(0.47, 0.5, 0.5) : vec3(0.55, 0.3, 0.24);
         if (p4) shutC *= mix(0.78, 1.0, smoothstep(0.25, 0.55, fract(c.y * 26.0)));   // louvres
         // traditional houses: rubble-stone ground floor up to the first-floor line
+        // Phase 5: physically based wall materials (texture array, metres), pilot districts only
+        bool pbrW = p4 && vW.y >= 0.0 && uPbrOn > 0.5;
+        if (pbrW) {
+          gUvM = vec2(vW.x * uBay, vW.y * uFh);
+          bool plinth = vW.y > nFl;
+          float layer = plinth || (stoneG && ground) ? 1.0 : brick ? 2.0 : blockw ? 3.0 : barn ? 4.0 : 0.0;
+          vec4 t = pbr(gUvM, layer);
+          vec3 base = layer == 1.0 ? vec3(0.66, 0.62, 0.56) : diffuseColor.rgb;
+          diffuseColor.rgb = base * (t.r * 2.0);
+          // gentle large-scale weathering: darker towards the ground (splash zone) and soft stains under the eaves
+          diffuseColor.rgb *= 1.0 - 0.1 * smoothstep(nFl - 0.5, nFl, vW.y) * (1.0 - float(plinth)) - 0.05 * (1.0 - smoothstep(0.0, 0.35, vW.y));
+          gPbr = 1.0; gRough = t.g; gNts = nts(t, layer == 0.0 ? 0.6 : 1.0);
+        }
         // Phase 4: soft plaster mottling and a light belt course at the first-floor line and under the eaves
-        if (p4 && vW.y >= 0.0 && !brick && !blockw && !barn) {
+        if (p4 && !pbrW && vW.y >= 0.0 && !brick && !blockw && !barn) {
           diffuseColor.rgb *= mix(0.93, 1.04, fbm(vW * vec2(0.9, 1.3) + nSeed * 0.37));
           float belt = (1.0 - smoothstep(0.03, 0.05, abs(vW.y - (nFl - 1.0)))) * step(1.5, nFl) * step(h21(vec2(nSeed, 9.0)), 0.55);
           float cornice = 1.0 - smoothstep(0.05, 0.08, vW.y);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.91, 0.86), max(belt, cornice * 0.8));
         }
         // Phase 4: stone plinth below the ground floor on every detailed house
-        if (p4 && vW.y > nFl) {
+        if (p4 && !pbrW && vW.y > nFl) {
           vec2 sp = vec2(vW.x * 6.0, vW.y * 11.0);
           float row = floor(sp.y);
           float sn = h21(vec2(floor(sp.x + 0.5 * row), row));
           vec2 f2 = fract(vec2(sp.x + 0.5 * row, sp.y));
           diffuseColor.rgb = mix(vec3(0.5, 0.48, 0.44), vec3(0.66, 0.63, 0.57), sn) * mix(0.75, 1.0, smoothstep(0.0, 0.1, f2.x) * smoothstep(0.0, 0.14, f2.y));
         }
-        if ((trad || stoneG) && vW.y >= 0.0 && fl > nFl - 1.5) {
+        if ((trad || stoneG) && !pbrW && vW.y >= 0.0 && fl > nFl - 1.5) {
           vec2 sp = vec2(vW.x * 5.0, vW.y * 9.0);
           float row = floor(sp.y);
           float n = h21(vec2(floor(sp.x + 0.5 * row + h21(vec2(row, 1.0))), row));
@@ -555,7 +644,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
           diffuseColor.rgb = mix(vec3(0.55, 0.52, 0.47), vec3(0.74, 0.7, 0.63), n) * mix(0.72, 1.0, joint);
         }
         // masonry / timber patterns in metres (bays ~3.1 m wide, floors 2.9 m high); faded out when sub-pixel
-        if (vW.y >= 0.0 && (brick || blockw || barn)) {
+        if (vW.y >= 0.0 && (brick || blockw || barn) && !pbrW) {
           vec2 m = vec2(vW.x * 3.1, vW.y * 2.9);
           vec2 mw = max(fwidth(m), vec2(1e-4));
           if (barn) {
@@ -604,6 +693,59 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
           glassC = mix(glassC, frameC * 0.92, bars);
         }
         diffuseColor.rgb = mix(diffuseColor.rgb, glassC, win * 0.92);
+        float glassMask = 0.0;
+        if (pbrW && kind < 1.5 && !(shop && ground) && win > 0.001 && fade > 0.05) {
+          // ray into an 18 cm deep opening (tangent frame from screen derivatives; metres along the wall)
+          vec3 P = -vViewPosition, dpx = dFdx(P), dpy = dFdy(P);
+          vec2 dux = dFdx(gUvM), duy = dFdy(gUvM);
+          float det = dux.x * duy.y - dux.y * duy.x;
+          vec3 Tm = (dpx * duy.y - dpy * dux.y) / det, Bm = (dpy * dux.x - dpx * duy.x) / det;
+          vec3 Ng = normalize(cross(dpx, dpy)); if (dot(Ng, vViewPosition) < 0.0) Ng = -Ng;
+          vec3 V = normalize(vViewPosition);
+          vec3 Vt = vec3(dot(V, normalize(Tm)), dot(V, normalize(Bm)), max(dot(V, Ng), 0.08));
+          vec2 off = -Vt.xy / Vt.z;
+          float W = (1.0 - 2.0 * wx) * uBay, H = (wy1 - wy0) * uFh;
+          vec2 q = vec2((cx - wx) * uBay, (c.y - wy0) * uFh);
+          vec2 g = q + off * 0.18;                       // where the line of sight meets the glass plane
+          vec3 wallC = diffuseColor.rgb;
+          vec3 col; float rgh;
+          if (g.x < 0.0 || g.x > W || g.y < 0.0 || g.y > H) {
+            // reveal: head in shadow, jambs half lit, sill board lit
+            float shade = g.y < 0.0 ? 0.48 : g.y > H ? 0.95 : 0.72;
+            col = vec3(0.86, 0.85, 0.82) * shade; rgh = 0.9;
+          } else {
+            float wseed = h21(vec2(floor(vW.x) + nSeed * 0.31, fl + 3.0));
+            float fwid = 0.065;
+            float fr2 = step(g.x, fwid) + step(W - fwid, g.x) + step(g.y, fwid) + step(H - fwid, g.y);
+            float mull = W > 0.9 ? step(abs(g.x - W * 0.5), 0.035) : 0.0;
+            float tran = step(abs(g.y - H * 0.3), 0.03);
+            float frameM = clamp(fr2 + mull + tran, 0.0, 1.0);
+            // what is behind the glass: dark room, sometimes net curtains or side drapes 25 cm further in
+            vec2 g2 = q + off * 0.43;
+            float net = step(wseed, 0.35) * step(g2.y, H * 0.95) * step(0.0, g2.x) * step(g2.x, W);
+            float drape = step(0.35, wseed) * step(wseed, 0.6) * (step(g2.x, W * 0.24) + step(W * 0.76, g2.x));
+            vec3 room = mix(vec3(0.045, 0.045, 0.05), vec3(0.09, 0.08, 0.07), wseed);
+            room = mix(room, vec3(0.62, 0.6, 0.56), net * 0.55);
+            room = mix(room, mix(vec3(0.55, 0.42, 0.32), vec3(0.42, 0.45, 0.5), fract(wseed * 7.0)), clamp(drape, 0.0, 1.0) * 0.8);
+            col = mix(room, frameC * 0.9, frameM);
+            rgh = mix(0.04, 0.55, frameM);
+            glassMask = 1.0 - frameM;
+            // external roller blind (very common here): partly lowered on ~60 % of windows, set in the head reveal
+            float bseed = h21(vec2(floor(vW.x) + nSeed * 0.17, fl + 11.0));
+            float drop = step(bseed, 0.6) * mix(0.12, 0.7, fract(bseed * 9.7)) * H;
+            vec2 gb = q + off * 0.06;
+            if (gb.y < drop && gb.x > 0.0 && gb.x < W) {
+              vec3 slat = h21(vec2(nSeed, 13.0)) < 0.55 ? vec3(0.82, 0.81, 0.78) : h21(vec2(nSeed, 13.0)) < 0.8 ? vec3(0.45, 0.33, 0.24) : vec3(0.58, 0.58, 0.56);
+              float line = smoothstep(0.0, 0.25, fract(gb.y / 0.045)) * 0.18 + 0.82;
+              col = slat * line * (gb.y > drop - 0.05 ? 0.8 : 1.0); rgh = 0.6; glassMask = 0.0;
+            }
+          }
+          float k = win * fade;
+          diffuseColor.rgb = mix(diffuseColor.rgb, col, k);
+          gRough = mix(gRough, rgh, k);
+          gNts = normalize(mix(gNts, vec3(0.0, 0.0, 1.0), k));
+          glassMask *= k;
+        }
         // subtle weathering: rising damp near the ground and faint streaks below window sills (estimate, procedural)
         if (vW.y >= 0.0) {
           float damp = smoothstep(nFl - 0.45, nFl, vW.y) * 0.08 * (0.6 + 0.4 * h21(vec2(floor(vW.x * 3.0), nSeed)));
@@ -620,9 +762,22 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         // night: about 45% of windows lit, chosen per window from the building seed
         float r = h21(vec2(floor(vW.x * (kind > 1.5 && kind < 2.5 ? 2.0 : 1.0)) + nSeed * 0.19, fl + nSeed * 0.11));
         gWin = win * step(r, 0.36 + (shop && ground ? 0.25 : 0.0)) * (0.7 + 0.45 * fract(r * 13.0)) * (shop && ground ? 0.7 : 1.0);
+        if (pbrW && glassMask > 0.0) gWin *= glassMask; else if (pbrW && kind < 1.5 && !(shop && ground)) gWin *= 0.0;
       } else {
-        float rm = floor(vSt + 0.5); // roof material: 0 clay tile, 1 sheet metal, 2 concrete tile (estimates)
+        float rm = mod(floor(vSt + 0.5), 8.0); // roof material: 0 clay tile, 1 sheet metal, 2 concrete tile (estimates)
+        bool pbrR = vSt > 7.5 && uPbrOn > 0.5;
         vec2 rw = max(fwidth(vW), vec2(1e-4));
+        if (pbrR) {
+          gUvM = vW;
+          float layer = rm > 1.5 ? 7.0 : rm > 0.5 ? 6.0 : 5.0;
+          vec4 t = pbr(gUvM, layer);
+          diffuseColor.rgb *= t.r * 2.0;
+          float age = fbm(vW * 0.25 + nSeed);
+          diffuseColor.rgb *= mix(0.9, 1.05, age);
+          if (layer == 5.0) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.36, 0.38, 0.3), smoothstep(0.66, 0.9, fbm(vW * 0.8 + 9.0)) * 0.22);
+          gPbr = 1.0; gRough = layer == 6.0 ? t.g : t.g; gMetal = layer == 6.0 ? 0.55 : 0.0;
+          gNts = nts(t, layer == 5.0 ? 1.0 : 0.8);
+        } else
         if (rm > 0.5 && rm < 1.5) {
           // standing-seam sheet metal: raised seams every 0.5 m running down the slope, faint sheen
           float sp = fract(vW.x / 0.5);
@@ -648,6 +803,21 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
       diffuseColor.rgb *= vPart < 0.5 ? mix(0.82, 0.9, step(vW.y, nFl) * step(0.0, vW.y)) : (1.0 - uContrast * 0.35);
       gWin = vPart < 0.5 ? step(0.0, vW.y) * step(vW.y, nFl - 1.0) * 0.16 * step(0.4, h21(floor(vW) + nSeed * 0.19)) : 0.0;
     `,
+    fragNormal: /* glsl */ `
+      if (gPbr > 0.5) {
+        // perturb with the material normal map in a tangent frame built from screen derivatives of the metre UVs
+        vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition);
+        vec2 st0 = dFdx(gUvM), st1 = dFdy(gUvM);
+        vec3 N = normal;
+        vec3 q1p = cross(q1, N), q0p = cross(N, q0);
+        vec3 T = q1p * st0.x + q0p * st1.x, B = q1p * st0.y + q0p * st1.y;
+        float dt = max(dot(T, T), dot(B, B));
+        float sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
+        normal = normalize(T * (gNts.x * sc) + B * (gNts.y * sc) + N * gNts.z);
+      }
+    `,
+    fragRough: "if (gPbr > 0.5) roughnessFactor = gRough;",
+    fragMetal: "if (gPbr > 0.5) metalnessFactor = gMetal;",
     fragEmissive: /* glsl */ `
       if (uNight > 0.001) {
         float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
@@ -658,13 +828,22 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v8" : "building-far-v7");
+  }, detail ? "building-near-v9" : "building-far-v7");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */
 export function treeMaterial() {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true });
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: false });
   m.onBeforeCompile = (shader) => {
+    shader.uniforms.uNoise = { value: noiseTexture() };
+    // Phase 5: leaf clumps: world-space noise breaks the smooth crowns into lit and shaded clusters
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vTreeP; varying float vCrown;")
+      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\n#ifdef USE_INSTANCING\nvTreeP = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n#else\nvTreeP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif\n#ifdef USE_COLOR\nvCrown = color.g > 0.99 ? 1.0 : 0.0;\n#else\nvCrown = 0.0;\n#endif");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform sampler2D uNoise; varying vec3 vTreeP; varying float vCrown;\nfloat tn(vec3 p){ return texture2D(uNoise, p.xz * 0.11 + p.y * 0.07).r * 0.6 + texture2D(uNoise, p.zy * 0.23 + p.x * 0.05).r * 0.4; }")
+      .replace("#include <color_fragment>", "#include <color_fragment>\nif (vCrown > 0.5) { float n = tn(vTreeP * 1.6); diffuseColor.rgb *= mix(0.62, 1.18, smoothstep(0.25, 0.75, n)); }")
+      .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\nif (vCrown > 0.5) { vec3 e = vec3(0.35, 0.0, 0.0); float c0 = tn(vTreeP * 1.6); vec3 g = vec3(tn((vTreeP + e.xyy) * 1.6) - c0, tn((vTreeP + e.yxy) * 1.6) - c0, tn((vTreeP + e.yyx) * 1.6) - c0); normal = normalize(normal - (viewMatrix * vec4(g, 0.0)).xyz * 2.2); }");
     shader.vertexShader = shader.vertexShader.replace("#include <color_vertex>", /* glsl */ `
       #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
         vColor.xyz = vec3( 1.0 );
@@ -677,7 +856,7 @@ export function treeMaterial() {
       #endif
     `);
   };
-  m.customProgramCacheKey = () => "tree-v2";
+  m.customProgramCacheKey = () => "tree-v3";
   return m;
 }
 

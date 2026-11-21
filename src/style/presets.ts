@@ -62,11 +62,11 @@ export const plavWarm: StyleConfig = {
   water: { color: "#5b9aa6", deep: "#3f7c8c", shore: "#9cc3c2", roughness: 0.18, reed: "#7f9a4c", reedDry: "#a69a62" },
   trees: { leaf: ["#6c9a4c", "#5c8a43", "#7ba456", "#4f7d3f", "#87ab5f"], conifer: ["#3e6e40", "#35643c", "#497a47"], trunk: "#7a5b43", size: 1.0 },
   minaret: { color: "#f4f1ea", cap: "#7f8c95" },
-  post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: true, tiltFocus: 0.62, tiltFeather: 0.3, tiltBlur: 1, exposure: 1.0 },
+  post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: false, tiltFocus: 0.62, tiltFeather: 0.3, tiltBlur: 1, exposure: 1.0 },
   camera: { fov: 28, startPolarDeg: 40, startAzimuthDeg: 28, startDistance: 420 },
   night: { fog: "#0e1626", fogNear: 1200, fogFar: 6500, moon: "#9db2e6", moonIntensity: 0.3, sky: "#26365a", ground: "#14171f", ambient: 0.46 },
   dusk: { sun: "#ffb47a", intensity: 2.8, azimuthDeg: 258, elevationDeg: 14, sky: "#cfcadc", ground: "#9a8774", ambient: 1.2, fog: "#ecc9a8", fogNear: 1000, fogFar: 7000, lights: 0.22 },
-  grade: { saturation: -0.2, contrast: 0.06, brightness: 0.02, vignette: 0.28 },
+  grade: { saturation: -0.12, contrast: 0.05, brightness: 0.02, vignette: 0.14 },
   // Prokletije: pale grey limestone, olive-tan alpine grass, dark spruce/fir/beech forest
   terrain: { alpine: "#a3a578", canopy: "#557a42", conifer: "#44663f", rock: "#bdb8ac", scree: "#a9a395", hazeBase: 0.07, hazeRange: 0.55, hazeDistance: 26000, zenith: "#c4d2e6" },
 };

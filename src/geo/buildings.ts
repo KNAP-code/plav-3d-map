@@ -167,7 +167,7 @@ export function variation(b: Building, style: StyleConfig, est = false) {
   const dormers = false && p4 && !outb && !block && b.floors >= 2 && roofK !== "flat" && area >= 85 && h("dm") < 0.32 ? (Math.max(b.obb[3], b.obb[4]) >= 12 ? 2 : 1) : 0;
   const cross = false && p4 && !outb && !block && roofK !== "flat" && area >= 95 && b.obb[3] / Math.max(b.obb[4], 1) >= 1.25 && h("cg") < 0.3;
   const stair = p4 && !outb && !block && b.floors >= 2 && !balcony && h("stair") < 0.2;
-  const shrubs = p4 && !outb && !block;
+  const shrubs = false; // Phase 5: foundation planting moved to surroundings.ts (rounder shrubs, on the terrain)
   const fascia = !p4 ? null : outb ? "#5b4636" : roofMat === ROOF_MAT.metal ? "#4f4740" : h("fa") < 0.55 ? "#efebe3" : "#5e4535";
   const soffit = !p4 ? null : outb ? "#6b5440" : h("so") < 0.6 ? "#8a6a4e" : "#d9d3c8";
   const chimCol = !p4 ? null : h("ch") < 0.5 ? "#a8a29a" : h("ch") < 0.8 ? "#9c5a44" : "#8d8b86";
@@ -539,7 +539,7 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
       R.pos.push(x, z, -y);
       R.col.push(rc.r, rc.g, rc.b);
       R.uv.push(u, v);
-      R.st.push(vr.roofMat);
+      R.st.push(vr.roofMat + (vr.p4 ? 8 : 0));
     };
     if (isFlat) {
       const tris = triangulate(ring);

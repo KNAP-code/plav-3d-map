@@ -14,7 +14,7 @@ import { furnitureGeometry, sidewalksGeometry } from "@/geo/street";
 import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
 import { bridgeGeometry, headstoneMatrices, pierGeometry, pitchGeometry, powerGeometry, sidewalkGeometry, zebraGeometry } from "@/geo/streetscape";
 import { fenceGeometry, fruitTrees, hayMatrices, haystack, yardGeometry } from "@/geo/gardenscape";
-import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, farTerrainMaterial, skyMaterial, treeMaterial, waterMaterial, reedMaterial, tuftMaterial, REFLECT } from "./materials";
+import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, pbrTexture, skyEnvironment, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, farTerrainMaterial, skyMaterial, treeMaterial, waterMaterial, reedMaterial, tuftMaterial, REFLECT } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
 import { contactShadowGeometry, surroundingsGeometry } from "@/geo/surroundings";
 import { chooseStride, chunkGeometry, levelChunks, type Chunk } from "@/geo/terrainLevels";
@@ -198,7 +198,14 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
     const tint = verifyMap ? (bb: Building) => verifyTint(verifyMap.get(bb.id)) : audit ? (bb: Building) => auditTint(bb, auditMap?.get(bb.id)) : undefined;
     return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, tint, estimates && !tint));
   }, [data, skip, audit, auditMap, verifyMap, estimates, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
-  const mNear = useMemo(() => buildingMaterial(style, true), [style]);
+  const { gl, invalidate } = useThree();
+  const mNear = useMemo(() => {
+    const m = buildingMaterial(style, true);
+    // Phase 5: sky reflections for glass and metal roofs (also a little sky light on every wall)
+    m.envMap = skyEnvironment(gl); m.envMapIntensity = 0.55;
+    return m;
+  }, [style, gl]);
+  useEffect(() => { pbrTexture(() => invalidate()); }, [invalidate]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
   useDispose(useMemo(() => geos.flatMap((g) => [g.main, g.details]), [geos]));
   useDispose(useMemo(() => [mNear, mFar], [mNear, mFar]));

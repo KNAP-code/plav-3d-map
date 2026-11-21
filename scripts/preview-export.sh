@@ -11,6 +11,7 @@ rm -rf out/_not-found out/404 out/404.html out/*.txt
 echo "preview export ready in out/"
 # Some static hosts only serve standard web types: ship the binary grids as .wasm (application/wasm, byte-exact).
 for d in out/data/*/; do
+  [ -f "$d/meta.json" ] || continue
   for f in "$d"*.bin; do mv "$f" "${f%.bin}.wasm"; done
   python3 - "$d/meta.json" <<'PY'
 import json, sys

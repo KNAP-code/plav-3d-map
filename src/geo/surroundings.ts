@@ -57,18 +57,22 @@ export function surroundingsGeometry(d: AreaData, road: Road) {
       if (k === n - 1) quad([P(t1, -1, z0b), P(t1, 1, z0b), P(t1, 1, zb), P(t1, -1, zb)], side);
     }
   };
-  /** low-poly shrub (two stacked octahedra) */
-  const shrub = (x: number, y: number, r: number, c: THREE.Color) => {
-    const g = h(x, y);
-    for (const [dz, rr] of [[r * 0.75, r], [r * 1.45, r * 0.62]] as const) {
-      const zc = g + dz, top: [number, number, number] = [x, y, zc + rr * 0.85], bot: [number, number, number] = [x, y, zc - rr * 0.75];
-      const ring: [number, number, number][] = [[x + rr, y, zc], [x, y + rr, zc], [x - rr, y, zc], [x, y - rr, zc]];
-      for (let q = 0; q < 4; q++) {
-        const a = ring[q], b = ring[(q + 1) % 4], s = c.clone().multiplyScalar(0.84 + 0.16 * (q % 2));
-        put(a[0], a[1], a[2], s); put(b[0], b[1], b[2], s); put(top[0], top[1], top[2], s.clone().multiplyScalar(1.15));
-        put(b[0], b[1], b[2], s); put(a[0], a[1], a[2], s); put(bot[0], bot[1], bot[2], s.clone().multiplyScalar(0.7));
-      }
+  /** rounded shrub: 7-sided blob with three rings and jittered radii (reads as a soft bush, ~35 triangles) */
+  const shrub = (x: number, y: number, r: number, c: THREE.Color, seed = 0) => {
+    const g = h(x, y) - 0.05, S = 7;
+    const rings: [number, number][] = [[0.75, 0], [1.0, 0.55], [0.72, 1.15]];
+    const pts = rings.map(([rr, dz], k) => Array.from({ length: S }, (_, i) => {
+      const a = (i / S) * Math.PI * 2 + k * 0.45 + seed, j = 0.85 + 0.3 * hash01(String(i + 7 * k), "j" + seed.toFixed(2));
+      return [x + Math.cos(a) * r * rr * j, y + Math.sin(a) * r * rr * j, g + dz * r] as [number, number, number];
+    }));
+    const top: [number, number, number] = [x, y, g + r * 1.45];
+    const shade = (k: number, i: number) => c.clone().multiplyScalar(0.72 + 0.12 * k + 0.1 * hash01(String(i), "s" + k + seed.toFixed(2)));
+    for (let k = 0; k < 2; k++) for (let i = 0; i < S; i++) {
+      const a = pts[k][i], b = pts[k][(i + 1) % S], c2 = pts[k + 1][(i + 1) % S], d2 = pts[k + 1][i], cc = shade(k, i);
+      put(a[0], a[1], a[2], cc); put(b[0], b[1], b[2], cc); put(c2[0], c2[1], c2[2], cc);
+      put(a[0], a[1], a[2], cc); put(c2[0], c2[1], c2[2], cc); put(d2[0], d2[1], d2[2], cc);
     }
+    for (let i = 0; i < S; i++) { const a = pts[2][i], b = pts[2][(i + 1) % S], cc = shade(2, i); put(a[0], a[1], a[2], cc); put(b[0], b[1], b[2], cc); put(top[0], top[1], top[2], cc.clone().multiplyScalar(1.08)); }
   };
   const gravel = new THREE.Color("#c9bfae"), flags = new THREE.Color("#b5ada2"), conc = new THREE.Color("#a9a59e");
   const hedgeC = ["#3f6a32", "#4a7638", "#3a5f2f"].map((c) => new THREE.Color(c));
@@ -91,6 +95,18 @@ export function surroundingsGeometry(d: AreaData, road: Road) {
       if (sc > best) { best = sc; mid = [mx + nx * 0.9, my + ny * 0.9]; nrm = [nx, ny]; }
     }
     if (!mid) continue;
+    {
+      // foundation planting along the street-facing wall, clear of the door in the middle
+      const tx = -nrm[1], ty = nrm[0], wallLen = Math.max(3, Math.min(Lf, 14));
+      const nS = 2 + Math.floor(hash01(b.id, "fp") * 4);
+      for (let k = 0; k < nS; k++) {
+        const u = (hash01(b.id, "fu" + k) - 0.5) * (wallLen - 1.2);
+        if (Math.abs(u) < 1.4) continue;
+        const fl = hash01(b.id, "ff" + k) < 0.3, r = fl ? 0.38 : 0.5 + hash01(b.id, "fr" + k) * 0.3;
+        const px = mid[0] - nrm[0] * 0.2 + tx * u, py = mid[1] - nrm[1] * 0.2 + ty * u;
+        shrub(px, py, r, fl ? bloom[Math.floor(hash01(b.id, "fb" + k) * bloom.length)] : shrubC[Math.floor(hash01(b.id, "fc" + k) * shrubC.length)], k * 1.7);
+      }
+    }
     const dist = Math.hypot(rp[0] - mid[0], rp[1] - mid[1]);
     if (dist < 4.5 || dist > 26) continue;
     const ux = (rp[0] - mid[0]) / dist, uy = (rp[1] - mid[1]) / dist, end: P2 = [rp[0] - ux * 3.0, rp[1] - uy * 3.0];
@@ -102,7 +118,6 @@ export function surroundingsGeometry(d: AreaData, road: Road) {
       const a: P2 = [end[0] + ox, end[1] + oy], c: P2 = [end[0] + ox - ux * 5.5, end[1] + oy - uy * 5.5];
       if (!inPoly(c, ring) && !inPoly([(a[0] + c[0]) / 2, (a[1] + c[1]) / 2], ring)) strip(a, c, 2.8, hash01(b.id, "pm") < 0.5 ? conc : gravel, 0.19);
     }
-    void nrm;
   }
 
   // ---- hedges and shrubs in the yards of the detail districts
@@ -133,7 +148,7 @@ export function surroundingsGeometry(d: AreaData, road: Road) {
       const near = holes.some((hl) => hl.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 2.2));
       if (near) continue;
       const fl = hash01(key, "fl" + k) < 0.3;
-      shrub(p[0], p[1], fl ? 0.45 : 0.6 + hash01(key, "sr" + k) * 0.5, fl ? bloom[Math.floor(hash01(key, "bc" + k) * bloom.length)] : shrubC[Math.floor(hash01(key, "sc" + k) * shrubC.length)]);
+      shrub(p[0], p[1], fl ? 0.45 : 0.6 + hash01(key, "sr" + k) * 0.5, fl ? bloom[Math.floor(hash01(key, "bc" + k) * bloom.length)] : shrubC[Math.floor(hash01(key, "sc" + k) * shrubC.length)], k + i * 0.13);
       k++;
     }
   });
