@@ -950,6 +950,112 @@ const DUROVICA_KULA: LandmarkDef = {
   },
 };
 
+
+/**
+ * Caffe & Restoran Timm (Racina), proof of concept for photo-driven reconstruction (Am, 2026-11-21).
+ * Identification: footprint OSM way 533439703 (13.6 × 13.1 m). The Overture place "Caffe & Restoran Timm" lies 3 m
+ * from it, its plain rectangular street front matches the flat, continuous facade in the photo (the neighbour
+ * 43747d8b has a stepped front), and the 1 m image shows a bright roofed strip 3.5-4 m deep and about 20 m wide in
+ * front of exactly this footprint (centred on it within ~1 m): the terrace roof seen in the photo.
+ * Frame: +t points to Racina (front, t = 6.55); seen from the street, photo-left is +s (north-west).
+ * Dimensions: facade width from the footprint; heights from the photo, scaled by that width (camera solved on the
+ * model, 1.2 px rms). Only the street front is seen in the photo: the sides and back are plain walls.
+ */
+const TIMM: LandmarkDef = {
+  name: "Caffe & Restoran Timm",
+  sources: ["Am's photo of Caffe TIMM at night (2026-11-21, 360 × 263 px; kept in project files, not in the repo)",
+    "OSM building way 533439703; Overture place 'Caffe & Restoran Timm' (confidence 0.94)", "Satellogic 1 m 2022-08-31 (terrace roof)"],
+  verified: [
+    "Footprint and position: OSM way 533439703, identified as TIMM (place point 3 m away, flat front, terrace roof in the 1 m image)",
+    "Photo: ground floor + 3 upper floors; a fourth level is not visible (trees, roof not seen)",
+    "Photo: projecting balconies with solid dark-red parapets and white flower boxes on all three upper floors of both wings",
+    "Photo: central curved vertical section, dark red with white horizontal bands at the floor levels, three windows per floor",
+    "Photo: white vertical strips framing the curved section; light recessed walls behind the balconies, one window or door per wing and floor, wall lamps",
+    "Photo: glazed cafe terrace across the whole front and beyond it on both sides, low decorated screen, dark fascia band, entrance right of the centre; TIMM sign board on the first-floor parapet right of the curved section",
+    "1 m image: terrace roof about 20.5 m wide and 3.75 m deep, light in colour",
+  ],
+  estimated: [
+    "Heights from photo proportions scaled by the 13.6 m footprint width: ground floor 3.8 m, upper floors 2.9 m, eave 12.2 m, parapets 1.1 m (±10 %)",
+    "Facade divisions measured on a single frontal photo without perspective correction (±0.5 m): left wing 3.6 m, strips 0.9 / 0.7 m, curved section 2.9 m, right wing 5.6 m (the facade is not symmetric)",
+    "Balcony depth 1.3 m and curved section projection 2.3 m beyond the wall (depth cannot be read from a frontal photo)",
+    "Colours: the photo is at night under warm artificial light; red, white and cream are approximate",
+    "Roof: hidden by trees in the photo; neutral hip placeholder in the roof colour measured in the 1 m image (UNKNOWN shape)",
+    "Top of the curved section: above the photo frame; ended just above the eave with a flat cap (UNKNOWN)",
+    "Sides and back: not in the photo; plain walls without windows or balconies (UNKNOWN)",
+    "Sign lettering is not modelled (board only)",
+  ],
+  build(B) {
+    const red = C("#8c2a34"), white = C("#f3f1ec"), cream = C("#eadfcc"), side = C("#e3ded5"), glass = C("#2c3136"),
+      dark = C("#2a2b2d"), post = C("#3b3c3e"), screen = C("#d9d6cf"), carpet = C("#8e2a2a"), roof = C("#99625c"), board = C("#18221d"), tglass = C("#5a666e");
+    const hs = 6.8, ht = 6.55, F = [3.8, 6.7, 9.6], eave = 12.2, bal = ht + 1.3;
+    // body: plain walls (sides/back not seen), front wall cream
+    B.walls([[-hs, -ht], [hs, -ht], [hs, ht], [-hs, ht]], -1, eave, side);
+    B.panel(hs, ht, -hs, ht, 3.4, eave, cream, K.plain, 0.02);
+    B.flat([[-hs, -ht], [hs, -ht], [hs, ht], [-hs, ht]], eave, side);
+    // ground floor: commercial glazing behind the terrace
+    B.panel(hs, ht, -hs, ht, 0, 3.4, dark, K.plain, 0.02);
+    for (let u = 0.4; u < 2 * hs - 0.5; u += 1.7) B.rectWindow(hs, ht, -hs, ht, u + 0.75, 1.45, 0.15, 3.1, glass, undefined, 0.05);
+    B.panel(hs, ht, -hs, ht, 3.4, 3.8, white, K.plain, 0.06); // first-floor slab band
+    // wings: projecting balconies on the three upper floors
+    const wings: [number, number, number[]][] = [[3.23, hs, [4, 4, 4]], [-hs, -1.2, [3, 6, 5]]];
+    for (const [s0, s1, boxes] of wings) {
+      F.forEach((f, i) => {
+        B.box(s0, s1, ht, bal, f - 0.22, f, white); // slab, white edge
+        B.panel(s1, bal, s0, bal, f, f + 1.1, red, K.plain, 0.0); // solid parapet front
+        B.panel(s0, bal, s0, ht, f, f + 1.1, red); B.panel(s1, ht, s1, bal, f, f + 1.1, red);
+        B.box(s0, s1, bal - 0.18, bal, f + 1.1, f + 1.16, white); // coping
+        // white flower boxes on the parapet (counted in the photo; the first-floor right ones beside the sign)
+        const n = boxes[i], a = i === 0 && s0 < 0 ? s0 + 0.3 : s0 + 0.35, b = i === 0 && s0 < 0 ? s0 + 2.0 : s1 - 0.35;
+        for (let k = 0; k < n; k++) { const c = n === 1 ? (a + b) / 2 : a + ((b - a) * k) / (n - 1); B.box(c - 0.26, c + 0.26, bal - 0.24, bal + 0.05, f + 1.16, f + 1.38, white); }
+        // one window or balcony door per wing and floor, with a wall lamp each side (lit at night)
+        const u = s0 > 0 ? 4.66 : -4.4;
+        B.rectWindow(u + 0.6, ht, u - 0.6, ht, 0.6, 1.2, f + 0.5, f + 2.3, glass, white, 0.05);
+        for (const d of [-1.05, 1.05]) B.rectWindow(u + d + 0.08, ht, u + d - 0.08, ht, 0.08, 0.16, f + 1.75, f + 1.95, C("#ffd9a0"), undefined, 0.07);
+      });
+    }
+    // white vertical strips framing the curved section
+    for (const [s0, s1] of [[2.37, 3.23], [-1.2, -0.53]] as const) B.box(s0, s1, ht, bal + 0.1, 3.4, eave + 0.3, white);
+    // central curved section: half-cylinder in front of the wall, dark red with white bands at the floor levels
+    const cs = 0.92, ct = bal - 0.45, R = 1.45, top = eave + 0.8, n = 14;
+    const arc = (r: number, z0: number, z1: number, col: THREE.Color, kind: number = K.plain) => {
+      for (let i = 0; i < n; i++) {
+        const a0 = (i / n) * Math.PI, a1 = ((i + 1) / n) * Math.PI;
+        const p = (a: number, z: number): V3 => [cs + Math.cos(a) * r, ct + Math.sin(a) * r, z];
+        B.quad(p(a1, z0), p(a0, z0), p(a0, z1), p(a1, z1), col, kind);
+      }
+    };
+    arc(R, 3.4, top, red);
+    for (const z of [F[1] - 0.15, F[2] - 0.15, eave - 0.1]) arc(R + 0.08, z, z + 0.35, white);
+    arc(R + 0.1, top - 0.25, top, white);
+    for (let i = 0; i < n; i++) { const a0 = (i / n) * Math.PI, a1 = ((i + 1) / n) * Math.PI; B.tri([cs, ct, top], [cs + Math.cos(a1) * R, ct + Math.sin(a1) * R, top], [cs + Math.cos(a0) * R, ct + Math.sin(a0) * R, top], white, K.plain, [0, 0], [1, 0], [1, 1]); }
+    // three tall windows per floor on the curve
+    for (const f of F) for (const a of [0.95, Math.PI / 2, Math.PI - 0.95]) {
+      const w = 0.72, da = w / 2 / (R + 0.04), z0 = f + 1.0, z1 = f + 2.45;
+      const p = (aa: number, z: number): V3 => [cs + Math.cos(aa) * (R + 0.04), ct + Math.sin(aa) * (R + 0.04), z];
+      B.quad(p(a + da, z0), p(a - da, z0), p(a - da, z1), p(a + da, z1), glass, K.glass);
+    }
+    // TIMM sign board on the first-floor parapet, right of the curved section (lettering not modelled)
+    B.box(-4.1, -0.45, bal + 0.02, bal + 0.14, F[0] + 0.15, F[0] + 1.35, board);
+    B.box(-3.6, -0.95, bal + 0.14, bal + 0.16, F[0] + 0.62, F[0] + 0.72, C("#f4f4ee"));
+    // roof: hidden in the photo -> neutral hip placeholder in the measured roof colour; white eave board seen in the photo
+    B.panel(hs, ht, -hs, ht, eave - 0.3, eave, white, K.plain, 0.5);
+    B.hipRoof(hs + 0.5, ht + 0.5, eave, 0.45, roof, K.plain);
+    // glazed cafe terrace (1 m image: 20.5 × 3.75 m), posts, low decorated screen, dark fascia, entrance gap
+    const ts0 = -10.5, ts1 = 10.0, tf = ht + 3.75, th = 3.3;
+    B.box(ts0, ts1, ht, tf, th, th + 0.3, white);
+    B.panel(ts1, tf + 0.02, ts0, tf + 0.02, th - 0.2, th + 0.35, dark);
+    B.flat([[ts0, ht], [ts1, ht], [ts1, tf], [ts0, tf]], 0.04, C("#b9b2a6"));
+    const door0 = -3.5, door1 = -1.2;
+    for (let x = ts0; x <= ts1 + 1e-3; x += (ts1 - ts0) / 9) B.box(x - 0.08, x + 0.08, tf - 0.16, tf, 0, th, post);
+    for (const [a, b] of [[ts0, door0], [door1, ts1]] as const) {
+      B.panel(b, tf, a, tf, 0, 1.2, screen, K.plain, 0.01);
+      B.panel(b, tf, a, tf, 1.2, th - 0.2, tglass, K.glass, 0.0);
+    }
+    B.flat([[door0, tf - 1.2], [door1, tf - 1.2], [door1, tf + 1.0], [door0, tf + 1.0]], 0.06, carpet);
+    for (const x of [ts0, ts1]) { B.panel(x, ht, x, tf, 0, 1.2, screen); B.panel(x, ht, x, tf, 1.2, th - 0.2, tglass, K.glass); }
+  },
+};
+
 /** Landmarks by building id (Overture/OSM id of the real footprint). */
 export const LANDMARKS: Record<string, LandmarkDef> = {
   "d8f69ad5-7153-4d6e-955e-b92a1d3e95f6": STARA,
@@ -957,6 +1063,7 @@ export const LANDMARKS: Record<string, LandmarkDef> = {
   "7ab32b00-f4fc-4c90-b77b-ef344f97e8bc": SULTANIJA,
   "046e12de-83fc-4793-a0ea-d1e63069c2d7": REDZEPAGICA_DZ,
   "a7e3238c-8616-4b92-a8f1-60669e556198": SABOVICA,
+  "0a7635b8-36a2-4a37-9653-eef91209fbd7": TIMM,
 };
 
 /** Modelled landmarks whose footprint is not yet known: built and documented, but not placed on the map. */
