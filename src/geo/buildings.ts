@@ -110,6 +110,15 @@ export const DETAIL_AREAS: [number, number, number][] = [[170, -230, 520]];
 export const inDetailXY = (px: number, py: number) => DETAIL_AREAS.some(([x, y, r]) => Math.hypot(px - x, py - y) <= r);
 const inDetailArea = (b: Building) => inDetailXY(b.obb[0], b.obb[1]);
 
+/**
+ * Phase 5.1 evidence mode (pilot districts, buildings with recon.json data): only what a source shows is drawn.
+ * Roof colour comes from the 1 m image; roof covering is estimated from that colour; facades are UNKNOWN and use one
+ * neutral plaster tone; no balconies, porches, stairs, chimneys, stone plinths, shutters, curtains or blinds, and no
+ * random roof variants, pitches or colour jitter. Unknown roof colours use a neutral grey.
+ */
+export const NEUTRAL = { wall: "#e3ded5", outb: "#bdb6aa", roof: "#8e8983", fascia: "#d8d3ca", soffit: "#cfc9bf" } as const;
+export const NEUTRAL_BIT = 4096;
+
 export function variation(b: Building, style: StyleConfig, est = false) {
   const area = b.obb[3] * b.obb[4];
   // Rules v2 (2026-11-20): style follows data, not chance. Apartment-block styling only where OSM records 4+ levels;
@@ -136,6 +145,20 @@ export function variation(b: Building, style: StyleConfig, est = false) {
   let rail = "#efeeea";
   let roofMat: number = ROOF_MAT.tile;
   let finish = 0; // 0 plaster, 1 exposed brick, 2 grey block (unfinished facades)
+  const ev = est && !sacred && !!b.recon && inDetailArea(b);
+  if (ev) {
+    const r = b.recon!;
+    pitch = base + (block ? 4 : 9); overhang = Math.max(overhang, block ? 0.6 : 0.75);
+    roofPick = r.rc ?? NEUTRAL.roof;
+    roofMat = !r.mat ? ROOF_MAT.concrete : r.mat.startsWith("clay") ? ROOF_MAT.tile : ROOF_MAT.metal;
+    wallPick = outb ? NEUTRAL.outb : NEUTRAL.wall;
+    return {
+      p4: true, ev, frameKind: 0, stone: false, porch: false, dormers: 0, cross: false, stair: false, shrubs: false,
+      fascia: NEUTRAL.fascia, soffit: NEUTRAL.soffit, chimCol: null, pitch, overhang, facade, shop, bay: style.window.bayWidth,
+      chimney: false, roof, trad: false, block, balcony: false, entrance, wallPick, roofPick, rail, outb, roofMat, finish: 0, est, barn: false,
+      seed: h("seed"), light: 0, roofLight: 0,
+    };
+  }
   if (est && !sacred && roof !== "flat") {
     // steeper snow roofs and deep eaves (estimate for the 900+ m valley)
     pitch += block ? 4 : 7 + h("pt") * 5;
@@ -172,7 +195,7 @@ export function variation(b: Building, style: StyleConfig, est = false) {
   const soffit = !p4 ? null : outb ? "#6b5440" : h("so") < 0.6 ? "#8a6a4e" : "#d9d3c8";
   const chimCol = !p4 ? null : h("ch") < 0.5 ? "#a8a29a" : h("ch") < 0.8 ? "#9c5a44" : "#8d8b86";
   return {
-    p4, frameKind, stone, porch, dormers: cross ? 0 : dormers, cross, stair, shrubs, fascia, soffit, chimCol,
+    p4, ev: false, barn: outb && est, frameKind, stone, porch, dormers: cross ? 0 : dormers, cross, stair, shrubs, fascia, soffit, chimCol,
     pitch, overhang, facade, shop, bay, chimney, roof: roofK, trad, block, balcony, entrance, wallPick, roofPick, rail, outb, roofMat, finish, est,
     seed: h("seed"), light: (h("l") - 0.5) * 0.07, roofLight: (h("rl") - 0.5) * 0.08,
   };
@@ -219,10 +242,10 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
     const isFlat = vr.roof === "flat";
     const tc = tint?.(b);
     const wc = tc ? new THREE.Color(tc) : (sacred ? white : vr.wallPick ? new THREE.Color(vr.wallPick) : wallCols[b.v % wallCols.length]).clone().offsetHSL(0, 0, vr.light);
-    const rc = tc ? new THREE.Color(tc).multiplyScalar(0.8) : (isFlat ? flatCol : vr.roofPick ? new THREE.Color(vr.roofPick) : roofCols[(b.v * 7 + 3) % roofCols.length]).clone().offsetHSL(0, 0, vr.roofLight);
+    const rc = tc ? new THREE.Color(tc).multiplyScalar(0.8) : (isFlat && !vr.ev ? flatCol : vr.roofPick ? new THREE.Color(vr.roofPick) : roofCols[(b.v * 7 + 3) % roofCols.length]).clone().offsetHSL(0, 0, vr.roofLight);
     const tan = Math.tan((vr.pitch * Math.PI) / 180), cosP = Math.cos((vr.pitch * Math.PI) / 180);
     const ov = vr.overhang, bay = vr.bay;
-    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + (vr.trad ? 8 : 0) + (vr.outb ? 16 : 0) + (vr.finish === 1 ? 32 : vr.finish === 2 ? 64 : 0) + (vr.outb && vr.est ? 128 : 0) + (vr.stone ? 256 : 0) + (vr.frameKind === 1 ? 512 : 0) + (vr.frameKind === 2 ? 1024 : 0) + (vr.p4 ? 2048 : 0) + vr.seed * 0.999;
+    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + (vr.trad ? 8 : 0) + (vr.outb ? 16 : 0) + (vr.finish === 1 ? 32 : vr.finish === 2 ? 64 : 0) + (vr.barn ? 128 : 0) + (vr.stone ? 256 : 0) + (vr.frameKind === 1 ? 512 : 0) + (vr.frameKind === 2 ? 1024 : 0) + (vr.p4 ? 2048 : 0) + (vr.ev ? NEUTRAL_BIT : 0) + vr.seed * 0.999;
 
     const L = Lfull / 2 + ov, Wd = Wfull / 2 + ov;
     const planes = isFlat ? [] : roofPlanes(vr.roof, L, Wd);

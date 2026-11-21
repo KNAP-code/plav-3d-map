@@ -26,7 +26,19 @@ export type Building = {
   kind?: string;
   /** share of the footprint lying on a mapped street carriageway (audit) */
   onStreet?: number;
+  /** Phase 5.1 evidence for pilot buildings (public/data/<area>/recon.json, pipeline/reconstruct.py) */
+  recon?: Recon;
 };
+/** Confidence: V verified (read from a source), E estimated (derived by a stated rule), U unknown (neutral placeholder). */
+export type Conf = "V" | "E" | "U";
+export type Recon = {
+  L: number; W: number; az: number; area: number; fpSrc: string; fpC: Conf;
+  rc?: string; rcN: number; rcC: Conf; rcNote?: string; mat?: string; matC: Conf;
+  fl: number; eave: number; flC: Conf; flSrc: string;
+  roof: string; roofC: Conf; roofSrc: string;
+  use: string; useC: Conf; useSrc?: string; name?: string; facC: Conf; balC: Conf;
+};
+export type ReconMeta = { pilot: [number, number, number]; n: number; imagery: string; confidence: Record<string, Record<Conf, number>>; rejected: Record<string, string> };
 export type Minaret = { x: number; y: number; g: number; height: number };
 export type Road = {
   c: string; n: string | null; bridge: boolean; tunnel: boolean; pts: [number, number][];
@@ -85,6 +97,8 @@ export class LevelStack {
 
 export type AreaData = {
   meta: AreaMeta;
+  /** Phase 5.1 pilot evidence summary (recon.json), null when absent */
+  reconMeta: ReconMeta | null;
   datum: number; // elevation subtracted from every height in the scene
   core: Heightfield;
   /** ground outside the core: the real-terrain level stack when baked, else the legacy 60 m context grid */
@@ -169,6 +183,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const streetsP = fetch(`${base}/streets.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const gardensP = fetch(`${base}/gardens.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const waterP = fetch(`${base}/water.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const reconP = fetch(`${base}/recon.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const terrainInfo: TerrainInfo | null = await fetch(`${base}/terrain/terrain.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const bandP = terrainInfo?.treesBand ? bin(`${base}/terrain/${terrainInfo.treesBand.file}`).catch(() => null) : Promise.resolve(null);
@@ -198,6 +213,8 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const context = levels.length ? new LevelStack(levels) : decode(ctxBuf, meta.context);
   const levelBytes = lv.reduce((a, l) => a + l.buf.byteLength, 0);
   const b = JSON.parse(bjs);
+  const recon = (await reconP) as { meta: ReconMeta; b: Record<string, Recon> } | null;
+  if (recon) for (const bb of b.buildings as Building[]) { const r = recon.b[bb.id]; if (r) bb.recon = r; }
   const v = JSON.parse(vjs);
   // trees in a thinning band just outside the core (pipeline/terrain.py), appended to the city's WorldCover trees
   const band = await bandP;
@@ -212,6 +229,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
     furniture, streets, gardens: (await gardensP) as Gardens | null,
     meta, core, context, levels, terrainInfo, coverCore, coverContext,
     datum: meta.core.base,
+    reconMeta: recon?.meta ?? null,
     buildings: b.buildings, removed: b.removed ?? [], minarets: b.minarets,
     roads: v.roads, crossings: v.crossings ?? [], water: v.water, streams: v.streams, overlays: v.overlays,
     trees,

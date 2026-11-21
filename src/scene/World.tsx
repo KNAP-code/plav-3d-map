@@ -175,8 +175,13 @@ export const VERIFY_COLORS = { verified: "#2f9e57", confirmed: "#7fcf8a", presen
 export type VerifyEntry = { tier: keyof typeof VERIFY_COLORS; why?: string; area?: string; ms_iou?: number; res?: number; img?: number; chm?: number; obsc?: boolean; det?: number; corr?: { kind: string; confidence: string; evidence: string[] } };
 const verifyTint = (e?: VerifyEntry) => VERIFY_COLORS[e?.tier ?? "unconfirmed"] ?? VERIFY_COLORS.unconfirmed;
 
-export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, verifyMap, onPick, estimates = false }: {
-  data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean; estimates?: boolean;
+/** Phase 5.1 evidence view (#recon): colour by the confidence of one attribute. */
+export const RECON_COLORS = { V: "#2f9e57", E: "#e3b341", U: "#9aa0a6", none: "#d8d6d2" } as const;
+export type ReconAttr = "fpC" | "rcC" | "matC" | "flC" | "roofC" | "useC" | "facC";
+const reconTint = (b: Building, k: ReconAttr) => b.recon ? RECON_COLORS[b.recon[k]] : RECON_COLORS.none;
+
+export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, verifyMap, reconAttr, onPick, estimates = false }: {
+  data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean; estimates?: boolean; reconAttr?: ReconAttr;
   auditMap?: Map<string, AuditEntry>; verifyMap?: Map<string, VerifyEntry>; onPick?: (b: Building) => void;
 }) {
   const near = TIERS[quality].buildingNear;
@@ -195,9 +200,9 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
     }
     bump("geometryBuilds");
     const road = roadLookup(data);
-    const tint = verifyMap ? (bb: Building) => verifyTint(verifyMap.get(bb.id)) : audit ? (bb: Building) => auditTint(bb, auditMap?.get(bb.id)) : undefined;
+    const tint = reconAttr ? (bb: Building) => reconTint(bb, reconAttr) : verifyMap ? (bb: Building) => verifyTint(verifyMap.get(bb.id)) : audit ? (bb: Building) => auditTint(bb, auditMap?.get(bb.id)) : undefined;
     return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, tint, estimates && !tint));
-  }, [data, skip, audit, auditMap, verifyMap, estimates, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data, skip, audit, auditMap, verifyMap, reconAttr, estimates, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const { gl, invalidate } = useThree();
   const mNear = useMemo(() => {
     const m = buildingMaterial(style, true);

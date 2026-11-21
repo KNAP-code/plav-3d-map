@@ -574,6 +574,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         bool barn = mod(floor(sv / 128.0), 2.0) > 0.5;   // estimate: timber barn / shed
         bool stoneG = mod(floor(sv / 256.0), 2.0) > 0.5; // Phase 4 estimate: rubble-stone ground floor
         bool p4 = mod(floor(sv / 2048.0), 2.0) > 0.5;    // Phase 4 detailed facade (pilot districts)
+        bool neu = mod(floor(sv / 4096.0), 2.0) > 0.5;   // Phase 5.1 evidence mode: facade unknown, no invented extras
         vec3 frameC = mod(floor(sv / 512.0), 2.0) > 0.5 ? vec3(0.42, 0.29, 0.2) : mod(floor(sv / 1024.0), 2.0) > 0.5 ? vec3(0.25, 0.27, 0.28) : vec3(0.95, 0.94, 0.9);
         bool ground = fl > nFl - 1.5;
         // per-building window size variation (from the quantised seed)
@@ -598,7 +599,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float oY = smoothstep(wy0 - fr * 1.4 - fw.y, wy0 - fr * 1.4 + fw.y, c.y) * (1.0 - smoothstep(wy1 + fr * 2.2 - fw.y, wy1 + fr * 2.2 + fw.y, c.y));
         float frame = oX * oY * valid * fade * (shop && ground ? 0.0 : 1.0);
         // shutters beside the windows: traditional houses and ~30% of other houses (not blocks, not shopfronts)
-        bool shut = (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < (p4 ? (uPbrOn > 0.5 ? 0.14 : 0.45) : 0.3))) && !(shop && ground) && kind < 1.5;
+        bool shut = !neu && (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < (p4 ? (uPbrOn > 0.5 ? 0.14 : 0.45) : 0.3))) && !(shop && ground) && kind < 1.5;
         float sw = (wx - fr) * 0.75;
         float sX = (smoothstep(wx - fr - sw - fx, wx - fr - sw + fx, cx) * (1.0 - smoothstep(wx - fr - fx, wx - fr + fx, cx)))
                  + (smoothstep(1.0 - wx + fr - fx, 1.0 - wx + fr + fx, cx) * (1.0 - smoothstep(1.0 - wx + fr + sw - fx, 1.0 - wx + fr + sw + fx, cx)));
@@ -722,6 +723,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
             float frameM = clamp(fr2 + mull + tran, 0.0, 1.0);
             // what is behind the glass: dark room, sometimes net curtains or side drapes 25 cm further in
             vec2 g2 = q + off * 0.43;
+            if (neu) wseed = 0.8 + wseed * 0.2; // no curtains or drapes: plain dark interior
             float net = step(wseed, 0.35) * step(g2.y, H * 0.95) * step(0.0, g2.x) * step(g2.x, W);
             float drape = step(0.35, wseed) * step(wseed, 0.6) * (step(g2.x, W * 0.24) + step(W * 0.76, g2.x));
             vec3 room = mix(vec3(0.045, 0.045, 0.05), vec3(0.09, 0.08, 0.07), wseed);
@@ -732,7 +734,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
             glassMask = 1.0 - frameM;
             // external roller blind (very common here): partly lowered on ~60 % of windows, set in the head reveal
             float bseed = h21(vec2(floor(vW.x) + nSeed * 0.17, fl + 11.0));
-            float drop = step(bseed, 0.6) * mix(0.12, 0.7, fract(bseed * 9.7)) * H;
+            float drop = (neu ? 0.0 : 1.0) * step(bseed, 0.6) * mix(0.12, 0.7, fract(bseed * 9.7)) * H;
             vec2 gb = q + off * 0.06;
             if (gb.y < drop && gb.x > 0.0 && gb.x < W) {
               vec3 slat = h21(vec2(nSeed, 13.0)) < 0.55 ? vec3(0.82, 0.81, 0.78) : h21(vec2(nSeed, 13.0)) < 0.8 ? vec3(0.45, 0.33, 0.24) : vec3(0.58, 0.58, 0.56);
@@ -828,7 +830,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v9" : "building-far-v7");
+  }, detail ? "building-near-v10" : "building-far-v7");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */

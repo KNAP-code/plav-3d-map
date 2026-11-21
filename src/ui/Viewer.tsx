@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData, type Building } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { AUDIT_COLORS, AuditLayer, VERIFY_COLORS, VerifyLayer, type VerifyEntry, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
+import { RECON_COLORS, type ReconAttr, AUDIT_COLORS, AuditLayer, VERIFY_COLORS, VerifyLayer, type VerifyEntry, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, eyeAt, flyTo, type TimeOfDay } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
@@ -22,7 +22,7 @@ function params() {
   // Hosts that only pass a plain #name (e.g. the preview link) can use #stats, #tune, #sample, #en, #low, #medium, #high.
   // several flags can be combined: #audit,osm or #night&high
   for (const h of window.location.hash.replace(/^#/, "").split(/[,&+]/).filter(Boolean)) {
-    if (h === "stats" || h === "tune" || h === "audit" || h === "osm" || h === "verify") p.set(h, "1");
+    if (h === "stats" || h === "tune" || h === "audit" || h === "osm" || h === "verify" || h === "recon") p.set(h, "1");
     else if (h === "sample") p.set("area", "plav-sample");
     else if (h === "centre") p.set("area", "plav-centre");
     else if (h === "en") p.set("lang", "en");
@@ -54,6 +54,49 @@ const TIER_TEXT: Record<string, string> = {
   unconfirmed: "unconfirmed: no independent source confirms or contradicts it",
   disputed: "disputed: ML only, two independent sources show vegetation",
 };
+
+const CONF_TEXT = { V: "VERIFIED", E: "ESTIMATED", U: "UNKNOWN" } as const;
+const RECON_ATTRS: [ReconAttr, string][] = [["fpC", "footprint"], ["rcC", "roof colour"], ["matC", "roof covering"], ["flC", "storeys / height"], ["roofC", "roof shape"], ["useC", "use"], ["facC", "facade"]];
+
+/** Phase 5.1 building inspector: what is known about the picked building, attribute by attribute, and from where. */
+function ReconInspector({ b, meta, attr, setAttr, overview, onClose }: { b: Building | null; meta: AreaData["reconMeta"]; attr: ReconAttr; setAttr: (a: ReconAttr) => void; overview: boolean; onClose: () => void }) {
+  const r = b?.recon;
+  const chip = (c: "V" | "E" | "U") => <span style={{ display: "inline-block", minWidth: 74, padding: "0 4px", marginRight: 6, borderRadius: 3, fontSize: 10, fontWeight: 600, textAlign: "center", background: RECON_COLORS[c], color: c === "E" ? "#222" : "#fff" }}>{CONF_TEXT[c]}</span>;
+  const line = (c: "V" | "E" | "U", label: string, val: React.ReactNode, src?: string) => (
+    <div style={{ marginTop: 3 }}>{chip(c)}<b>{label}</b>: {val}{src && <div style={{ marginLeft: 80, opacity: 0.65, fontSize: 11 }}>{src}</div>}</div>
+  );
+  const sw = (hex?: string) => hex ? <span style={{ display: "inline-block", width: 22, height: 12, background: hex, border: "1px solid #0006", verticalAlign: -2, marginRight: 4 }} /> : null;
+  return (
+    <div className="stats" style={{ top: 96, left: 12, right: "auto", maxWidth: 380, maxHeight: "calc(100% - 200px)", overflowY: "auto", pointerEvents: "auto", whiteSpace: "normal", lineHeight: 1.4 }}>
+      <button onClick={onClose} style={{ float: "right", pointerEvents: "auto" }} aria-label="close">×</button>
+      <b>What we know about each building</b> (central Plav pilot)<br />
+      {overview && meta && <>
+        <div style={{ fontSize: 11, opacity: 0.8 }}>Colour by confidence of:</div>
+        {RECON_ATTRS.map(([k, t]) => {
+          const c = meta.confidence[k] ?? { V: 0, E: 0, U: 0 };
+          return <div key={k} onClick={() => setAttr(k)} style={{ cursor: "pointer", fontWeight: attr === k ? 700 : 400, fontSize: 12 }}>
+            {attr === k ? "▸ " : "  "}{t}: <span style={{ color: RECON_COLORS.V }}>{c.V} verified</span> · <span style={{ color: RECON_COLORS.E }}>{c.E} estimated</span> · <span style={{ color: "#bbb" }}>{c.U} unknown</span>
+          </div>;
+        })}
+        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>{meta.n} buildings. Unknown attributes are drawn neutral: light plaster walls, grey roof, no balconies or extras.</div>
+      </>}
+      {!b ? <div style={{ marginTop: 6, opacity: 0.8 }}>Tap a building in the pilot area.</div> : !r ? <div style={{ marginTop: 6 }}>Outside the pilot: not yet reconstructed from evidence.</div> : (
+        <div style={{ marginTop: 6, padding: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+          <b>{r.name ?? "Building"}</b><br />
+          {line(r.fpC, "footprint", `${r.L} × ${r.W} m, ${r.area} m², axis ${r.az}°`, `${r.fpSrc} outline; ${r.fpC === "V" ? "confirmed by a second source" : r.fpC === "E" ? "a second source shows a building, outline not confirmed" : "no independent confirmation"}`)}
+          {line(r.rcC, "roof colour", r.rc ? <>{sw(r.rc)}{r.rc}</> : (r.rcNote ?? "not measurable"), r.rc ? `median of ${r.rcN} roof pixels, Satellogic 1 m, 31 Aug 2022${r.rcC === "E" ? " (few pixels or halves disagree)" : ""}` : "drawn neutral grey")}
+          {line(r.matC, "roof covering", r.mat ?? "unknown", r.mat ? "inferred from the roof colour" : undefined)}
+          {line(r.flC, "storeys", r.flC === "U" ? `unknown (drawn as ${r.fl})` : `${r.fl}`, r.flC === "U" ? "no height source for this building; placeholder " + r.flSrc : r.flSrc)}
+          {line(r.roofC, "roof shape", r.roofC === "U" ? `unknown (drawn ${r.roof})` : r.roof, r.roofSrc)}
+          {line(r.useC, "use", r.use, r.useSrc)}
+          {line(r.facC, "facade colour", "unknown (neutral plaster)", "no street-level imagery available")}
+          {line(r.balC, "balconies, extensions", "unknown (none drawn)")}
+          <div style={{ opacity: 0.55, fontSize: 10, marginTop: 4 }}>id {b.id}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Phase 3 geometry-evidence panel (#verify): tiers per building and per area from verify.json. */
 function VerifyPanel({ info, picked, onNext }: { info: VerifyInfo | null; picked: Building | null; onNext: (tier: string) => void }) {
@@ -171,7 +214,8 @@ export default function Viewer() {
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
 
   // #osm: only human-mapped OpenStreetMap footprints (Microsoft ML detections hidden); #audit: geographic audit view
-  const osmOnly = q.has("osm"), audit = q.has("audit"), verify = q.has("verify");
+  const osmOnly = q.has("osm"), audit = q.has("audit"), verify = q.has("verify"), recon = q.has("recon");
+  const [reconAttr, setReconAttr] = useState<ReconAttr>("rcC");
   const [verifyInfo, setVerifyInfo] = useState<VerifyInfo | null>(null);
   const [auditInfo, setAuditInfo] = useState<AuditInfo | null>(null);
   const [picked, setPicked] = useState<Building | null>(null);
@@ -299,7 +343,7 @@ export default function Viewer() {
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
             {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} estimates={estimates} quality={quality} />}
             {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
-            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} verifyMap={verify ? verifyInfo?.map : undefined} onPick={audit || verify ? setPicked : undefined} estimates={estimates} />}
+            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} verifyMap={verify ? verifyInfo?.map : undefined} reconAttr={recon ? reconAttr : undefined} onPick={audit || verify || data.reconMeta ? setPicked : undefined} estimates={estimates} />}
             {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
             {verify && verifyInfo && <VerifyLayer data={data} missing={verifyInfo.missing} streets={verifyInfo.streets} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
@@ -326,6 +370,7 @@ export default function Viewer() {
         />
       )}
       {showStats && <div className="stats" ref={statsEl} />}
+      {!audit && !verify && data?.reconMeta && (recon || picked) && <ReconInspector b={picked} meta={data.reconMeta} attr={reconAttr} setAttr={setReconAttr} overview={recon} onClose={() => setPicked(null)} />}
       {verify && <VerifyPanel info={verifyInfo} picked={picked} onNext={nextVerify} />}
       {audit && !verify && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} picked={picked} onNext={nextReview} />}
       {bench && <div className="stats bench">{formatBench(bench)}{"\n"}first frame {firstFrameMs ? (firstFrameMs / 1000).toFixed(1) : "?"} s</div>}
