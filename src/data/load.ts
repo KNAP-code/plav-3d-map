@@ -133,7 +133,19 @@ export type AreaData = {
   streets: Streets | null;
   /** ESTIMATED gardens, fences, plots, fruit trees, haystacks (pipeline/gardens.py); null if not exported */
   gardens: Gardens | null;
+  /** centre route (pipeline/route_recon.py): landmarks, eye-level walk path, paved-area colour; null if not exported */
+  route: Route | null;
   bytes: number;
+};
+
+export type RouteStop = { s: number; label: string; id: string; x: number; y: number };
+export type RouteLandmark = { id: string; label: string; x: number; y: number; src: string; posC: Conf; idC: Conf; note?: string; building?: string };
+export type Route = {
+  meta: { walk: { length_m: number; eye_m: number }; trees: { n: number; rule: string } };
+  landmarks: RouteLandmark[];
+  paved: { outer: [number, number][]; rgb: string; conf: Conf; src: string };
+  walk: { pts: [number, number][]; stops: RouteStop[]; endLook?: [number, number] };
+  trees: [number, number, number, number][];
 };
 
 /** Bilinear heightfield in local metres (absolute elevation). */
@@ -190,6 +202,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const gardensP = fetch(`${base}/gardens.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const waterP = fetch(`${base}/water.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const photoP = fetch(`${base}/photo.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const routeP = fetch(`${base}/route.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const reconP = fetch(`${base}/recon.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const terrainInfo: TerrainInfo | null = await fetch(`${base}/terrain/terrain.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -246,7 +259,17 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const v = JSON.parse(vjs);
   // trees in a thinning band just outside the core (pipeline/terrain.py), appended to the city's WorldCover trees
   const band = await bandP;
-  const trees = band && band.byteLength ? (() => { const a = new Float32Array(treeBuf.byteLength / 4 + band.byteLength / 4); a.set(new Float32Array(treeBuf)); a.set(new Float32Array(band), treeBuf.byteLength / 4); return a; })() : new Float32Array(treeBuf);
+  const route = (await routeP) as Route | null;
+  // route landmarks name their building in the inspector (with how sure the identification is)
+  for (const lm of route?.landmarks ?? []) {
+    if (!lm.building) continue;
+    const bb = (b.buildings as Building[]).find((x) => x.id.startsWith(lm.building!));
+    if (bb?.recon && !bb.recon.label) bb.recon.label = lm.idC === "V" ? lm.label : `${lm.label}? (${lm.note ?? "identity estimated"})`;
+  }
+  // + single trees on the centre route measured as crowns in the 1 m image (WorldCover's 10 m pixels miss them)
+  const extra = [new Float32Array(treeBuf), band && band.byteLength ? new Float32Array(band) : new Float32Array(0), new Float32Array((route?.trees ?? []).flat())];
+  const trees = new Float32Array(extra.reduce((n, a) => n + a.length, 0));
+  extra.reduce((o, a) => { trees.set(a, o); return o + a.length; }, 0);
   const furniture = (await furnP) ?? { points: [], walls: [] };
   const streets = (await streetsP) as Streets | null;
   const wj = await waterP;
@@ -254,7 +277,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const marsh: Marsh | null = wj?.marsh ? { ...wj.marsh, veg: unb64(wj.marsh.veg), rgb: unb64(wj.marsh.rgb), shore: unb64(wj.marsh.shore) } : null;
   return {
     marsh, rivers: v.rivers ?? [],
-    furniture, streets, gardens: (await gardensP) as Gardens | null,
+    furniture, streets, gardens: (await gardensP) as Gardens | null, route,
     meta, core, context, levels, terrainInfo, coverCore, coverContext,
     datum: meta.core.base,
     reconMeta: recon?.meta ?? null, photos: photo?.photos ?? {},

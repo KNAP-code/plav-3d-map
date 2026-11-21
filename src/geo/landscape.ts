@@ -200,8 +200,16 @@ export function roadsGeometry(d: AreaData, style: StyleConfig, part: "day" | "ni
 export function overlaysGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeometry {
   const pos: number[] = [], col: number[] = [];
   const h = makeSampler(d);
+  // the paved area on the centre route takes its colour measured in the 1 m image (pipeline/route_recon.py)
+  const pv = d.route?.paved;
+  const inPaved = (o: { outer: number[][] }) => {
+    if (!pv) return false;
+    const cx = o.outer.reduce((a, p) => a + p[0], 0) / o.outer.length, cy = o.outer.reduce((a, p) => a + p[1], 0) / o.outer.length;
+    const px = pv.outer.reduce((a, p) => a + p[0], 0) / pv.outer.length, py = pv.outer.reduce((a, p) => a + p[1], 0) / pv.outer.length;
+    return Math.hypot(cx - px, cy - py) < 15;
+  };
   for (const o of d.overlays) {
-    const c = new THREE.Color(style.overlays[o.k] ?? "#999");
+    const c = new THREE.Color(o.k === "paving" && inPaved(o) ? pv!.rgb : style.overlays[o.k] ?? "#999");
     const tris = subdivide(triangulate(o.outer as P2[], o.holes as P2[][]), 8);
     for (const [x, y] of tris) { pos.push(x, h(x, y) + 0.1 - d.datum, -y); col.push(c.r, c.g, c.b); }
   }

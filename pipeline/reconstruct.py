@@ -33,6 +33,7 @@ import numpy as np
 import rasterio
 import shapely
 from affine import Affine
+from scipy import ndimage
 from rasterio.features import rasterize
 from shapely.geometry import Polygon
 
@@ -42,6 +43,11 @@ from roof_detector import resample  # noqa: E402
 from verify_city import Sat  # noqa: E402
 
 RNG = np.random.default_rng(0)
+# Satellite -> ground-photo white balance (linear R, G, B gains). Fitted on the 43 roofs measured both in the 1 m image
+# and in Am's photo p01 (median log ratio, G fixed). Leave-one-out: colour family agrees for 29 / 43 roofs instead of
+# 22 / 43, hue error on clearly coloured roofs 7 deg instead of 18 deg. Without it clay roofs read mauve / purple.
+PHOTO_GAIN = np.array([1.485, 1.0, 0.733])
+LOCAL_WB_SIGMA = 80.0  # m, local asphalt white balance window
 ROOF_NDVI = 0.0  # haze-corrected NDVI of bare roofs (confirmed roofs >120 m² in the pilot: p25 0.01, median 0.07)
 PILOT = (170.0, -230.0, 520.0)  # same circle as DETAIL_AREAS in src/geo/buildings.ts
 TIER_CONF = {"verified": "V", "confirmed": "V", "present": "E", "unconfirmed": "U", "disputed": "U"}
@@ -116,8 +122,21 @@ def display_colour(L, V, T, streets):
     Rc = np.stack([R[k] - dark[k] for k in range(3)])
     med = np.array([np.median(Rc[k][rm]) for k in range(3)]); dark = dark[:3]
     gain = 0.14 / med  # asphalt -> neutral grey, 14 % linear
-    lin = np.clip(Rc * gain[:, None, None], 0, 1)
-    return lin, ndvi, {"haze": dark.round(4).tolist(), "gain": gain.round(3).tolist(), "road_px": int(rm.sum())}
+    # Local white balance. Haze and thin cumulus vary across the scene: in the west of the centre (schools, stadium)
+    # one global balance left a magenta-blue cast (clay roofs read hue 280-340). The asphalt colour is therefore
+    # measured locally (Gaussian window, sigma 80 m, roads only) and each pixel is balanced on its own neighbourhood;
+    # where fewer than ~150 road pixels fall in the window the global balance is used.
+    w = rm.astype(np.float32)
+    den = ndimage.gaussian_filter(w, LOCAL_WB_SIGMA)
+    loc = np.stack([ndimage.gaussian_filter(np.where(rm, Rc[k], 0).astype(np.float32), LOCAL_WB_SIGMA) / np.maximum(den, 1e-6)
+                    for k in range(3)])
+    trust = np.clip(den * (2 * np.pi * LOCAL_WB_SIGMA ** 2) / 150.0, 0, 1)
+    lg = 0.14 / np.maximum(loc, 1e-4)
+    g = trust * lg + (1 - trust) * gain[:, None, None]
+    lin = np.clip(Rc * g, 0, 1)
+    dev = np.abs(np.log(lg / gain[:, None, None]))[:, trust > 0.5]
+    return lin, ndvi, {"haze": dark.round(4).tolist(), "gain": gain.round(3).tolist(), "road_px": int(rm.sum()),
+                       "local_wb_sigma_m": LOCAL_WB_SIGMA, "local_gain_dev_p90": np.percentile(dev, 90, axis=1).round(3).tolist()}
 
 
 def srgb(c):
@@ -248,19 +267,20 @@ def main(area_id="plav-town"):
         v = np.quantile([(lambda c: c[0] / max(c[1], 1e-4))(stretch(r["_lin"], k)) for r in rows], 0.9)
         lo, hi = (k, hi) if v < 2.0 else (lo, k)
     cal["coregistration"] = coreg
+    cal["photo_gain"] = PHOTO_GAIN.tolist()
     cal["chroma_k"] = round(k, 2); cal["rg90_raw"] = round(float(rg90), 3)
     for r in rec.values():
         c, n = r.pop("_lin"), r["rcN"]; dt = r.pop("_det")
         if c is None:
             r["rcC"] = "U"; r["matC"] = "U"; continue
-        rgb = srgb(stretch(c, k))
+        rgb = srgb(np.clip(stretch(c, k) * PHOTO_GAIN, 0, 1))
         hh, ll_, ss = colorsys.rgb_to_hls(*rgb)
         cast = 50 <= hh * 360 <= 170
         if cast:  # olive / green cast is leftover garden light, not paint: keep the lightness, drop the hue
             rgb = np.array(colorsys.hls_to_rgb(0.08, ll_, 0.03))
         r["rc"] = "#%02x%02x%02x" % tuple(int(round(v * 255)) for v in rgb)
         hv = r.pop("_halves"); fam = material(rgb)
-        same = all(material(srgb(stretch(h, k))) == fam for h in hv)
+        same = all(material(srgb(np.clip(stretch(h, k) * PHOTO_GAIN, 0, 1))) == fam for h in hv)
         if fam.startswith("painted sheet (green)"):
             # green almost always means garden or tree pixels inside a ~1-2 m misplaced outline, not a green roof
             r["rcC"] = "U"; r["matC"] = "U"; r["rcNote"] = "mixed with vegetation"; r.pop("rc"); continue

@@ -223,7 +223,7 @@ export function Controls({ data, controlsRef, hud, onReady }: {
     const c = controlsRef.current;
     if (!c) return;
     // the real mountains rise right at the edge of the town: never let the camera sink into a hillside
-    if (data.levels.length && !EYE) {
+    if (data.levels.length && !EYE && !WALK.on) {
       c.getPosition(cp);
       const x = cp.x, y = -cp.z;
       const g = (data.core.contains(x, y) ? data.core.at(x, y) : data.context.at(x, y)) - data.datum + 25;
@@ -231,7 +231,7 @@ export function Controls({ data, controlsRef, hud, onReady }: {
     }
     c.getTarget(t);
     const ground = data.core.at(t.x, -t.z) - data.datum;
-    if (Math.abs(ground - t.y) > 0.5 && !c.active && !EYE) c.setTarget(t.x, t.y + (ground - t.y) * 0.15, t.z, false);
+    if (Math.abs(ground - t.y) > 0.5 && !c.active && !EYE && !WALK.on) c.setTarget(t.x, t.y + (ground - t.y) * 0.15, t.z, false);
     if (!hud) return;
     const az = Math.round((c.azimuthAngle * 180) / Math.PI), el = Math.round(ground + data.datum);
     const L = last.current;
@@ -243,6 +243,8 @@ export function Controls({ data, controlsRef, hud, onReady }: {
 }
 
 const EYE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("eye");
+/** Set while the eye-level walk drives the camera (src/scene/Walk.tsx): no terrain clearance, no target easing. */
+export const WALK = { on: false };
 
 /** Standing observer: eye h m above the ground at (x, y), looking towards azimuth az (deg from grid north), pitch deg. */
 export function eyeAt(c: CameraControlsImpl, data: AreaData, x: number, y: number, h: number, azDeg: number, pitchDeg: number) {

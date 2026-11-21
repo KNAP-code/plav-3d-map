@@ -45,7 +45,12 @@ did not change any outline.
    measured; the exact shade is approximate.
 5. **Green cast.** An olive/green result (hue 50-170°) is garden light, not paint: the hue is dropped, the lightness
    kept, and the colour is ESTIMATED.
-6. **Reliability test.** VERIFIED needs ≥ 12 roof pixels, the roof detector firing at the footprint, and the two
+6. **Local white balance and photo calibration** (centre-route batch, 2026-11-21). The asphalt balance is measured
+   locally (80 m window), and a satellite → photo white balance (linear R × 1.485, B × 0.733) fitted on the 43 roofs
+   seen both here and in Am's photo p01 removes the blue cast that made clay roofs read mauve or purple
+   (leave-one-out: colour family 29 / 43 agree instead of 22 / 43; hue error 7° instead of 18°). All satellite roof
+   colours remain ESTIMATED. See docs/ROUTE_RECONSTRUCTION.md.
+7. **Reliability test.** VERIFIED needs ≥ 12 roof pixels, the roof detector firing at the footprint, and the two
    random halves of the roof pixels giving the same colour family. Otherwise ESTIMATED.
 
 Check by eye: the blue roof of Hala Sportova and the terracotta roof of the Opština are measured correctly

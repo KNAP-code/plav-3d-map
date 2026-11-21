@@ -49,3 +49,17 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .stats { white-space: pre-wrap; }
 .stats.bench { top: auto; bottom: calc(120px + env(safe-area-inset-bottom)); color: #fde68a; pointer-events: auto; user-select: text; }
 @media (min-width: 900px) { .title, .sheet { right: auto; width: 420px; } }
+/* eye-level walk along the centre route */
+.walk-btn { position: absolute; z-index: 3; right: calc(var(--gutter) + 52px); bottom: calc(66px + env(safe-area-inset-bottom)); padding: 8px 14px;
+  border: 0; border-radius: 10px; background: rgba(20,24,30,.82); color: #fff; font: 600 13px/1.2 system-ui, sans-serif; cursor: pointer; }
+.walk-panel { position: absolute; z-index: 3; left: var(--gutter); right: var(--gutter); bottom: calc(108px + env(safe-area-inset-bottom)); max-width: 560px;
+  margin: 0 auto; padding: 8px 10px; border-radius: 12px; background: rgba(20,24,30,.84); color: #eef; font: 13px/1.35 system-ui, sans-serif; }
+.walk-row { display: flex; gap: 8px; align-items: center; }
+.walk-row input { flex: 1; min-width: 0; }
+.walk-row button, .walk-stops button { border: 0; border-radius: 8px; background: rgba(255,255,255,.14); color: #fff; padding: 6px 10px; font: inherit; cursor: pointer; min-width: 36px; }
+.walk-meta { margin-top: 4px; opacity: .85; font-size: 12px; }
+.walk-note { margin-top: 2px; opacity: .7; font-size: 11px; }
+.walk-stops { display: flex; gap: 6px; margin-top: 6px; overflow-x: auto; scrollbar-width: none; }
+.walk-stops button { flex: 0 0 auto; white-space: nowrap; font-size: 12px; padding: 4px 8px; }
+@media (max-width: 600px) { .walk-btn { right: calc(var(--gutter) + 64px); bottom: calc(108px + env(safe-area-inset-bottom)); }
+  .walk-panel { right: calc(var(--gutter) + 64px); } }

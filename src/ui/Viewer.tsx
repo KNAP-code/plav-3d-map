@@ -8,6 +8,7 @@ import { PRESETS, type StyleConfig } from "@/style/presets";
 import { RECON_COLORS, type ReconAttr, AUDIT_COLORS, AuditLayer, VERIFY_COLORS, VerifyLayer, type VerifyEntry, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, eyeAt, flyTo, type TimeOfDay } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
+import { WalkDriver, newWalkState, walkPath, type WalkState } from "@/scene/Walk";
 import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
 import { T, type Lang } from "./i18n";
 import { AdaptiveQuality, Bench, StatsProbe, bump, formatBench, type BenchResult } from "./perf";
@@ -32,6 +33,7 @@ function params() {
     else if (h === "night") p.set("night", "1");
     else if (h === "sunset") p.set("sunset", "1");
     else if (h === "data") p.set("est", "0");
+    else if (h === "walk") p.set("walk", "0");
   }
   return p;
 }
@@ -198,6 +200,8 @@ export default function Viewer() {
   const stepDown = useCallback(() => setQualityState((qq) => (qq === "high" ? "medium" : "low")), []);
   const [lang, setLang] = useState<Lang>((q.get("lang") as Lang) || "bs");
   const controls = useRef<CameraControlsImpl | null>(null);
+  // eye-level walk along the centre route (?walk=<metres along the route> or #walk)
+  const walk = useMemo(() => newWalkState(Number(q.get("walk")) || 0, q.has("walk")), [q]);
   const northRef = useRef<SVGSVGElement>(null);
   const elevRef = useRef<HTMLSpanElement>(null);
   const hudRefs = useMemo(() => ({ north: northRef, elev: elevRef }), []);
@@ -297,6 +301,7 @@ export default function Viewer() {
 
   const goHome = useCallback((smooth = true) => {
     if (!controls.current || !data) return;
+    if (walk.active) { walk.dirty = true; walk.kick?.(); return; }
     const h = home(data);
     // ?cam=x,y,distance,azimuthDeg,polarDeg (local metres) — handy for reproducible screenshots
     const eye = q.get("eye")?.split(",").map(Number);
@@ -307,7 +312,7 @@ export default function Viewer() {
       return;
     }
     flyTo(controls.current, data, style, h.x, h.y, { azimuthDeg: h.azimuth, distance: h.distance, polarDeg: h.polar }, smooth);
-  }, [data, style, q]);
+  }, [data, style, q, walk]);
 
   const onControlsReady = useCallback(() => goHome(false), [goHome]);
 
@@ -367,6 +372,7 @@ export default function Viewer() {
           {adaptive && <AdaptiveQuality tier={quality} onStepDown={stepDown} controls={controls} />}
           {showStats && <StatsProbe el={statsEl} tier={quality} />}
           {benchFrames > 0 && <Bench frames={benchFrames} data={data} controls={controls} tier={quality} onDone={setBench} />}
+          {data.route && <WalkDriver data={data} controls={controls} st={walk} />}
           <FirstFrame onFirst={onFirst} />
         </Canvas>
       )}
@@ -380,11 +386,48 @@ export default function Viewer() {
         />
       )}
       {showStats && <div className="stats" ref={statsEl} />}
+      {data?.route && !audit && !verify && <WalkPanel data={data} st={walk} lang={lang} onExit={() => goHome(true)} />}
       {!audit && !verify && data?.reconMeta && (recon || picked) && <ReconInspector b={picked} meta={data.reconMeta} counts={reconCounts} attr={reconAttr} setAttr={setReconAttr} overview={recon} onClose={() => setPicked(null)} />}
       {verify && <VerifyPanel info={verifyInfo} picked={picked} onNext={nextVerify} />}
       {audit && !verify && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} picked={picked} onNext={nextReview} />}
       {bench && <div className="stats bench">{formatBench(bench)}{"\n"}first frame {firstFrameMs ? (firstFrameMs / 1000).toFixed(1) : "?"} s</div>}
       {q.has("tune") && <Tune style={style} setStyle={setStyle} />}
+    </div>
+  );
+}
+
+/**
+ * Eye-level walk along the centre route (Gradski trg -> Racina -> Caffe TIMM -> paved area by the schools -> stadium).
+ * Collapsed to one button until started; then play / pause, a position slider, walking or 4x speed and the stops.
+ */
+function WalkPanel({ data, st, lang, onExit }: { data: AreaData; st: WalkState; lang: Lang; onExit: () => void }) {
+  const path = useMemo(() => walkPath(data), [data]);
+  const stops = data.route!.walk.stops;
+  const [, tick] = useState(0);
+  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 200); return () => clearInterval(id); }, []);
+  const en = lang === "en";
+  const kick = () => { st.dirty = true; st.kick?.(); };
+  if (!st.active) {
+    return <button className="walk-btn" onClick={() => { st.active = true; st.s = 0; st.playing = true; kick(); }}>
+      {en ? "▶ Walk the centre at eye level" : "▶ Šetnja centrom (pogled pješaka)"}
+    </button>;
+  }
+  const near = stops.reduce((a, b) => (Math.abs(b.s - st.s) < Math.abs(a.s - st.s) ? b : a), stops[0]);
+  const lm = data.route!.landmarks.find((l) => l.id === near?.id);
+  return (
+    <div className="walk-panel">
+      <div className="walk-row">
+        <button onClick={() => { if (st.s >= path.L - 0.5) st.s = 0; st.playing = !st.playing; kick(); }} aria-label="play">{st.playing ? "❚❚" : "▶"}</button>
+        <input type="range" min={0} max={Math.round(path.L)} step={1} value={Math.round(st.s)} aria-label="position"
+          onChange={(e) => { st.s = Number(e.target.value); st.playing = false; kick(); }} />
+        <button onClick={() => { st.speed = st.speed > 2 ? 1.4 : 5.6; }} aria-label="speed">{st.speed > 2 ? "4×" : "1×"}</button>
+        <button onClick={() => { st.active = false; st.playing = false; kick(); onExit(); }} aria-label="exit">×</button>
+      </div>
+      <div className="walk-meta">{Math.round(st.s)} / {Math.round(path.L)} m · {en ? "eye 1.65 m" : "oči 1,65 m"}{near && Math.abs(near.s - st.s) < 40 ? <> · <b>{near.label}</b></> : null}</div>
+      {lm && Math.abs(near.s - st.s) < 40 && <div className="walk-note">{lm.idC === "V" ? (en ? "identity verified" : "identitet potvrđen") : (en ? "identity estimated" : "identitet procijenjen")}{lm.note ? ` — ${lm.note}` : ""}</div>}
+      <div className="walk-stops">
+        {stops.map((t) => <button key={t.id} onClick={() => { st.s = Math.max(0, t.s - 12); st.playing = false; kick(); }}>{t.label}</button>)}
+      </div>
     </div>
   );
 }
