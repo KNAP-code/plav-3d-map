@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { waterSurface } from "./water";
 import type { AreaData } from "@/data/load";
 import { densify, gridClip, triangulate, type P2 } from "./poly";
 
@@ -40,6 +41,15 @@ function fixUpOnly(g: THREE.BufferGeometry) {
     }
   }
 }
+
+const inRing = (x: number, y: number, r: number[][]) => {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    const [xi, yi] = r[i], [xj, yj] = r[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+};
 
 const groundOf = (d: AreaData) => (x: number, y: number) => (d.core.contains(x, y) ? d.core.atTri(x, y) : d.context.at(x, y)) - d.datum;
 
@@ -85,6 +95,8 @@ export function bridgeGeometry(d: AreaData, roadLift: number) {
   if (!d.streets) return finish(b);
   const h = groundOf(d);
   const conc = C("#b8b3aa"), asph = C("#5d6068"), wood = C("#8a6b4e"), rail = C("#9a958c");
+  const surf = waterSurface(d);
+  const piers = d.streets.piers.map((p) => p.outer);
   for (const br of d.streets.bridges) {
     const foot = /foot|path|cycle|pedestrian/.test(br.c);
     const pts = densify(br.pts as P2[], 2);
@@ -92,7 +104,11 @@ export function bridgeGeometry(d: AreaData, roadLift: number) {
     const L: number[] = [0];
     for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
     const tot = L[L.length - 1] || 1;
-    const z0 = h(pts[0][0], pts[0][1]) + roadLift, z1 = h(pts[pts.length - 1][0], pts[pts.length - 1][1]) + roadLift;
+    // inside a mapped raft / pier polygon the pier itself is the walking surface (pierGeometry)
+    if (foot && piers.length && pts.filter(([x, y]) => piers.some((r) => inRing(x, y, r))).length >= 0.7 * pts.length) continue;
+    // an end on mapped water (lake boardwalks) sits above the water, not on the carved lake bed
+    const endZ = (x: number, y: number) => { const w = surf(x, y); return w === null ? h(x, y) + roadLift : Math.max(h(x, y) + roadLift, w + (foot ? 0.55 : 1.8)); };
+    const z0 = endZ(pts[0][0], pts[0][1]), z1 = endZ(pts[pts.length - 1][0], pts[pts.length - 1][1]);
     const hw = br.w / 2 + (foot ? 0 : 0.5);
     const deckC = foot ? wood : asph, sideC = foot ? wood : conc, railC = foot ? wood : rail;
     const railH = foot ? 1.0 : 0.95, thick = foot ? 0.35 : 0.8;
@@ -199,11 +215,13 @@ export function pierGeometry(d: AreaData) {
   const b: Buf = { pos: [], col: [] };
   if (!d.streets) return finish(b);
   const h = groundOf(d);
-  const lake = d.water.find((w) => w.kind === "lake" && w.level != null);
+  const surf = waterSurface(d);
   const deck = C("#9c7a58"), edge = C("#5e4632");
   for (const p of d.streets.piers) {
-    const [cx, cy] = p.outer[0];
-    const z = Math.max(lake ? lake.level! - d.datum + 0.5 : -1e9, h(cx, cy) + 0.3);
+    // deck 0.55 m above the water of the lake it stands in (OSM: man_made=pier; floating or on piles is not recorded)
+    let wl = -1e9, gmax = -1e9;
+    for (const [x, y] of p.outer) { const w = surf(x, y); if (w !== null) wl = Math.max(wl, w); gmax = Math.max(gmax, h(x, y)); }
+    const z = wl > -1e8 ? wl + 0.55 : gmax + 0.3;
     for (const [x, y] of triangulate(p.outer as P2[], p.holes as P2[][])) push(b, [x, z, -y], deck);
     const r = p.outer;
     for (let i = 0; i < r.length; i++) {

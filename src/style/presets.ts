@@ -21,7 +21,7 @@ export type StyleConfig = {
     widths: Record<string, number>;
   };
   overlays: Record<string, string>;
-  water: { color: string; deep: string; shore: string; roughness: number };
+  water: { color: string; deep: string; shore: string; roughness: number; reed: string; reedDry: string };
   trees: { leaf: string[]; conifer: string[]; trunk: string; size: number };
   minaret: { color: string; cap: string };
   post: { ao: boolean; aoRadius: number; aoIntensity: number; tiltShift: boolean; tiltFocus: number; tiltFeather: number; tiltBlur: number; exposure: number };
@@ -59,7 +59,7 @@ export const plavWarm: StyleConfig = {
     widths: { secondary: 7.5, tertiary: 6.5, residential: 5.2, unclassified: 4.8, living_street: 4.5, service: 3.6, pedestrian: 4.0, track: 3.0, path: 1.6, footway: 1.8, cycleway: 2.0, steps: 1.8, bridleway: 1.6, unknown: 3.5 },
   },
   overlays: { pitch: "#6fa84a", cemetery: "#93b466", paving: "#b9b3a9", playground: "#c9a97c", park: "#86b65a" },
-  water: { color: "#5b9aa6", deep: "#3f7c8c", shore: "#9cc3c2", roughness: 0.18 },
+  water: { color: "#5b9aa6", deep: "#3f7c8c", shore: "#9cc3c2", roughness: 0.18, reed: "#7f9a4c", reedDry: "#a69a62" },
   trees: { leaf: ["#6c9a4c", "#5c8a43", "#7ba456", "#4f7d3f", "#87ab5f"], conifer: ["#3e6e40", "#35643c", "#497a47"], trunk: "#7a5b43", size: 1.0 },
   minaret: { color: "#f4f1ea", cap: "#7f8c95" },
   post: { ao: true, aoRadius: 4.5, aoIntensity: 2.2, tiltShift: true, tiltFocus: 0.62, tiltFeather: 0.3, tiltBlur: 1, exposure: 1.0 },

@@ -35,7 +35,7 @@
    "cover": "L1.png",
    "half": 6000.0,
    "hole": null,
-   "demMin": 857.3,
+   "demMin": 857.0,
    "demMax": 2201.1,
    "maxCurvatureDrop": 4.9,
    "worldcover": {

@@ -7,7 +7,7 @@
   19.967,
   42.616
  ],
- "generated": "2026-11-20T16:54:29+00:00",
+ "generated": "2026-11-21T08:32:02+00:00",
  "crs": "EPSG:32634",
  "origin": [
   413245.0,
@@ -30,7 +30,7 @@
   "nx": 301,
   "ny": 301,
   "step": 60,
-  "base": 805,
+  "base": 804,
   "scale": 10,
   "file": "terrain_context.bin",
   "cover": "cover_context.png",
@@ -53,6 +53,8 @@
   "removed_ml_on_street": 27,
   "outbuildings_ml": 404,
   "osm_on_street_kept": 7,
+  "culverts_dropped": 14,
+  "culvert_m": 247,
   "trees": 110856,
   "roads": 848,
   "water": 45,

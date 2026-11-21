@@ -4,7 +4,9 @@ Source: Copernicus Sentinel-2 L2A COGs on the AWS open-data bucket (sentinel-cog
 ("Contains modified Copernicus Sentinel data 2025"). Three cloud-free summer 2025 scenes of tile 34TDN over Plav are
 median-combined per band (B02 B03 B04 B08 at 10 m, B11 B12 resampled from 20 m). Used only as independent evidence
 in pipeline/audit_geo.py, never to draw or create geometry.
-Usage: python pipeline/fetch_s2.py [area]
+Usage: python pipeline/fetch_s2.py [area] [--water]
+  --water: a second window (local x -3600..+800 m, y -2800..+3200 m around the area origin) that covers the whole of
+           Plavsko jezero, Malo blato, the Ljuča mouth and the Lim to the north -> s2_water.tif (pipeline/water.py)
 """
 import os, sys, math, numpy as np, rasterio
 from rasterio.windows import from_bounds
@@ -19,12 +21,17 @@ SCENES = ["S2A_34TDN_20250721_0_L2A", "S2A_34TDN_20250810_0_L2A", "S2C_34TDN_202
 BANDS = ["B02", "B03", "B04", "B08", "B11", "B12"]
 
 
-def main(area_id="plav-town"):
+WATER_BOX = (-3600, -2800, 800, 3200)  # local metres, see --water
+
+
+def main(area_id="plav-town", water=False):
     W, S, E, N = CONFIG["areas"][area_id]["bbox"]
     ox, oy = TO_UTM.transform((W + E) / 2, (S + N) / 2)
     ox, oy = round(ox), round(oy)
     hw = (E - W) / 2 * 111_320 * math.cos(math.radians((S + N) / 2)) + 150
     bb = (ox - hw, oy - hw, ox + hw, oy + hw)
+    if water:
+        bb = (ox + WATER_BOX[0], oy + WATER_BOX[1], ox + WATER_BOX[2], oy + WATER_BOX[3])
     # snap to the 10 m grid
     bb = tuple(math.floor(v / 10) * 10 for v in bb[:2]) + tuple(math.ceil(v / 10) * 10 for v in bb[2:])
     w, h = int((bb[2] - bb[0]) / 10), int((bb[3] - bb[1]) / 10)
@@ -38,7 +45,7 @@ def main(area_id="plav-town"):
                 crs = r.crs
             print(s, b, flush=True)
     med = np.median(stack, axis=1)
-    out = HERE / "cache" / area_id / "s2_median.tif"
+    out = HERE / "cache" / area_id / ("s2_water.tif" if water else "s2_median.tif")
     tr = rasterio.transform.from_origin(bb[0], bb[3], 10, 10)
     with rasterio.open(out, "w", driver="GTiff", width=w, height=h, count=len(BANDS), dtype="float32", crs=crs, transform=tr, compress="deflate") as d:
         d.write(med)
@@ -47,4 +54,5 @@ def main(area_id="plav-town"):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "plav-town")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    main(args[0] if args else "plav-town", "--water" in sys.argv)

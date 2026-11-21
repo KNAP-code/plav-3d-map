@@ -34,8 +34,17 @@ export type Road = {
   sc?: string; surf?: string; spd?: number; j0?: number; j1?: number;
 };
 export type PolyJ = { outer: [number, number][]; holes: [number, number][][] };
-export type Water = PolyJ & { kind: "lake" | "river"; name: string | null; level: number | null };
-export type Stream = { c: string; n: string | null; pts: [number, number][] };
+/** axis: index into AreaData.rivers for mapped river areas whose surface follows a levelled profile */
+export type Water = PolyJ & { kind: "lake" | "river"; name: string | null; level: number | null; axis?: number };
+/** i: intermittent (OSM intermittent=yes) */
+export type Stream = { c: string; n: string | null; pts: [number, number][]; i?: 1 };
+/** Levelled water-surface profile along a river centreline (pipeline/build.py river_profiles): x, y, z (m a.s.l.). */
+export type River = { n: string | null; pts: [number, number, number][] };
+/**
+ * Lake surface grid (pipeline/water.py), 10 m cells over the valley lakes, row 0 = south. veg: Sentinel-2 summer
+ * vegetation cover 0..255 (reed / sedge / floating plants), rgb: S2 natural colour, shore: metres from the mapped shore.
+ */
+export type Marsh = { x0: number; y0: number; nx: number; ny: number; step: number; veg: Uint8Array; rgb: Uint8Array; shore: Uint8Array };
 export type Overlay = PolyJ & { k: string };
 export type Gardens = {
   yards: PolyJ[]; fences: { k: string; pts: [number, number][] }[]; plots: { c: [number, number]; a: number }[];
@@ -93,6 +102,9 @@ export type AreaData = {
   crossings: [number, number][];
   water: Water[];
   streams: Stream[];
+  rivers: River[];
+  /** lake vegetation + shore grid (pipeline/water.py); null if not exported */
+  marsh: Marsh | null;
   overlays: Overlay[];
   /** mapped street furniture (benches, fountains, bus stops, parking signs...) and walls; empty if not exported */
   furniture: { points: { k: string; x: number; y: number }[]; walls: { k: string; pts: [number, number][] }[] };
@@ -156,6 +168,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const tick = <T,>(p: Promise<T>) => p.then((v) => { done++; onProgress?.(done / 7); return v; });
   const streetsP = fetch(`${base}/streets.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const gardensP = fetch(`${base}/gardens.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const waterP = fetch(`${base}/water.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const terrainInfo: TerrainInfo | null = await fetch(`${base}/terrain/terrain.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const bandP = terrainInfo?.treesBand ? bin(`${base}/terrain/${terrainInfo.treesBand.file}`).catch(() => null) : Promise.resolve(null);
@@ -191,7 +204,11 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const trees = band && band.byteLength ? (() => { const a = new Float32Array(treeBuf.byteLength / 4 + band.byteLength / 4); a.set(new Float32Array(treeBuf)); a.set(new Float32Array(band), treeBuf.byteLength / 4); return a; })() : new Float32Array(treeBuf);
   const furniture = (await furnP) ?? { points: [], walls: [] };
   const streets = (await streetsP) as Streets | null;
+  const wj = await waterP;
+  const unb64 = (t: string) => Uint8Array.from(atob(t), (c) => c.charCodeAt(0));
+  const marsh: Marsh | null = wj?.marsh ? { ...wj.marsh, veg: unb64(wj.marsh.veg), rgb: unb64(wj.marsh.rgb), shore: unb64(wj.marsh.shore) } : null;
   return {
+    marsh, rivers: v.rivers ?? [],
     furniture, streets, gardens: (await gardensP) as Gardens | null,
     meta, core, context, levels, terrainInfo, coverCore, coverContext,
     datum: meta.core.base,

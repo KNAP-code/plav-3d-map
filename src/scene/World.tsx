@@ -6,14 +6,15 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { AreaData, Building, Heightfield } from "@/data/load";
 import type { StyleConfig } from "@/style/presets";
 import { buildBuildingTile } from "@/geo/buildings";
-import { overlaysGeometry, roadsGeometry, splitNonIndexed, splitTiles, streamsGeometry, terrainGeometry, waterGeometry } from "@/geo/landscape";
+import { overlaysGeometry, roadsGeometry, splitNonIndexed, splitTiles, terrainGeometry } from "@/geo/landscape";
+import { marshGeometry, marshTexture, streamsGeometry, tuftGeometry, waterGeometry } from "@/geo/water";
 import { carGeometry, minaretGeometry, streetlightGeometry, treeGeometries, treeSets, type TreeSet } from "@/geo/props";
 import { streetlights } from "@/geo/roads";
 import { furnitureGeometry, sidewalksGeometry } from "@/geo/street";
 import { Traffic as TrafficSim, type CarPose } from "@/geo/traffic";
 import { bridgeGeometry, headstoneMatrices, pierGeometry, pitchGeometry, powerGeometry, sidewalkGeometry, zebraGeometry } from "@/geo/streetscape";
 import { fenceGeometry, fruitTrees, hayMatrices, haystack, yardGeometry } from "@/geo/gardenscape";
-import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, farTerrainMaterial, skyMaterial, treeMaterial, waterMaterial } from "./materials";
+import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, farTerrainMaterial, skyMaterial, treeMaterial, waterMaterial, reedMaterial, tuftMaterial, REFLECT } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
 import { chooseStride, chunkGeometry, levelChunks, type Chunk } from "@/geo/terrainLevels";
 import { bump } from "@/ui/perf";
@@ -63,7 +64,7 @@ export function Terrain({ data, style, quality }: { data: AreaData; style: Style
   useDispose(useMemo(() => [core, ...tiles, covCore, mCore], [core, tiles, covCore, mCore]));
   return (
     <group>
-      {tiles.map((g, i) => <mesh key={i} geometry={g} material={mCore} receiveShadow />)}
+      <group ref={reflectableNear}>{tiles.map((g, i) => <mesh key={i} geometry={g} material={mCore} receiveShadow />)}</group>
       {/* nothing casts shadows outside the core, so the surrounding terrain skips shadow lookups */}
       {data.levels.length ? <FarTerrain data={data} style={style} quality={quality} /> : <LegacyContext data={data} style={style} quality={quality} />}
     </group>
@@ -105,6 +106,7 @@ export function FarTerrain({ data, style, quality }: { data: AreaData; style: St
       mesh.matrixAutoUpdate = false;
       g.add(mesh);
     }
+    reflectable(g);
     return g;
   }, [chunks, mats, data]);
   const sky = useMemo(() => {
@@ -112,6 +114,7 @@ export function FarTerrain({ data, style, quality }: { data: AreaData; style: St
     const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), mat);
     m.scale.setScalar(140_000);
     m.renderOrder = -10;
+    m.layers.enable(REFLECT_LAYER);
     m.frustumCulled = false;
     m.onBeforeRender = (_r, sc, cam) => {
       m.position.copy(cam.position); m.updateMatrixWorld();
@@ -346,17 +349,129 @@ export function Roads({ data, style }: { data: AreaData; style: StyleConfig }) {
   );
 }
 
-export function Water({ data, style }: { data: AreaData; style: StyleConfig }) {
+/** Objects drawn into the lake reflection carry this layer (terrain, far terrain, sky; buildings and trees on high). */
+export const REFLECT_LAYER = 3;
+/** the city-core terrain tiles: reflected on high only (they are the most triangles near the lake) */
+export const REFLECT_NEAR = 4;
+const reflectable = (o: THREE.Object3D | null) => o?.traverse((c) => c.layers.enable(REFLECT_LAYER));
+const reflectableNear = (o: THREE.Object3D | null) => o?.traverse((c) => c.layers.enable(REFLECT_NEAR));
+
+/**
+ * Water: lakes, mapped river areas and stream ribbons in one material (water v2), the Sentinel-2 reed belt over the
+ * lakes, reed tufts along the open-water edge (medium/high) and the planar lake reflection (medium/high).
+ */
+export function Water({ data, style, quality, reflect = true, reeds = true }: { data: AreaData; style: StyleConfig; quality: Quality; reflect?: boolean; reeds?: boolean }) {
   const g = useMemo(() => waterGeometry(data), [data]);
   const s = useMemo(() => streamsGeometry(data), [data]);
-  const m = useMemo(() => waterMaterial(style), [style]);
-  useDispose(useMemo(() => [g, s, m], [g, s, m]));
+  const mt = useMemo(() => (data.marsh ? marshTexture(data.marsh) : null), [data]);
+  const box = useMemo(() => {
+    const mm = data.marsh;
+    return mm ? new THREE.Vector4(mm.x0, mm.y0, mm.nx * mm.step, mm.ny * mm.step) : new THREE.Vector4(0, 0, 1, 1);
+  }, [data]);
+  const m = useMemo(() => waterMaterial(style, mt, box), [style, mt, box]);
+  const marsh = useMemo(() => (data.marsh ? marshGeometry(data, style, quality === "high" ? 2 : quality === "medium" ? 1 : 0) : null), [data, style, quality]);
+  const rm = useMemo(() => (mt ? reedMaterial(mt, box) : null), [mt, box]);
+  const tm = useMemo(() => tuftMaterial(style), [style]);
+  const tg = useMemo(() => tuftGeometry(), []);
+  const tufts = useMemo(() => {
+    if (!marsh || !marsh.tufts.length) return null;
+    const im = new THREE.InstancedMesh(tg, tm, marsh.tufts.length);
+    marsh.tufts.forEach((M, i) => { im.setMatrixAt(i, M); im.setColorAt(i, marsh.tuftColors[i]); });
+    im.instanceMatrix.needsUpdate = true;
+    im.computeBoundingSphere();
+    return im;
+  }, [marsh, tg, tm]);
+  useDispose(useMemo(() => [g, s, m, ...(rm ? [rm] : []), tm, tg, ...(mt ? [mt] : []), ...(marsh ? [marsh.canopy] : [])], [g, s, m, rm, tm, tg, mt, marsh]));
+  const { scene } = useThree();
+  useFrame(({ clock }) => {
+    const U = m.userData.u as { uSkyCol: { value: THREE.Color }; uTime: { value: number } };
+    if (scene.fog instanceof THREE.Fog) U.uSkyCol.value.copy(scene.fog.color);
+    U.uTime.value = clock.elapsedTime;
+  });
+  const lake = useMemo(() => data.water.find((w) => w.kind === "lake" && w.name && /plav/i.test(w.name)) ?? null, [data]);
   return (
     <group>
       <mesh geometry={g} material={m} receiveShadow />
       <mesh geometry={s} material={m} receiveShadow />
+      {reeds && marsh && rm && <mesh geometry={marsh.canopy} material={rm} receiveShadow />}
+      {reeds && tufts && <primitive object={tufts} />}
+      {lake && reflect && quality !== "low" && <LakeReflection data={data} level={lake.level! - data.datum} outer={lake.outer} high={quality === "high"} />}
     </group>
   );
+}
+
+/**
+ * Planar reflection of the lake (Reflector-style mirrored camera with an oblique near plane at the water level).
+ * Renders only REFLECT_LAYER objects into a reduced-size target, and only on frames the scene renders anyway
+ * (demand frameloop) while the lake is inside the view frustum. Shadow maps are not re-rendered for it.
+ */
+function LakeReflection({ data, level, outer, high }: { data: AreaData; level: number; outer: [number, number][]; high: boolean }) {
+  // medium: 1/3 resolution, far terrain + sky, refreshed every 2nd drawn frame; high: 1/2, + core terrain, every frame
+  const scale = high ? 0.5 : 0.33, every = high ? 1 : 2;
+  const { gl, scene, camera, size } = useThree();
+  const rt = useMemo(() => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true }), []);
+  const vcam = useMemo(() => { const c = new THREE.PerspectiveCamera(); c.layers.set(REFLECT_LAYER); if (high) c.layers.enable(REFLECT_NEAR); return c; }, [high]);
+  const bounds = useMemo(() => {
+    const b = new THREE.Box3();
+    for (const [x, y] of outer) b.expandByPoint(new THREE.Vector3(x, level, -y));
+    b.min.y -= 1; b.max.y += 1;
+    return b;
+  }, [outer, level]);
+  useEffect(() => {
+    const dpr = gl.getPixelRatio();
+    rt.setSize(Math.max(64, Math.round(size.width * dpr * scale)), Math.max(64, Math.round(size.height * dpr * scale)));
+  }, [gl, size, scale, rt]);
+  useEffect(() => {
+    REFLECT.map.value = rt.texture; REFLECT.level.value = level;
+    return () => { REFLECT.on.value = 0; REFLECT.map.value = null; rt.dispose(); };
+  }, [rt, level]);
+  void data;
+  const tmp = useMemo(() => ({
+    n: new THREE.Vector3(0, 1, 0), p: new THREE.Vector3(), cam: new THREE.Vector3(), look: new THREE.Vector3(), rot: new THREE.Matrix4(),
+    view: new THREE.Vector3(), target: new THREE.Vector3(), plane: new THREE.Plane(), clip: new THREE.Vector4(), q: new THREE.Vector4(),
+    frustum: new THREE.Frustum(), pv: new THREE.Matrix4(), lights: [] as THREE.Light[], frame: 0,
+  }), []);
+  useFrame(() => {
+    const t = tmp;
+    const cam = camera as THREE.PerspectiveCamera;
+    t.pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    t.frustum.setFromProjectionMatrix(t.pv);
+    t.cam.setFromMatrixPosition(cam.matrixWorld);
+    if (!t.frustum.intersectsBox(bounds) || t.cam.y < level + 0.5) { REFLECT.on.value = 0; return; }
+    REFLECT.on.value = 1;
+    if (t.frame++ % every !== 0) return; // the texture and its matrix stay from the last refresh (consistent pair)
+    if (t.frame % 120 === 1) { t.lights = []; scene.traverse((o) => { if ((o as THREE.Light).isLight) { o.layers.enable(REFLECT_LAYER); o.layers.enable(REFLECT_NEAR); t.lights.push(o as THREE.Light); } }); }
+    t.p.set(0, level, 0);
+    t.rot.extractRotation(cam.matrixWorld);
+    t.look.set(0, 0, -1).applyMatrix4(t.rot).add(t.cam);
+    t.view.subVectors(t.p, t.cam).reflect(t.n).negate().add(t.p);
+    t.target.subVectors(t.p, t.look).reflect(t.n).negate().add(t.p);
+    vcam.position.copy(t.view);
+    vcam.up.set(0, 1, 0).applyMatrix4(t.rot).reflect(t.n);
+    vcam.lookAt(t.target);
+    vcam.near = cam.near; vcam.far = cam.far; vcam.fov = cam.fov; vcam.aspect = cam.aspect;
+    vcam.updateMatrixWorld();
+    vcam.projectionMatrix.copy(cam.projectionMatrix);
+    REFLECT.matrix.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
+      .multiply(vcam.projectionMatrix).multiply(vcam.matrixWorldInverse);
+    // oblique near plane = the water plane, so nothing under the water is reflected
+    t.plane.setFromNormalAndCoplanarPoint(t.n, t.p).applyMatrix4(vcam.matrixWorldInverse);
+    t.clip.set(t.plane.normal.x, t.plane.normal.y, t.plane.normal.z, t.plane.constant);
+    const e = vcam.projectionMatrix.elements;
+    t.q.set((Math.sign(t.clip.x) + e[8]) / e[0], (Math.sign(t.clip.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
+    t.clip.multiplyScalar(2 / t.clip.dot(t.q));
+    e[2] = t.clip.x; e[6] = t.clip.y; e[10] = t.clip.z + 1 - 0.003; e[14] = t.clip.w;
+    vcam.projectionMatrixInverse.copy(vcam.projectionMatrix).invert();
+    const prev = gl.getRenderTarget();
+    const au = gl.shadowMap.autoUpdate, nu = gl.shadowMap.needsUpdate;
+    gl.shadowMap.autoUpdate = false; gl.shadowMap.needsUpdate = false;
+    gl.setRenderTarget(rt);
+    gl.clear();
+    gl.render(scene, vcam);
+    gl.setRenderTarget(prev);
+    gl.shadowMap.autoUpdate = au; gl.shadowMap.needsUpdate = nu;
+  }, -1);
+  return null;
 }
 
 /** Shared flag: the sun sets it when the shadow map is about to be re-rendered, so trees write their full set first. */

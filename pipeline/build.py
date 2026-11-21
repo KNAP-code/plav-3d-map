@@ -157,6 +157,94 @@ def obb(poly: Polygon):
     return ctr, ang, L, W, rect.area
 
 
+
+# ---------------------------------------------------------------- rivers
+def river_profiles(axes, water_polys, dem, origin, step=10.0):
+    """Water-surface profile along each mapped river centreline (OSM waterway=river, drawn in flow direction).
+
+    Station every 10 m: the 15th percentile of GLO-30 within 12 m (the channel, not the banks), then the closest
+    profile that never rises downstream (least-squares isotonic fit, so a single low DEM pixel cannot drag the
+    rest of the river down) and smoothed (a moving average keeps it monotonic). A river that leaves
+    a lake starts at the lake level and never rises above it; a river that enters a lake ends at the lake level.
+    Returns [{name, xy (n,2), z (n,)}].
+    """
+    lakes = [w for w in water_polys if w["flat"] and w["level"] is not None]
+    # join the pieces of one river (OSM splits waterways into many ways) so the profile runs on without steps
+    by_name = {}
+    for ax in axes:
+        by_name.setdefault(ax["name"] or id(ax), []).append(ax["geom"])
+    axes = []
+    for nm, gs in by_name.items():
+        u = unary_union(gs)
+        for ls in lines_of(shapely.ops.linemerge(u) if u.geom_type == "MultiLineString" else u):
+            axes.append({"name": nm if isinstance(nm, str) else None, "geom": ls})
+    out = []
+    offs = np.array([[0, 0]] + [[12 * math.cos(a), 12 * math.sin(a)] for a in np.linspace(0, 2 * math.pi, 8, endpoint=False)]
+                    + [[6 * math.cos(a), 6 * math.sin(a)] for a in np.linspace(0, 2 * math.pi, 6, endpoint=False)])
+    for ax in axes:
+        ls = ax["geom"]
+        # merging can flip a way: make it run downhill (mean DEM of the first vs the last 15 % of its length)
+        q = np.linspace(0, 0.15, 6)
+        za = sample_raster(dem, *local_to_ll(*np.array([[ls.interpolate(t, normalized=True).x, ls.interpolate(t, normalized=True).y] for t in q]).T, origin)).mean()
+        zb = sample_raster(dem, *local_to_ll(*np.array([[ls.interpolate(1 - t, normalized=True).x, ls.interpolate(1 - t, normalized=True).y] for t in q]).T, origin)).mean()
+        if zb > za:
+            ls = LineString(list(ls.coords)[::-1])
+        n = max(2, int(ls.length / step) + 1)
+        d = np.linspace(0, ls.length, n)
+        xy = np.array([[p.x, p.y] for p in (ls.interpolate(t) for t in d)])
+        px = (xy[:, None, 0] + offs[None, :, 0]).ravel(); py = (xy[:, None, 1] + offs[None, :, 1]).ravel()
+        z = sample_raster(dem, *local_to_ll(px, py, origin), order=1).reshape(n, -1)
+        z = np.percentile(z, 15, axis=1)
+        # lake contact at either end
+        start_lvl = end_lvl = None
+        for lk in lakes:
+            g = lk["geom"].buffer(25)
+            if g.contains(shapely.Point(*xy[0])): start_lvl = lk["level"]
+            if g.contains(shapely.Point(*xy[-1])): end_lvl = lk["level"]
+        if start_lvl is not None:
+            z = np.minimum(z, start_lvl); z[0] = start_lvl
+        z = isotonic_decreasing(z)
+        if end_lvl is not None:
+            z = np.maximum(z, end_lvl)
+        k = 9
+        zp = np.concatenate([np.full(k, z[0]), z, np.full(k, z[-1])])
+        z = np.convolve(zp, np.ones(2 * k + 1) / (2 * k + 1), mode="same")[k:-k]
+        if start_lvl is not None:
+            z = np.minimum(z, start_lvl)
+        out.append({"name": ax["name"], "xy": xy, "z": z})
+    return out
+
+
+def isotonic_decreasing(z):
+    """Least-squares non-increasing fit (pool-adjacent-violators)."""
+    vals, wts, cnt = [], [], []
+    for v in z:
+        vals.append(float(v)); wts.append(1.0); cnt.append(1)
+        while len(vals) > 1 and vals[-2] < vals[-1]:
+            w = wts[-2] + wts[-1]; m = (vals[-2] * wts[-2] + vals[-1] * wts[-1]) / w; c = cnt[-2] + cnt[-1]
+            vals[-2:] = [m]; wts[-2:] = [w]; cnt[-2:] = [c]
+    return np.repeat(vals, cnt)
+
+
+def nearest_axis(poly, rivers, max_d=80.0):
+    """Index of the river centreline that runs through a mapped river area (most of its length inside), else None."""
+    best, bd = None, 0.0
+    for i, rv in enumerate(rivers):
+        inside = shapely.contains_xy(poly.buffer(max_d * 0.25), rv["xy"][:, 0], rv["xy"][:, 1]).sum()
+        if inside > bd:
+            best, bd = i, inside
+    return best if bd >= 2 else None
+
+
+def river_surface(rv, xs, ys):
+    """Water level of profile rv at points (nearest station)."""
+    from scipy.spatial import cKDTree
+    t = rv.get("_tree")
+    if t is None:
+        t = rv["_tree"] = cKDTree(rv["xy"])
+    _, i = t.query(np.column_stack([xs, ys]))
+    return rv["z"][i]
+
 # ---------------------------------------------------------------- main build
 def build(area_id: str):
     area = CONFIG["areas"][area_id]
@@ -191,7 +279,8 @@ def build(area_id: str):
     # ---------- water
     wt = pq.read_table(cache / "water.parquet").to_pylist()
     ctx_rect = box(-R, -R, R, R)
-    water_polys, water_lines = [], []
+    water_polys, water_lines, river_axes = [], [], []
+    water_stats = {"culverts_dropped": 0, "culvert_m": 0.0}
     for r in wt:
         geom = to_local(shapely.from_wkb(r["geometry"]), origin)
         name = (r["names"] or {}).get("primary")
@@ -202,8 +291,16 @@ def build(area_id: str):
                     continue
                 water_polys.append({"geom": p, "kind": r["subtype"] or r["class"], "class": r["class"], "name": name})
         elif geom.geom_type in ("LineString", "MultiLineString"):
+            # OSM layer=-1 marks culverted / piped stretches (under streets and yards): no open water to draw there
+            if (r.get("level") or 0) < 0:
+                water_stats["culverts_dropped"] += 1
+                water_stats["culvert_m"] += geom.length
+                continue
+            if r["class"] == "river" and geom.length > 200:
+                for ls in lines_of(geom.intersection(ctx_rect)):
+                    river_axes.append({"geom": ls, "name": name})
             for ls in lines_of(geom.intersection(core_rect.buffer(150))):
-                water_lines.append({"geom": ls, "class": r["class"], "name": name})
+                water_lines.append({"geom": ls, "class": r["class"], "name": name, "intermittent": bool(r.get("is_intermittent"))})
 
     # Lakes are flat: level from the DEM inside the polygon (GLO-30 flattens water bodies).
     def level_of(p):
@@ -232,6 +329,10 @@ def build(area_id: str):
                 bank = shapely.contains_xy(p.buffer(25), xs, ys) & ~inside
                 hs = np.where(inside, np.minimum(hs, lvl - 2.0), hs)
                 hs = np.where(bank, np.maximum(hs, lvl + 0.35), hs)
+            elif w.get("axis") is not None:
+                # river bed 1.2 m under the levelled water surface (pipeline: river_profiles)
+                surf = river_surface(rivers[w["axis"]], xs, ys)
+                hs = np.where(inside, np.minimum(hs - 0.4, surf - 1.2), hs)
             else:
                 hs = np.where(inside, hs - 1.6, hs)
             H[sel] = hs
@@ -239,6 +340,10 @@ def build(area_id: str):
     for w in water_polys:
         w["flat"] = w["class"] in ("lake", "reservoir", "pond", "basin", "lagoon") or w["kind"] in ("lake", "reservoir", "pond")
         w["level"] = level_of(w["geom"]) if w["flat"] else None
+    rivers = river_profiles(river_axes, water_polys, dem, origin)
+    for w in water_polys:
+        if not w["flat"]:
+            w["axis"] = nearest_axis(w["geom"], rivers)
     carve(core, core_h)
     carve(ctx, ctx_h)
     # streams: shallow channel in the core grid
@@ -503,13 +608,23 @@ def build(area_id: str):
     water_out = []
     for w in water_polys:
         water_out.append({"kind": "lake" if w["flat"] else "river", "name": w["name"],
-                          "level": r1(w["level"]) if w["flat"] else None, **poly_json(w["geom"], 0.8)})
-    streams = [{"c": wl["class"], "n": wl["name"], "pts": coords_list(wl["geom"].simplify(0.5))}
-               for wl in water_lines if wl["geom"].length > 2]
+                          "level": r1(w["level"]) if w["flat"] else None,
+                          **({"axis": w["axis"]} if w.get("axis") is not None else {}), **poly_json(w["geom"], 0.8)})
+    # Stretches of a stream that run inside a lake are not drawn (OSM routes the Ljuča through Plavsko jezero to the Lim).
+    lakes_u = unary_union([w["geom"] for w in water_polys if w["flat"]]) if any(w["flat"] for w in water_polys) else None
+    streams = []
+    for wl in water_lines:
+        gl = wl["geom"].difference(lakes_u) if lakes_u is not None else wl["geom"]
+        for ls in lines_of(gl):
+            if ls.length > 2:
+                streams.append({"c": wl["class"], "n": wl["name"], "pts": coords_list(ls.simplify(0.5)),
+                                **({"i": 1} if wl.get("intermittent") else {})})
+    river_out = [{"n": rv["name"], "pts": [[r1(x), r1(y), round(float(z), 2)] for (x, y), z in zip(rv["xy"], rv["z"])]}
+                 for rv in rivers]
 
     (out / "buildings.json").write_text(json.dumps({"rules": RULES_VERSION, "buildings": buildings, "removed": removed, "minarets": minarets},
                                                    ensure_ascii=False, separators=(",", ":")))
-    (out / "vectors.json").write_text(json.dumps({"roads": roads, "crossings": crossings, "water": water_out, "streams": streams,
+    (out / "vectors.json").write_text(json.dumps({"roads": roads, "crossings": crossings, "water": water_out, "streams": streams, "rivers": river_out,
                                                   "overlays": overlays}, ensure_ascii=False, separators=(",", ":")))
 
     landmarks = [{"name": b["name"], "x": r1(np.mean([p[0] for p in b["fp"]])), "y": r1(np.mean([p[1] for p in b["fp"]])),
@@ -525,7 +640,7 @@ def build(area_id: str):
                     "file": "terrain_context.bin", "cover": "cover_context.png", "coreSink": 4.0},
         "extent": {"halfW": r1(half_w), "halfH": r1(half_h)},
         "treesFile": "trees.bin",
-        "stats": {**stats, "trees": int(len(tree_arr)), "roads": len(roads), "water": len(water_out),
+        "stats": {**stats, **{k: round(v) for k, v in water_stats.items()}, "trees": int(len(tree_arr)), "roads": len(roads), "water": len(water_out),
                   "minarets": len(minarets)},
         "landmarks": landmarks,
         "estimates": {

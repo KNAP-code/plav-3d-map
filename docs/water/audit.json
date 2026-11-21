@@ -1,0 +1,325 @@
+{
+ "lake": {
+  "name": "Plavsko jezero",
+  "osm_area_km2": 1.974,
+  "osm_perimeter_km": 8.6,
+  "osm_extent_m": [
+   1572,
+   2180
+  ],
+  "s2_open_water_km2": 1.215,
+  "s2_vegetated_km2": 0.742,
+  "s2_open_water_outside_osm_m2": 1600.0,
+  "open_water_edge_to_mapped_shore_m": {
+   "N": {
+    "median_m": 124.0,
+    "p90_m": 260.0
+   },
+   "E": {
+    "median_m": 138.0,
+    "p90_m": 166.0
+   },
+   "S": {
+    "median_m": 117.0,
+    "p90_m": 205.0
+   },
+   "W": {
+    "median_m": 37.0,
+    "p90_m": 90.0
+   }
+  },
+  "level_glo30_m": 904.5,
+  "glo30_in_lake_percentiles": {
+   "p5": 904.5,
+   "p50": 904.5,
+   "p95": 906.15
+  },
+  "ground_20m_outside_shore_percentiles": {
+   "p5": 904.85,
+   "p50": 907.24,
+   "p95": 911.18
+  },
+  "published": {
+   "area_km2": 2,
+   "elevation_m": 907,
+   "mean_depth_m": 3,
+   "max_depth_m": 9,
+   "source": "https://www.plavto.me/turisticka-ponuda/plavsko-jezero"
+  }
+ },
+ "marsh_grid": {
+  "cells": 20689,
+  "vegetated_cells_gt_0_3": 8778
+ },
+ "rivers": [
+  {
+   "name": "Lim",
+   "length_m": 14913,
+   "z_start": 904.5,
+   "z_end": 805.87,
+   "fall_m_per_km": 6.61
+  },
+  {
+   "name": "Murinska rijeka",
+   "length_m": 707,
+   "z_start": 860.18,
+   "z_end": 829.82,
+   "fall_m_per_km": 42.92
+  },
+  {
+   "name": "Ljuča",
+   "length_m": 14271,
+   "z_start": 916.15,
+   "z_end": 904.5,
+   "fall_m_per_km": 0.82
+  },
+  {
+   "name": "Pepićka rijeka",
+   "length_m": 2950,
+   "z_start": 1100.36,
+   "z_end": 835.57,
+   "fall_m_per_km": 89.77
+  },
+  {
+   "name": "Grlja",
+   "length_m": 1720,
+   "z_start": 1002.19,
+   "z_end": 927.48,
+   "fall_m_per_km": 43.44
+  },
+  {
+   "name": "Vruja",
+   "length_m": 1416,
+   "z_start": 924.19,
+   "z_end": 916.51,
+   "fall_m_per_km": 5.42
+  },
+  {
+   "name": "Grnčar",
+   "length_m": 914,
+   "z_start": 918.31,
+   "z_end": 915.99,
+   "fall_m_per_km": 2.54
+  },
+  {
+   "name": "Komaračka",
+   "length_m": 3579,
+   "z_start": 1001.05,
+   "z_end": 902.2,
+   "fall_m_per_km": 27.62
+  },
+  {
+   "name": "Velička rijeka",
+   "length_m": 6593,
+   "z_start": 1380.19,
+   "z_end": 858.17,
+   "fall_m_per_km": 79.18
+  }
+ ],
+ "river_area_mean_width_m": {
+  "Lim": 27.9,
+  "Ljuča": 22.5,
+  "Vruja": 22.3,
+  "Grnčar": 25.9
+ },
+ "culverts_dropped": 14,
+ "culvert_m": 247,
+ "bridges": [
+  {
+   "name": null,
+   "class": "footway",
+   "length_m": 14.1,
+   "deck_w_m": 2.2,
+   "over": [
+    "lake"
+   ],
+   "lon": 19.93028,
+   "lat": 42.58746
+  },
+  {
+   "name": null,
+   "class": "footway",
+   "length_m": 8.4,
+   "deck_w_m": 2.2,
+   "over": [
+    "(no mapped water: dry gully or the waterway is not mapped)"
+   ],
+   "lon": 19.92967,
+   "lat": 42.58763
+  },
+  {
+   "name": null,
+   "class": "footway",
+   "length_m": 9.1,
+   "deck_w_m": 2.2,
+   "over": [
+    "lake"
+   ],
+   "lon": 19.92941,
+   "lat": 42.5879
+  },
+  {
+   "name": null,
+   "class": "footway",
+   "length_m": 95.6,
+   "deck_w_m": 2.2,
+   "over": [
+    "Plavsko jezero"
+   ],
+   "lon": 19.92859,
+   "lat": 42.58856
+  },
+  {
+   "name": null,
+   "class": "footway",
+   "length_m": 40.7,
+   "deck_w_m": 2.2,
+   "over": [
+    "Plavsko jezero"
+   ],
+   "lon": 19.93257,
+   "lat": 42.59637
+  },
+  {
+   "name": null,
+   "class": "footway",
+   "length_m": 41.4,
+   "deck_w_m": 2.2,
+   "over": [
+    "Plavsko jezero"
+   ],
+   "lon": 19.93286,
+   "lat": 42.59606
+  },
+  {
+   "name": "Splavovi",
+   "class": "footway",
+   "length_m": 112.2,
+   "deck_w_m": 2.2,
+   "over": [
+    "Plavsko jezero"
+   ],
+   "lon": 19.93258,
+   "lat": 42.59584
+  },
+  {
+   "name": "Splavovi",
+   "class": "footway",
+   "length_m": 8.0,
+   "deck_w_m": 2.2,
+   "over": [
+    "Plavsko jezero"
+   ],
+   "lon": 19.93271,
+   "lat": 42.59622
+  },
+  {
+   "name": "Splavovi",
+   "class": "footway",
+   "length_m": 137.8,
+   "deck_w_m": 2.2,
+   "over": [
+    "Plavsko jezero"
+   ],
+   "lon": 19.93353,
+   "lat": 42.59647
+  },
+  {
+   "name": "Bogajićka",
+   "class": "residential",
+   "length_m": 18.2,
+   "deck_w_m": 5.2,
+   "over": [
+    "Đurička"
+   ],
+   "lon": 19.94816,
+   "lat": 42.59148
+  },
+  {
+   "name": null,
+   "class": "residential",
+   "length_m": 15.3,
+   "deck_w_m": 5.2,
+   "over": [
+    "Đurička"
+   ],
+   "lon": 19.94892,
+   "lat": 42.59384
+  },
+  {
+   "name": "Plavski most",
+   "class": "residential",
+   "length_m": 19.1,
+   "deck_w_m": 5.2,
+   "over": [
+    "Đurička"
+   ],
+   "lon": 19.94708,
+   "lat": 42.59685
+  },
+  {
+   "name": "Korita",
+   "class": "unclassified",
+   "length_m": 8.7,
+   "deck_w_m": 4.8,
+   "over": [
+    "(no mapped water: dry gully or the waterway is not mapped)"
+   ],
+   "lon": 19.95657,
+   "lat": 42.61608
+  },
+  {
+   "name": null,
+   "class": "track",
+   "length_m": 22.7,
+   "deck_w_m": 3.2,
+   "over": [
+    "Đurička"
+   ],
+   "lon": 19.93738,
+   "lat": 42.60935
+  },
+  {
+   "name": null,
+   "class": "secondary",
+   "length_m": 17.2,
+   "deck_w_m": 7.5,
+   "over": [
+    "stream"
+   ],
+   "lon": 19.92612,
+   "lat": 42.60943
+  },
+  {
+   "name": "Zioci",
+   "class": "tertiary",
+   "length_m": 40.8,
+   "deck_w_m": 6.5,
+   "over": [
+    "Lim"
+   ],
+   "lon": 19.92737,
+   "lat": 42.60816
+  }
+ ],
+ "piers": [
+  {
+   "area_m2": 1432,
+   "extent_m": 160,
+   "share_over_lake": 1.0,
+   "s2_brightness_on": 0.236,
+   "s2_brightness_around": 0.075,
+   "lon": 19.93285,
+   "lat": 42.59614
+  },
+  {
+   "area_m2": 286,
+   "extent_m": 83,
+   "share_over_lake": 0.99,
+   "s2_brightness_on": 0.228,
+   "s2_brightness_around": 0.176,
+   "lon": 19.92859,
+   "lat": 42.58856
+  }
+ ]
+}

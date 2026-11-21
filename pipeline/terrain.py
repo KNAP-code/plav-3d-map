@@ -341,11 +341,15 @@ def build(area=AREA, l3_half=None):
 
 def carve_water(area, grids, specs):
     """Same rule as build.py for the old context ring: lakes sit 2 m below their flat level with a 25 m bank just
-    above it (the water mesh is flat at the level), mapped river areas 1.6 m down. Only the water polygons the city
-    build exported (±9 km) are used; farther lakes are coloured from WorldCover instead."""
+    above it (the water mesh is flat at the level), mapped river areas with a levelled profile 1.2 m under that
+    profile (Phase 2), other river areas 1.6 m down. Only the water polygons the city build exported (±9 km) are
+    used; farther lakes are coloured from WorldCover instead."""
     import shapely
     from shapely.geometry import Polygon
+    from scipy.spatial import cKDTree
     vec = json.loads((ROOT / "public" / "data" / area / "vectors.json").read_text())
+    rivers = [np.array(r["pts"]) for r in vec.get("rivers", [])]
+    trees = [cKDTree(r[:, :2]) for r in rivers]
     for w in vec["water"]:
         p = Polygon(w["outer"], w["holes"])
         if not p.is_valid:
@@ -364,6 +368,10 @@ def carve_water(area, grids, specs):
                 bank = shapely.contains_xy(p.buffer(25), X, Y) & ~inside
                 sub[:] = np.where(inside, np.minimum(sub, w["level"] - 2.0), sub)
                 sub[:] = np.where(bank, np.maximum(sub, w["level"] + 0.35), sub)
+            elif w.get("axis") is not None:
+                _, k = trees[w["axis"]].query(np.column_stack([X.ravel(), Y.ravel()]))
+                surf = rivers[w["axis"]][k, 2].reshape(X.shape)
+                sub[:] = np.where(inside, np.minimum(sub - 0.4, surf - 1.2), sub)
             else:
                 sub[:] = np.where(inside, sub - 1.6, sub)
 
@@ -447,4 +455,6 @@ if __name__ == "__main__":
     if cmd == "fetch":
         fetch()
     else:
-        build(sys.argv[2] if len(sys.argv) > 2 else AREA)
+        # optional 3rd argument: L3 half extent in m (the approved Phase 1 value is 38880; without viewshed.json in the
+        # cache the automatic choice differs)
+        build(sys.argv[2] if len(sys.argv) > 2 else AREA, float(sys.argv[3]) if len(sys.argv) > 3 else None)

@@ -196,66 +196,6 @@ export function roadsGeometry(d: AreaData, style: StyleConfig, part: "day" | "ni
   return g;
 }
 
-/** Ribbons for streams (water lines). */
-export function streamsGeometry(d: AreaData): THREE.BufferGeometry {
-  const pos: number[] = [];
-  const h = makeSampler(d);
-  for (const s of d.streams) {
-    const w = s.c === "river" ? 7 : s.c === "canal" ? 3 : s.c === "stream" ? 2.4 : 1.4;
-    const pts = densify(s.pts as P2[], 4);
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
-      const l = Math.hypot(x2 - x1, y2 - y1) || 1;
-      const nx = (-(y2 - y1) / l) * (w / 2), ny = ((x2 - x1) / l) * (w / 2);
-      const v = (x: number, y: number) => [x, h(x, y) + 0.45 - d.datum, -y];
-      const a = v(x1 + nx, y1 + ny), b = v(x1 - nx, y1 - ny), c = v(x2 - nx, y2 - ny), e = v(x2 + nx, y2 + ny);
-      pos.push(...a, ...b, ...c, ...a, ...c, ...e);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  fixUp(g);
-  g.computeVertexNormals();
-  return g;
-}
-
-/** Lakes are flat at their DEM level; river areas are draped. */
-export function waterGeometry(d: AreaData): THREE.BufferGeometry {
-  const pos: number[] = [];
-  const h = makeSampler(d);
-  for (const w of d.water) {
-    let tris = triangulate(w.outer as P2[], w.holes as P2[][]);
-    if (w.kind === "lake" && w.level != null) {
-      const z = w.level - d.datum;
-      for (const [x, y] of tris) pos.push(x, z, -y);
-    } else {
-      tris = subdivide(tris, 10);
-      // river surface: lowest ground within ~7 m (the carved bed) plus a fixed depth, so the surface is smooth
-      // instead of following every bump of the 30 m DEM; cached per vertex position
-      const lvl = new Map<string, number>();
-      const at = (x: number, y: number) => {
-        const k = `${x.toFixed(1)},${y.toFixed(1)}`;
-        let v = lvl.get(k);
-        if (v === undefined) {
-          v = Infinity;
-          for (const [dx, dy] of [[0, 0], [7, 0], [-7, 0], [0, 7], [0, -7], [5, 5], [-5, -5], [5, -5], [-5, 5]]) v = Math.min(v, h(x + dx, y + dy));
-          lvl.set(k, v);
-        }
-        return v;
-      };
-      for (const [x, y] of tris) pos.push(x, at(x, y) + 1.05 - d.datum, -y);
-    }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  fixUp(g);
-  // water reads as one smooth sheet: every normal points up (faceted DEM normals showed as dark triangles)
-  const n = new Float32Array(pos.length);
-  for (let i = 1; i < n.length; i += 3) n[i] = 1;
-  g.setAttribute("normal", new THREE.BufferAttribute(n, 3));
-  return g;
-}
-
 /** Land-use overlays (pitches, cemeteries, squares) draped on the terrain. */
 export function overlaysGeometry(d: AreaData, style: StyleConfig): THREE.BufferGeometry {
   const pos: number[] = [], col: number[] = [];

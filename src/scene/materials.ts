@@ -57,6 +57,8 @@ type Patch = {
   vertexMain?: string;
   fragHead?: string;
   fragColor?: string;
+  /** runs just before the opaque/output chunk: may modify outgoingLight (after lighting, before fog) */
+  fragOut?: string;
   /** runs after the emissive chunk: add to totalEmissiveRadiance (night lights) */
   fragEmissive?: string;
   /** replaces three's fog chunk (custom aerial perspective) */
@@ -73,6 +75,7 @@ function patch<M extends THREE.Material>(m: M, p: Patch, key: string): M {
       .replace("#include <common>", `#include <common>\n${NOISE}\nuniform float uNight;\n${p.fragHead ?? ""}`)
       .replace("#include <color_fragment>", `#include <color_fragment>\n${p.fragColor ?? ""}`)
       .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${p.fragEmissive ?? ""}`);
+    if (p.fragOut) shader.fragmentShader = shader.fragmentShader.replace("#include <opaque_fragment>", `${p.fragOut}\n#include <opaque_fragment>`);
     if (p.fragFog) shader.fragmentShader = shader.fragmentShader.replace("#include <fog_fragment>", p.fragFog);
   };
   m.customProgramCacheKey = () => key;
@@ -338,25 +341,127 @@ export function roadMaterial(style: StyleConfig) {
   }, "roads-v3");
 }
 
-export function waterMaterial(style: StyleConfig) {
+/** Planar lake reflection shared by every water mesh (filled by LakeReflection in World.tsx; off on the low tier). */
+export const REFLECT = {
+  map: { value: null as THREE.Texture | null },
+  matrix: { value: new THREE.Matrix4() },
+  on: { value: 0 },
+  level: { value: 0 },
+};
+
+/**
+ * Water v2. Lit like before (palette colour, deep-water mottling), then after lighting:
+ *  - a Fresnel reflection: the planar lake reflection where it exists (lakes, medium/high tiers), otherwise the sky
+ *    colour; rippled by two scrolling noise normals, weaker in the reed belt and on rivers,
+ *  - lighter shallows within a few metres of the mapped shore and a faint wet rim at the bank,
+ *  - rivers: ripples stretched and moving along the profile's flow direction.
+ * Lake grid (pipeline/water.py): uMarsh r = vegetation cover, g = shore distance / 64 m.
+ */
+export function waterMaterial(style: StyleConfig, marsh: THREE.Texture | null, box: THREE.Vector4) {
   const m = new THREE.MeshStandardMaterial({
     color: style.water.color, roughness: style.water.roughness, metalness: 0.05,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
   });
+  const U = {
+    uDeep: { value: c3(style.water.deep) }, uShallow: { value: c3(style.water.shore) }, uReed: { value: c3(style.water.reed) },
+    uSkyCol: { value: c3(style.sky.fog) }, uTime: { value: 0 },
+    uMarsh: { value: marsh }, uMarshOn: { value: marsh ? 1 : 0 }, uBox: { value: box },
+    uRefl: REFLECT.map, uReflM: REFLECT.matrix, uReflOn: REFLECT.on,
+  };
+  m.userData.u = U; // Water updates uSkyCol (follows the haze: day / sunset / night) and uTime
   return patch(m, {
-    uniforms: { uDeep: { value: c3(style.water.deep) }, uTime: { value: 0 } },
-    vertexHead: "varying vec3 vWw;",
-    vertexMain: "vWw = (modelMatrix * vec4(transformed,1.0)).xyz;",
-    fragHead: "uniform vec3 uDeep; uniform float uTime; varying vec3 vWw;",
+    uniforms: U,
+    vertexHead: "attribute float aShore; attribute vec2 aFlow; varying vec3 vWw; varying float vShore; varying vec2 vFlow; uniform mat4 uReflM; varying vec4 vRefl;",
+    vertexMain: "vWw = (modelMatrix * vec4(transformed,1.0)).xyz; vShore = aShore; vFlow = aFlow; vRefl = uReflM * vec4(vWw, 1.0);",
+    fragHead: `uniform vec3 uDeep, uShallow, uReed, uSkyCol; uniform float uTime, uMarshOn, uReflOn; uniform sampler2D uMarsh, uRefl;
+      uniform vec4 uBox; varying vec3 vWw; varying float vShore; varying vec2 vFlow; varying vec4 vRefl;
+      vec2 gMarsh() {
+        if (uMarshOn < 0.5 || vShore >= 0.0) return vec2(0.0, clamp(vShore, 0.0, 64.0) / 64.0);
+        vec2 uv = vec2((vWw.x - uBox.x) / uBox.z, (-vWw.z - uBox.y) / uBox.w);
+        vec4 t = texture2D(uMarsh, uv);
+        return vec2(t.r, t.g);
+      }`,
     fragColor: /* glsl */ `
+      vec2 gm = gMarsh();
+      float shoreM = gm.y * 64.0;
+      bool river = vShore >= 0.0;
       {
         float n = fbm(vWw.xz * 0.04 + vec2(uTime * 0.01, 0.0));
-        float r = fbm(vWw.xz * 0.35 + vec2(0.0, uTime * 0.05));
         diffuseColor.rgb = mix(diffuseColor.rgb, uDeep, smoothstep(0.35, 0.8, n) * 0.55);
-        diffuseColor.rgb += vec3(0.05) * smoothstep(0.72, 0.9, r);
+        // shallows: lighter, slightly green-brown water near the bank (lake: within ~25 m; river: ~3 m)
+        float sh = river ? 1.0 - smoothstep(0.3, 2.0, shoreM) : 1.0 - smoothstep(2.0, 25.0, shoreM);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uShallow * vec3(0.92, 0.95, 0.85), sh * (river ? 0.2 : 0.35));
+        // under / between the reeds the water is darker and olive
+        diffuseColor.rgb = mix(diffuseColor.rgb, uReed * 0.55, smoothstep(0.1, 0.6, gm.x) * 0.6);
       }
     `,
-  }, "water-v1");
+    fragOut: /* glsl */ `
+      {
+        vec3 V = normalize(cameraPosition - vWw);
+        vec2 fl = length(vFlow) > 0.1 ? normalize(vFlow) : vec2(1.0, 0.0);
+        vec2 p = vWw.xz;
+        // ripples: two scrolling noise layers; on rivers stretched along the flow
+        vec2 q = river ? vec2(dot(p, fl), dot(p, vec2(-fl.y, fl.x)) * 2.5) - vec2(uTime * 0.8, 0.0) : p;
+        // gradient of one noise layer by forward differences (3 lookups) + a finer layer's value as a tilt (1 lookup)
+        float e = 0.6;
+        vec2 o = vec2(uTime * 0.02, uTime * 0.013);
+        float a0 = fbm(q * 0.11 + o);
+        float ax = fbm((q + vec2(e, 0.0)) * 0.11 + o);
+        float az = fbm((q + vec2(0.0, e)) * 0.11 + o);
+        float b0 = fbm(q * 0.37 - vec2(uTime * 0.03, 0.0)) - 0.5;
+        vec2 g = vec2(ax - a0, az - a0) * 1.2 + vec2(b0, -b0) * 0.05;
+        float amp = river ? 0.9 : 0.55;
+        vec3 N = normalize(vec3(-g.x * amp, 1.0, -g.y * amp));
+        float cosT = clamp(dot(V, N), 0.0, 1.0);
+        float F = 0.02 + 0.98 * pow(1.0 - cosT, 5.0);
+        vec3 refl = uSkyCol * 0.85;
+        if (uReflOn > 0.5 && !river) {
+          vec4 rc = vRefl; rc.xy += N.xz * 0.9 * rc.w * 0.06;
+          refl = texture2DProj(uRefl, rc).rgb * vec3(0.8, 0.88, 0.92); // water absorbs some: reflections a touch darker and cooler
+        }
+        float k = mix(0.8, 0.3, smoothstep(0.1, 0.6, gm.x)) * (river ? 0.35 : 1.0);
+        k *= 1.0 - uNight * 0.35;
+        // planar reflection: a faint mirror even looking down (calm lake), Fresnel-strong at grazing angles
+        float base = uReflOn > 0.5 && !river ? 0.07 : 0.0;
+        outgoingLight = mix(outgoingLight, refl, clamp(F * k + base * (1.0 - smoothstep(0.1, 0.6, gm.x)), 0.0, 0.55));
+        // wet rim along the bank (a thin darker line)
+        outgoingLight *= mix(1.0, 0.8, (1.0 - smoothstep(0.0, river ? 0.8 : 2.5, shoreM)) * (river ? 0.6 : 1.0) * (uMarshOn > 0.5 || river ? 1.0 : 0.0));
+      }
+    `,
+  }, "water-v2");
+}
+
+/**
+ * Reed belt canopy (Sentinel-2 vegetated lake cells): vertex colours, matte, with fine vertical blade striping from
+ * noise so it reads as reeds rather than lawn at street-level distances.
+ */
+export function reedMaterial(marsh: THREE.Texture, box: THREE.Vector4) {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  return patch(m, {
+    uniforms: { uMarsh: { value: marsh }, uBox: { value: box } },
+    vertexHead: "varying vec3 vWr;",
+    vertexMain: "vWr = (modelMatrix * vec4(transformed,1.0)).xyz;",
+    fragHead: "uniform sampler2D uMarsh; uniform vec4 uBox; varying vec3 vWr;",
+    fragColor: /* glsl */ `
+      {
+        // clumps: sparse cover leaves open water between stands (the Sentinel-2 cover decides how much)
+        float veg = texture2D(uMarsh, vec2((vWr.x - uBox.x) / uBox.z, (-vWr.z - uBox.y) / uBox.w)).r;
+        float cl = fbm(vWr.xz * 0.07) * 0.55 + fbm(vWr.xz * 0.45) * 0.45;
+        if (cl < 1.12 - veg * 1.0) discard;
+        float n = fbm(vWr.xz * 1.7);
+        float c = fbm(vWr.xz * 0.05 + 3.1);
+        diffuseColor.rgb *= 0.7 + 0.45 * n;
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.15, 1.05, 0.72), smoothstep(0.4, 0.75, c) * 0.6);
+        // darker stems near the water line
+        diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(0.0, 0.5, cl - (1.12 - veg * 1.0)));
+      }
+    `,
+  }, "reed-v2");
+}
+
+export function tuftMaterial(style: StyleConfig) {
+  void style;
+  return new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.95, metalness: 0, side: THREE.DoubleSide });
 }
 
 /**

@@ -27,7 +27,21 @@ const atmos = [
   "night|q=high&off=tilt&night=1&cam=150,-150,1100,40,50",
   "night-centre|q=high&off=tilt&night=1&cam=200,-150,260,-120,55",
 ];
-const views = process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
+// VIEWS=water: Phase 2 lake / rivers / waterfront (same cameras before and after)
+const water = [
+  "lake|q=high&off=tilt&cam=-1400,-300,2300,95,52",
+  "lake-low|q=high&off=tilt&cam=-1300,-350,1100,100,74",
+  "splavovi|q=high&off=tilt&cam=-770,-195,190,110,58",
+  "boardwalks|q=high&off=tilt&cam=-1080,-1080,260,60,58",
+  "lim-outlet|q=high&off=tilt&cam=-1250,950,420,170,55",
+  "zioci-bridge|q=high&off=tilt&cam=-1228,1144,95,130,62",
+  "ljuca|q=high&off=tilt&cam=-1950,-500,520,70,55",
+  "town-stream|q=high&off=tilt&cam=374,-133,85,200,58",
+  "sunset-lake|q=high&off=tilt&sunset=1&cam=-1300,-350,1100,100,74",
+  "night-lake|q=high&off=tilt&night=1&cam=-1300,-350,1100,100,70",
+  "medium-lake|q=medium&off=tilt&cam=-1300,-350,1100,100,74",
+];
+const views = process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",

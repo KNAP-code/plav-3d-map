@@ -235,7 +235,7 @@ export default function Viewer() {
           <SceneFog style={style} />
           <Suspense fallback={null}>
             {!off.has("terrain") && <Terrain data={data} style={style} quality={quality} />}
-            {!off.has("water") && <Water data={data} style={style} />}
+            {!off.has("water") && <Water data={data} style={style} quality={quality} reflect={!off.has("reflect")} reeds={!off.has("reeds")} />}
             {!off.has("roads") && <Roads data={data} style={style} />}
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
             {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} estimates={estimates} quality={quality} />}
