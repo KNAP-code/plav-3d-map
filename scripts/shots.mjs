@@ -53,7 +53,18 @@ const fixCams = [
   "add-3785|cam=750,-138,100,200,55", "add-2431|cam=160,-652,100,200,55", "add-3035|cam=137,899,100,200,55",
 ];
 const fix = fixCams.flatMap((v) => { const [n, c] = v.split("|"); return [`${n}|q=high&off=tilt&${c}`, `${n}-verify|q=high&off=tilt&verify=1&${c}`]; });
-const views = process.env.VIEWS === "fix" ? fix : process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
+// VIEWS=arch: Phase 4 architectural detail, pilot area (central Plav) close-ups, same cameras before and after
+const arch = [
+  "pilot|q=high&off=tilt&cam=150,-280,260,200,55",
+  "street|q=high&off=tilt&cam=120,-330,48,215,64",
+  "houses|q=high&off=tilt&cam=283,-240,42,320,66",
+  "roofs|q=high&off=tilt&cam=200,-200,110,-120,48",
+  "yard|q=high&off=tilt&cam=40,-380,65,150,58",
+  "suburb|q=high&off=tilt&cam=-700,760,60,160,62",
+  "sunset|q=high&off=tilt&sunset=1&cam=120,-330,70,215,60",
+  "night|q=high&off=tilt&night=1&cam=120,-330,70,215,60",
+];
+const views = process.env.CAMS ? process.env.CAMS.split(";") : process.env.VIEWS === "arch" ? arch : process.env.VIEWS === "fix" ? fix : process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",

@@ -16,6 +16,7 @@ import { bridgeGeometry, headstoneMatrices, pierGeometry, pitchGeometry, powerGe
 import { fenceGeometry, fruitTrees, hayMatrices, haystack, yardGeometry } from "@/geo/gardenscape";
 import { SCENE, fenceMaterial, pavingMaterial, buildingMaterial, carMaterial, glowMaterial, landmarkMaterial, roadMaterial, streetlightMaterial, terrainMaterial, farTerrainMaterial, skyMaterial, treeMaterial, waterMaterial, reedMaterial, tuftMaterial, REFLECT } from "./materials";
 import { landmarkGeometry, landmarkReplacements } from "@/geo/landmarks";
+import { contactShadowGeometry, surroundingsGeometry } from "@/geo/surroundings";
 import { chooseStride, chunkGeometry, levelChunks, type Chunk } from "@/geo/terrainLevels";
 import { bump } from "@/ui/perf";
 
@@ -243,7 +244,7 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
 }
 
 /** Nearest road point (car roads and residential streets, not footpaths) to a position, within 60 m; grid-indexed. */
-function roadLookup(data: AreaData) {
+export function roadLookup(data: AreaData) {
   const cell = 30, grid = new Map<string, [number, number][]>();
   for (const r of data.roads) {
     if (/foot|path|steps|track|cycle|pedestrian|bridleway/.test(r.c)) continue;
@@ -752,6 +753,10 @@ export function Traffic({ data, style, count }: { data: AreaData; style: StyleCo
 export function Gardens({ data, quality }: { data: AreaData; quality: Quality }) {
   const yards = useMemo(() => yardGeometry(data), [data]);
   const fences = useMemo(() => fenceGeometry(data), [data]);
+  const surround = useMemo(() => surroundingsGeometry(data, roadLookup(data)), [data]);
+  const contact = useMemo(() => contactShadowGeometry(data), [data]);
+  const contactM = useMemo(() => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }), []);
+  const surroundM = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }), []);
   const yardM = useMemo(() => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), []);
   const fenceM = useMemo(() => fenceMaterial(), []);
   const hay = useMemo(() => {
@@ -763,13 +768,15 @@ export function Gardens({ data, quality }: { data: AreaData; quality: Quality })
     im.castShadow = true; im.receiveShadow = true;
     return im;
   }, [data]);
-  useDispose(useMemo(() => [yards, fences, yardM, fenceM], [yards, fences, yardM, fenceM]));
+  useDispose(useMemo(() => [yards, fences, yardM, fenceM, surround, surroundM, contact, contactM], [yards, fences, yardM, fenceM, surround, surroundM, contact, contactM]));
   useEffect(() => () => { if (hay) { hay.geometry.dispose(); (hay.material as THREE.Material).dispose(); hay.dispose(); } }, [hay]);
   if (!data.gardens) return null;
   return (
     <group>
       <mesh geometry={yards} material={yardM} receiveShadow />
+      <mesh geometry={contact} material={contactM} renderOrder={1} />
       {quality !== "low" && <mesh geometry={fences} material={fenceM} castShadow receiveShadow />}
+      {quality !== "low" && <mesh geometry={surround} material={surroundM} castShadow receiveShadow />}
       {quality !== "low" && hay && <primitive object={hay} />}
     </group>
   );

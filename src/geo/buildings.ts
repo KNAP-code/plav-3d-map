@@ -102,6 +102,14 @@ const PLASTER = ["#efe9dd", "#f2ead6", "#e9dfc9", "#ece4d2", "#f4efe4", "#e6dccb
 const BARN_WALLS = ["#7a5a40", "#6c4f39", "#80624a", "#5f4a38"];
 export const ROOF_MAT = { tile: 0, metal: 1, concrete: 2 } as const;
 
+/**
+ * Phase 4 architectural detail (ESTIMATES, docs/ARCHITECTURE_DETAIL.md). Rolled out district by district: a building
+ * gets the detailed treatment when its centre lies inside one of these circles (local metres, radius).
+ */
+export const DETAIL_AREAS: [number, number, number][] = [[170, -230, 520]];
+export const inDetailXY = (px: number, py: number) => DETAIL_AREAS.some(([x, y, r]) => Math.hypot(px - x, py - y) <= r);
+const inDetailArea = (b: Building) => inDetailXY(b.obb[0], b.obb[1]);
+
 export function variation(b: Building, style: StyleConfig, est = false) {
   const area = b.obb[3] * b.obb[4];
   // Rules v2 (2026-11-20): style follows data, not chance. Apartment-block styling only where OSM records 4+ levels;
@@ -147,8 +155,25 @@ export function variation(b: Building, style: StyleConfig, est = false) {
       rail = h("rl") < 0.55 ? "#f1efe9" : h("rl") < 0.8 ? "#3e4247" : "#7a5638";
     } else if (block) balcony = h("bal") < 0.7;
   }
+  // ---- Phase 4 regional detail (estimates): roof variants, timber or white joinery, stone ground floors, porches,
+  // dormers, outside stairs, foundation planting. Deterministic per building id.
+  const p4 = est && !sacred && inDetailArea(b);
+  let roofK: RoofKind = roof;
+  if (p4 && !outb && !block && roof === "hip" && h("hh") < 0.22) roofK = "halfhip";
+  if (p4 && !outb && !block) { pitch += 2; overhang = Math.max(overhang, 0.9); }
+  const frameKind = !p4 ? 0 : h("fr") < 0.55 ? 0 : h("fr") < 0.85 ? 1 : 2;      // 0 white PVC, 1 brown timber, 2 dark grey
+  const stone = p4 && !outb && !block && finish === 0 && h("st") < 0.24;        // rubble-stone ground floor
+  const porch = p4 && entrance && !block && area >= 70 && h("po") < 0.38;
+  const dormers = false && p4 && !outb && !block && b.floors >= 2 && roofK !== "flat" && area >= 85 && h("dm") < 0.32 ? (Math.max(b.obb[3], b.obb[4]) >= 12 ? 2 : 1) : 0;
+  const cross = false && p4 && !outb && !block && roofK !== "flat" && area >= 95 && b.obb[3] / Math.max(b.obb[4], 1) >= 1.25 && h("cg") < 0.3;
+  const stair = p4 && !outb && !block && b.floors >= 2 && !balcony && h("stair") < 0.2;
+  const shrubs = p4 && !outb && !block;
+  const fascia = !p4 ? null : outb ? "#5b4636" : roofMat === ROOF_MAT.metal ? "#4f4740" : h("fa") < 0.55 ? "#efebe3" : "#5e4535";
+  const soffit = !p4 ? null : outb ? "#6b5440" : h("so") < 0.6 ? "#8a6a4e" : "#d9d3c8";
+  const chimCol = !p4 ? null : h("ch") < 0.5 ? "#a8a29a" : h("ch") < 0.8 ? "#9c5a44" : "#8d8b86";
   return {
-    pitch, overhang, facade, shop, bay, chimney, roof, trad, block, balcony, entrance, wallPick, roofPick, rail, outb, roofMat, finish, est,
+    p4, frameKind, stone, porch, dormers: cross ? 0 : dormers, cross, stair, shrubs, fascia, soffit, chimCol,
+    pitch, overhang, facade, shop, bay, chimney, roof: roofK, trad, block, balcony, entrance, wallPick, roofPick, rail, outb, roofMat, finish, est,
     seed: h("seed"), light: (h("l") - 0.5) * 0.07, roofLight: (h("rl") - 0.5) * 0.08,
   };
 }
@@ -197,7 +222,7 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
     const rc = tc ? new THREE.Color(tc).multiplyScalar(0.8) : (isFlat ? flatCol : vr.roofPick ? new THREE.Color(vr.roofPick) : roofCols[(b.v * 7 + 3) % roofCols.length]).clone().offsetHSL(0, 0, vr.roofLight);
     const tan = Math.tan((vr.pitch * Math.PI) / 180), cosP = Math.cos((vr.pitch * Math.PI) / 180);
     const ov = vr.overhang, bay = vr.bay;
-    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + (vr.trad ? 8 : 0) + (vr.outb ? 16 : 0) + (vr.finish === 1 ? 32 : vr.finish === 2 ? 64 : 0) + (vr.outb && vr.est ? 128 : 0) + vr.seed * 0.999;
+    const styleVal = (sacred ? FACADE.tall : vr.facade) + (vr.shop && !sacred ? 4 : 0) + (vr.trad ? 8 : 0) + (vr.outb ? 16 : 0) + (vr.finish === 1 ? 32 : vr.finish === 2 ? 64 : 0) + (vr.outb && vr.est ? 128 : 0) + (vr.stone ? 256 : 0) + (vr.frameKind === 1 ? 512 : 0) + (vr.frameKind === 2 ? 1024 : 0) + (vr.p4 ? 2048 : 0) + vr.seed * 0.999;
 
     const L = Lfull / 2 + ov, Wd = Wfull / 2 + ov;
     const planes = isFlat ? [] : roofPlanes(vr.roof, L, Wd);
@@ -258,10 +283,11 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
     // chimney (estimate): small plastered box through the roof, off-centre along the ridge
     if (vr.chimney && !isFlat) {
       const cs = (hash01(b.id, "cx") - 0.5) * Math.max(Lfull - 3, 0) * 0.6, ct = (hash01(b.id, "ct") - 0.5) * Math.min(Wfull * 0.3, 2);
-      const top = roofZ(cs, ct) + 1.0, bot = roofZ(cs, ct) - 1.5, hw = 0.38;
+      const top = roofZ(cs, ct) + (vr.p4 ? 1.25 : 1.0), bot = roofZ(cs, ct) - 1.5, hw = vr.p4 ? 0.42 : 0.38;
+      const chimC = vr.chimCol ? new THREE.Color(vr.chimCol) : chimCol;
       const corners: P2[] = [[cs - hw, ct - hw], [cs + hw, ct - hw], [cs + hw, ct + hw], [cs - hw, ct + hw]].map((q) => toXY(q as P2));
       const push = (x: number, y: number, z: number) => {
-        W.pos.push(x, z, -y); W.col.push(chimCol.r, chimCol.g, chimCol.b); W.uv.push(0, -1); W.fl.push(b.floors); W.st.push(styleVal);
+        W.pos.push(x, z, -y); W.col.push(chimC.r, chimC.g, chimC.b); W.uv.push(0, -1); W.fl.push(b.floors); W.st.push(styleVal);
       };
       for (let i = 0; i < 4; i++) {
         const [ax, ay] = corners[i], [bx, by] = corners[(i + 1) % 4];
@@ -271,10 +297,45 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
       const [a, b2, c, d] = corners;
       push(a[0], a[1], top); push(b2[0], b2[1], top); push(c[0], c[1], top);
       push(a[0], a[1], top); push(c[0], c[1], top); push(d[0], d[1], top);
+      if (vr.p4) {
+        // concrete cap slab with a small overhang, lifted on corner posts (typical rain cap)
+        const cc = new THREE.Color("#7d7a75"), cw = hw + 0.12, z0 = top + 0.22, z1 = top + 0.32;
+        const cap: P2[] = [[cs - cw, ct - cw], [cs + cw, ct - cw], [cs + cw, ct + cw], [cs - cw, ct + cw]].map((q) => toXY(q as P2));
+        const pushC = (x: number, y: number, z: number) => { W.pos.push(x, z, -y); W.col.push(cc.r, cc.g, cc.b); W.uv.push(0, -1); W.fl.push(b.floors); W.st.push(styleVal); };
+        for (let i = 0; i < 4; i++) {
+          const [ax, ay] = cap[i], [bx, by] = cap[(i + 1) % 4];
+          pushC(ax, ay, z0); pushC(bx, by, z0); pushC(bx, by, z1); pushC(ax, ay, z0); pushC(bx, by, z1); pushC(ax, ay, z1);
+          // dark gap under the cap (smoke outlet)
+          const [px, py] = corners[i], [qx, qy] = corners[(i + 1) % 4];
+          W.pos.push(px, top, -py, qx, top, -qy, qx, z0, -qy, px, top, -py, qx, z0, -qy, px, z0, -py);
+          for (let k = 0; k < 6; k++) { W.col.push(0.16, 0.15, 0.14); W.uv.push(0, -1); W.fl.push(b.floors); W.st.push(styleVal); }
+        }
+        pushC(cap[0][0], cap[0][1], z1); pushC(cap[1][0], cap[1][1], z1); pushC(cap[2][0], cap[2][1], z1);
+        pushC(cap[0][0], cap[0][1], z1); pushC(cap[2][0], cap[2][1], z1); pushC(cap[3][0], cap[3][1], z1);
+      }
+    }
+
+    // ---- roof thickness (Phase 4): fascia / barge boards along every eave and rake, and the sloped soffit under the
+    // overhang back to the wall, so roofs read as real timber-framed roofs instead of paper sheets.
+    if (vr.p4 && !isFlat) {
+      const fc = new THREE.Color(vr.fascia!), sc = new THREE.Color(vr.soffit!), th = 0.24;
+      const eaveRing = offsetRing(ring, ov), wallZ = (p: P2) => { const q = toST(p); return roofZ(q[0], q[1]); };
+      const pv = (x: number, y: number, z: number, c: THREE.Color) => { W.pos.push(x, z, -y); W.col.push(c.r, c.g, c.b); W.uv.push(0, -1); W.fl.push(b.floors); W.st.push(styleVal); };
+      for (let i = 0; i < n; i++) {
+        const ea = eaveRing[i], eb = eaveRing[(i + 1) % n], wa = ring[i], wb = ring[(i + 1) % n];
+        const za = wallZ(ea), zb = wallZ(eb);
+        // fascia (outward-facing band below the roof edge)
+        pv(ea[0], ea[1], za - th, fc); pv(eb[0], eb[1], zb - th, fc); pv(eb[0], eb[1], zb + 0.02, fc);
+        pv(ea[0], ea[1], za - th, fc); pv(eb[0], eb[1], zb + 0.02, fc); pv(ea[0], ea[1], za + 0.02, fc);
+        // soffit: from the fascia bottom back to the wall, parallel to the roof
+        const zwa = wallZ(wa) - th, zwb = wallZ(wb) - th;
+        pv(ea[0], ea[1], za - th, sc); pv(wa[0], wa[1], zwa, sc); pv(wb[0], wb[1], zwb, sc);
+        pv(ea[0], ea[1], za - th, sc); pv(wb[0], wb[1], zwb, sc); pv(eb[0], eb[1], zb - th, sc);
+      }
     }
 
     // ---- details (estimates): entrance with door, canopy and step; balconies on upper floors
-    if ((vr.entrance || vr.balcony) && n >= 3) {
+    if ((vr.entrance || vr.balcony || vr.p4) && n >= 3) {
       const zg = eave - b.floors * fh; // ground-floor level used by the facade shader
       const edges: { i: number; len: number; dx: number; dy: number; nx: number; ny: number }[] = [];
       for (let i = 0; i < n; i++) {
@@ -326,7 +387,37 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
           box(front, u - 0.5, u + 0.5, -0.02, 0.06, zg, zg + 2.15, doorC);
           box(front, u - 0.6, u + 0.6, 0.0, 0.1, zg + 2.15, zg + 2.3, dc("#f1ede4"));            // lintel
           box(front, u - 0.85, u + 0.85, 0.0, 0.85, zg - 0.6, zg + 0.02, dc("#b3ada4"));         // step / stoop
-          if (!vr.trad) box(front, u - 0.85, u + 0.85, 0.0, 0.95, zg + 2.45, zg + 2.57, dc(vr.block ? "#c9c5bd" : "#8f8a84"), true); // canopy
+          if (vr.porch) {
+            // open porch (estimate): paved platform, two posts and a small lean-to roof in the house's roof colour
+            const pc = dc(vr.frameKind === 1 ? "#6b4a33" : "#efebe3"), pw = Math.min(1.5, front.len / 2 - 0.3), dep = 2.0;
+            box(front, u - pw, u + pw, 0.0, dep, zg - 0.6, zg + 0.04, dc("#b8b1a6"));
+            for (const pu of [u - pw + 0.1, u + pw - 0.25]) box(front, pu, pu + 0.15, dep - 0.3, dep - 0.15, zg + 0.04, zg + 2.55, pc);
+            const rc2 = rc.clone(), pa = ring[front.i];
+            const P = (uu: number, o: number, z: number) => [pa[0] + front.dx * uu + front.nx * o, pa[1] + front.dy * uu + front.ny * o, z];
+            quad([P(u - pw - 0.2, dep + 0.25, zg + 2.5), P(u + pw + 0.2, dep + 0.25, zg + 2.5), P(u + pw + 0.2, 0, zg + 3.05), P(u - pw - 0.2, 0, zg + 3.05)], rc2);
+            quad([P(u + pw + 0.2, dep + 0.25, zg + 2.5), P(u - pw - 0.2, dep + 0.25, zg + 2.5), P(u - pw - 0.2, 0, zg + 3.05), P(u + pw + 0.2, 0, zg + 3.05)], rc2.clone().multiplyScalar(0.7));
+            box(front, u - pw - 0.2, u + pw + 0.2, dep + 0.1, dep + 0.25, zg + 2.32, zg + 2.52, dc(vr.fascia ?? "#efebe3"));
+          } else if (!vr.trad) box(front, u - 0.85, u + 0.85, 0.0, 0.95, zg + 2.45, zg + 2.57, dc(vr.block ? "#c9c5bd" : "#8f8a84"), true); // canopy
+          if (vr.shrubs) {
+            // foundation planting along the entrance wall (estimate): low shrubs and a few flowering perennials
+            const greens = ["#4f7a3a", "#5d8a42", "#46703a", "#6b8f45"], flowers = ["#d9475a", "#f0c94a", "#e48bb0", "#f4f1ea", "#9a6fd0"];
+            const nS = 4 + Math.floor(hash01(b.id, "ns") * 5);
+            for (let k = 0; k < nS; k++) {
+              const uu = 0.6 + hash01(b.id, "su" + k) * (front.len - 1.2);
+              if (Math.abs(uu - u) < (vr.porch ? 1.9 : 1.2)) continue;
+              const fl = hash01(b.id, "sf" + k) < 0.35, r = fl ? 0.35 : 0.5 + hash01(b.id, "sr" + k) * 0.35;
+              const c = dc(fl ? flowers[Math.floor(hash01(b.id, "fc" + k) * flowers.length)] : greens[Math.floor(hash01(b.id, "gc" + k) * greens.length)]);
+              const P = (o: number, uu2: number, z: number) => { const pa = ring[front.i]; return [pa[0] + front.dx * uu2 + front.nx * o, pa[1] + front.dy * uu2 + front.ny * o, z]; };
+              const o = 0.55 + r, zc = zg - 0.6 + r * 0.8;
+              // octahedron bush
+              const top = P(o, uu, zc + r * 0.9), bot = P(o, uu, zg - 0.65), ring4 = [P(o + r, uu, zc), P(o, uu + r, zc), P(o - r, uu, zc), P(o, uu - r, zc)];
+              for (let q = 0; q < 4; q++) {
+                const a = ring4[q], c2 = ring4[(q + 1) % 4], shade = c.clone().multiplyScalar(0.85 + 0.15 * (q % 2));
+                push(a[0], a[1], a[2], shade); push(c2[0], c2[1], c2[2], shade); push(top[0], top[1], top[2], shade.clone().multiplyScalar(1.12));
+                push(c2[0], c2[1], c2[2], shade); push(a[0], a[1], a[2], shade); push(bot[0], bot[1], bot[2], shade.clone().multiplyScalar(0.7));
+              }
+            }
+          }
         }
         // gutters along eave edges of pitched roofs (not gable ends), one downpipe at the first eave corner
         if (!isFlat && !vr.block) {
@@ -349,16 +440,70 @@ export function buildBuildings(list: Building[], datum: number, style: StyleConf
           }
         }
         // exterior wooden stair to the upper floor on some 2-storey traditional houses (estimate, regional type)
-        if (vr.trad && b.floors >= 2 && hash01(b.id, "stair") < 0.45) {
+        if ((vr.trad && b.floors >= 2 && hash01(b.id, "stair") < 0.45) || vr.stair) {
           const cand = edges.filter((e) => e !== front && e !== longest && e.len >= 4.2);
           const se = cand[0];
           if (se) {
-            const wd = dc("#6b4a33"), steps = 7, rise = fh / steps, run = 0.42, u0 = 0.4;
+            const wd = dc(vr.stair && hash01(b.id, "sc") < 0.5 ? "#b9b4ab" : "#6b4a33"), steps = 7, rise = fh / steps, run = 0.42, u0 = 0.4;
             for (let k = 0; k < steps; k++) box(se, u0 + k * run, u0 + (k + 1) * run, 0.05, 1.0, zg + k * rise - (k === 0 ? 0.3 : 0), zg + (k + 1) * rise, wd);
             const ul = u0 + steps * run;
             box(se, ul, ul + 1.1, 0.05, 1.0, zg + fh - 0.15, zg + fh, wd, true);                          // landing
             box(se, u0, ul + 1.1, 0.96, 1.02, zg + fh, zg + fh + 0.9, wd);                                // rail at the landing
             box(se, ul + 1.0, ul + 1.1, 0.05, 1.0, zg - 0.3, zg + fh - 0.15, wd);                         // post
+          }
+        }
+        // ridge and hip caps (estimate, near only): a slim inverted V over every ridge line of near-rectangular roofs
+        const rect = Math.abs(signedArea(ring)) / Math.max(Lfull * Wfull, 1) > 0.88;
+        if (vr.p4 && !isFlat && rect) {
+          const capC = rc.clone().multiplyScalar(vr.roofMat === ROOF_MAT.metal ? 0.82 : 0.78), zr = zE + tan * Wd;
+          const segs: [P2, number, P2, number][] = [];
+          if (vr.roof === "gable") segs.push([[-L, 0], zr, [L, 0], zr]);
+          else {
+            const k = vr.roof === "halfhip" ? Wd * 0.45 : 0, sr = Math.max(L + k - Wd, 0);
+            segs.push([[-sr, 0], zr, [sr, 0], zr]);
+            if (vr.roof === "hip") for (const sx of [-1, 1]) for (const ty of [-1, 1]) segs.push([[sx * sr, 0], zr, [sx * L, ty * Wd], zE]);
+          }
+          for (const [a, za, c, zc] of segs) {
+            const A = toXY(a), C = toXY(c), dx = C[0] - A[0], dy = C[1] - A[1], l = Math.hypot(dx, dy);
+            if (l < 0.3) continue;
+            const px = (-dy / l) * 0.17, py = (dx / l) * 0.17;
+            quad([[A[0] + px, A[1] + py, za - 0.02], [C[0] + px, C[1] + py, zc - 0.02], [C[0], C[1], zc + 0.08], [A[0], A[1], za + 0.08]], capC);
+            quad([[C[0] - px, C[1] - py, zc - 0.02], [A[0] - px, A[1] - py, za - 0.02], [A[0], A[1], za + 0.08], [C[0], C[1], zc + 0.08]], capC);
+          }
+        }
+        // dormers (estimate): small gabled dormers with a window on the roof slope facing the street side
+        if ((vr.dormers || vr.cross) && rect && !isFlat) {
+          let sg = 1;
+          if (road) { const rp = road(cx, cy); if (rp) sg = toST(rp)[1] >= 0 ? 1 : -1; }
+          // cross-gable: one wide gable rising from the wall plane over the central bays (a common way to light the attic)
+          const wdh = vr.cross ? Math.min(Lfull * 0.17, 2.4) : 0.8, tf = vr.cross ? Wfull / 2 + 0.02 : Wfull / 2 - 0.7, wallC = wc.clone(), glass = dc("#2f3a44"), frm = dc(vr.frameKind === 1 ? "#6b4a33" : vr.frameKind === 2 ? "#3f4447" : "#f1eee8");
+          const spots = vr.cross ? [0] : vr.dormers === 2 ? [-Lfull * 0.22, Lfull * 0.22] : [(hash01(b.id, "dmx") - 0.5) * Lfull * 0.3];
+          for (const sd of spots) {
+            const z0 = vr.cross ? roofZ(sd, sg * (Wfull / 2)) - 0.05 : roofZ(sd, sg * tf), z1 = z0 + (vr.cross ? 0.7 : 1.3), zp = z1 + (vr.cross ? wdh * tan * 0.85 : 0.6), ridgeZ = roofZ(sd, 0);
+            if (zp > ridgeZ - 0.35 || Math.abs(sd) + wdh + 0.4 > L - (vr.roof === "gable" ? 0.4 : Wd * 0.9)) continue;
+            const depth = (zp - z0) / tan + 0.2, tb = sg * (tf - depth);
+            const X = (s2: number, t2: number, z: number) => { const q = toXY([s2, t2]); return [q[0], q[1], z]; };
+            const fT = sg * tf;
+            // front wall with gable
+            quad([X(sd - wdh, fT, z0), X(sd + wdh, fT, z0), X(sd + wdh, fT, z1), X(sd - wdh, fT, z1)], wallC);
+            const g1 = X(sd - wdh, fT, z1), g2 = X(sd + wdh, fT, z1), g3 = X(sd, fT, zp);
+            push(g1[0], g1[1], g1[2], wallC); push(g2[0], g2[1], g2[2], wallC); push(g3[0], g3[1], g3[2], wallC);
+            // window
+            const wz0 = vr.cross ? z0 + 0.35 : z0 + 0.25, wz1 = vr.cross ? Math.min(zp - 0.45, z1 + 0.8) : z1 - 0.12, ww = vr.cross ? 0.55 : 0.5;
+            if (wz1 - wz0 > 0.6) {
+              quad([X(sd - ww, fT + sg * 0.02, wz0), X(sd + ww, fT + sg * 0.02, wz0), X(sd + ww, fT + sg * 0.02, wz1), X(sd - ww, fT + sg * 0.02, wz1)], frm);
+              quad([X(sd - ww + 0.1, fT + sg * 0.04, wz0 + 0.08), X(sd + ww - 0.1, fT + sg * 0.04, wz0 + 0.08), X(sd + ww - 0.1, fT + sg * 0.04, wz1 - 0.08), X(sd - ww + 0.1, fT + sg * 0.04, wz1 - 0.08)], glass);
+              quad([X(sd - 0.03, fT + sg * 0.05, wz0 + 0.08), X(sd + 0.03, fT + sg * 0.05, wz0 + 0.08), X(sd + 0.03, fT + sg * 0.05, wz1 - 0.08), X(sd - 0.03, fT + sg * 0.05, wz1 - 0.08)], frm);
+            }
+            // cheeks (side walls down to the main roof)
+            for (const sx of [-1, 1]) {
+              const a = X(sd + sx * wdh, fT, z0), c = X(sd + sx * wdh, fT, z1), d = X(sd + sx * wdh, sg * (tf - (z1 - z0) / tan), z1);
+              push(a[0], a[1], a[2], wallC); push(c[0], c[1], c[2], wallC); push(d[0], d[1], d[2], wallC);
+            }
+            // dormer roof: two slopes from its ridge to the eaves, running back into the main roof
+            const ov2 = 0.25, rcD = rc.clone();
+            quad([X(sd - wdh - ov2, fT + sg * ov2, z1 - 0.1), X(sd - wdh - ov2, tb, z1 - 0.1), X(sd, tb, zp + 0.05), X(sd, fT + sg * ov2, zp + 0.05)], rcD);
+            quad([X(sd, fT + sg * ov2, zp + 0.05), X(sd, tb, zp + 0.05), X(sd + wdh + ov2, tb, z1 - 0.1), X(sd + wdh + ov2, fT + sg * ov2, z1 - 0.1)], rcD);
           }
         }
         if (vr.balcony) {

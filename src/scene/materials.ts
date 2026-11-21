@@ -496,6 +496,9 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         bool brick = mod(floor(sv / 32.0), 2.0) > 0.5;   // estimate: unfinished facade, exposed brick
         bool blockw = mod(floor(sv / 64.0), 2.0) > 0.5;  // estimate: unfinished facade, grey concrete block
         bool barn = mod(floor(sv / 128.0), 2.0) > 0.5;   // estimate: timber barn / shed
+        bool stoneG = mod(floor(sv / 256.0), 2.0) > 0.5; // Phase 4 estimate: rubble-stone ground floor
+        bool p4 = mod(floor(sv / 2048.0), 2.0) > 0.5;    // Phase 4 detailed facade (pilot districts)
+        vec3 frameC = mod(floor(sv / 512.0), 2.0) > 0.5 ? vec3(0.42, 0.29, 0.2) : mod(floor(sv / 1024.0), 2.0) > 0.5 ? vec3(0.25, 0.27, 0.28) : vec3(0.95, 0.94, 0.9);
         bool ground = fl > nFl - 1.5;
         // per-building window size variation (from the quantised seed)
         float js = h21(vec2(nSeed, 7.0)) - 0.5;
@@ -519,14 +522,31 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         float oY = smoothstep(wy0 - fr * 1.4 - fw.y, wy0 - fr * 1.4 + fw.y, c.y) * (1.0 - smoothstep(wy1 + fr * 2.2 - fw.y, wy1 + fr * 2.2 + fw.y, c.y));
         float frame = oX * oY * valid * fade * (shop && ground ? 0.0 : 1.0);
         // shutters beside the windows: traditional houses and ~30% of other houses (not blocks, not shopfronts)
-        bool shut = (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < 0.3)) && !(shop && ground) && kind < 1.5;
+        bool shut = (trad || (kind < 2.5 && h21(vec2(nSeed, 3.0)) < (p4 ? 0.45 : 0.3))) && !(shop && ground) && kind < 1.5;
         float sw = (wx - fr) * 0.75;
         float sX = (smoothstep(wx - fr - sw - fx, wx - fr - sw + fx, cx) * (1.0 - smoothstep(wx - fr - fx, wx - fr + fx, cx)))
                  + (smoothstep(1.0 - wx + fr - fx, 1.0 - wx + fr + fx, cx) * (1.0 - smoothstep(1.0 - wx + fr + sw - fx, 1.0 - wx + fr + sw + fx, cx)));
         float shutter = shut ? sX * oY * valid * fade : 0.0;
-        vec3 shutC = h21(vec2(nSeed, 5.0)) < 0.5 ? vec3(0.36, 0.25, 0.17) : vec3(0.32, 0.4, 0.33);
+        float shPick = h21(vec2(nSeed, 5.0));
+        vec3 shutC = shPick < 0.45 ? vec3(0.36, 0.25, 0.17) : shPick < 0.75 ? vec3(0.3, 0.39, 0.32) : shPick < 0.9 ? vec3(0.47, 0.5, 0.5) : vec3(0.55, 0.3, 0.24);
+        if (p4) shutC *= mix(0.78, 1.0, smoothstep(0.25, 0.55, fract(c.y * 26.0)));   // louvres
         // traditional houses: rubble-stone ground floor up to the first-floor line
-        if (trad && vW.y >= 0.0 && fl > nFl - 1.5) {
+        // Phase 4: soft plaster mottling and a light belt course at the first-floor line and under the eaves
+        if (p4 && vW.y >= 0.0 && !brick && !blockw && !barn) {
+          diffuseColor.rgb *= mix(0.93, 1.04, fbm(vW * vec2(0.9, 1.3) + nSeed * 0.37));
+          float belt = (1.0 - smoothstep(0.03, 0.05, abs(vW.y - (nFl - 1.0)))) * step(1.5, nFl) * step(h21(vec2(nSeed, 9.0)), 0.55);
+          float cornice = 1.0 - smoothstep(0.05, 0.08, vW.y);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.91, 0.86), max(belt, cornice * 0.8));
+        }
+        // Phase 4: stone plinth below the ground floor on every detailed house
+        if (p4 && vW.y > nFl) {
+          vec2 sp = vec2(vW.x * 6.0, vW.y * 11.0);
+          float row = floor(sp.y);
+          float sn = h21(vec2(floor(sp.x + 0.5 * row), row));
+          vec2 f2 = fract(vec2(sp.x + 0.5 * row, sp.y));
+          diffuseColor.rgb = mix(vec3(0.5, 0.48, 0.44), vec3(0.66, 0.63, 0.57), sn) * mix(0.75, 1.0, smoothstep(0.0, 0.1, f2.x) * smoothstep(0.0, 0.14, f2.y));
+        }
+        if ((trad || stoneG) && vW.y >= 0.0 && fl > nFl - 1.5) {
           vec2 sp = vec2(vW.x * 5.0, vW.y * 9.0);
           float row = floor(sp.y);
           float n = h21(vec2(floor(sp.x + 0.5 * row + h21(vec2(row, 1.0))), row));
@@ -557,10 +577,33 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
             diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.61, 0.58), slab * step(0.5, vW.y) * step(vW.y, nFl - 0.1));
           }
         }
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95, 0.94, 0.9), clamp(frame - inX * inY, 0.0, 1.0) * 0.85);
+        diffuseColor.rgb = mix(diffuseColor.rgb, p4 ? frameC : vec3(0.95, 0.94, 0.9), clamp(frame - inX * inY, 0.0, 1.0) * (p4 ? 0.95 : 0.85));
+        // Phase 4: stone sill under each window with a soft drop shadow beneath it
+        if (p4 && !(shop && ground)) {
+          float sy0 = wy1 + fr * 2.2, sx = wx - fr - 0.05;
+          float sX2 = smoothstep(sx - fx, sx + fx, cx) * (1.0 - smoothstep(1.0 - sx - fx, 1.0 - sx + fx, cx));
+          float sill = sX2 * smoothstep(sy0 - fw.y, sy0 + fw.y, c.y) * (1.0 - smoothstep(sy0 + 0.045 - fw.y, sy0 + 0.045 + fw.y, c.y)) * valid * fade;
+          float drop = sX2 * smoothstep(sy0 + 0.04, sy0 + 0.05, c.y) * (1.0 - smoothstep(sy0 + 0.05, sy0 + 0.13, c.y)) * valid * fade;
+          diffuseColor.rgb *= 1.0 - 0.22 * drop;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.84, 0.8), sill);
+        }
         diffuseColor.rgb = mix(diffuseColor.rgb, shutC, shutter);
         float win = inX * inY * valid;
-        diffuseColor.rgb = mix(diffuseColor.rgb, uGlass, win * 0.92);
+        vec3 glassC = uGlass;
+        if (p4) {
+          float gy = (c.y - wy0) / max(wy1 - wy0, 0.01), gx = (cx - wx) / max(1.0 - 2.0 * wx, 0.01);
+          // sky reflection: lighter towards the top and in a diagonal band, darker in the reveal shadow (top and left)
+          glassC = uGlass * mix(1.55, 0.85, gy) + vec3(0.05, 0.06, 0.07) * smoothstep(0.35, 0.0, abs(gx - gy * 0.6 - 0.2));
+          float rev = max(1.0 - smoothstep(0.0, 0.12, gy), 1.0 - smoothstep(0.0, 0.1, gx));
+          glassC *= 1.0 - 0.45 * rev;
+          // mullion and transom (casement windows), frame colour
+          float mw = fw.x * 1.5 + 0.012, mh = fw.y * 1.5 + 0.012;
+          float mull = (1.0 - smoothstep(mw, mw + fw.x, abs(gx - 0.5) * (1.0 - 2.0 * wx))) * step(0.42, 1.0 - 2.0 * wx);
+          float tran = 1.0 - smoothstep(mh, mh + fw.y, abs(gy - 0.32) * (wy1 - wy0));
+          float bars = clamp(mull + tran, 0.0, 1.0) * (shop && ground ? 0.0 : 1.0) * fade;
+          glassC = mix(glassC, frameC * 0.92, bars);
+        }
+        diffuseColor.rgb = mix(diffuseColor.rgb, glassC, win * 0.92);
         // subtle weathering: rising damp near the ground and faint streaks below window sills (estimate, procedural)
         if (vW.y >= 0.0) {
           float damp = smoothstep(nFl - 0.45, nFl, vW.y) * 0.08 * (0.6 + 0.4 * h21(vec2(floor(vW.x * 3.0), nSeed)));
@@ -592,6 +635,10 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
           float line = smoothstep(0.0, 0.18, row) * (1.0 - smoothstep(0.82, 1.0, row) * 0.4);
           float n = h21(floor(vec2(vW.x / (uSpacing * sc * 0.85), vW.y / (uSpacing * sc))));
           diffuseColor.rgb *= mix(1.0 - uContrast * (rm > 1.5 ? 0.6 : 1.0), 1.0, line) * mix(0.95, 1.05, n);
+          // weathering: soft darker patches and a faint lichen tint on older tile roofs
+          float wth = fbm(vW * 0.35 + 3.7);
+          diffuseColor.rgb *= mix(0.9, 1.04, wth);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.45, 0.33), smoothstep(0.62, 0.85, fbm(vW * 0.9 + 11.0)) * 0.18);
         }
       }
     ` : /* glsl */ `
@@ -611,7 +658,7 @@ export function buildingMaterial(style: StyleConfig, detail: boolean) {
         totalEmissiveRadiance += warm * gWin * uNight * 1.25;
       }
     `,
-  }, detail ? "building-near-v7" : "building-far-v7");
+  }, detail ? "building-near-v8" : "building-far-v7");
 }
 
 /** Tree material: instance colour tints the crown only (vertex colour g == 1), trunks keep their colour. */
