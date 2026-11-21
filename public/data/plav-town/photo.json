@@ -1,0 +1,495 @@
+{
+ "photos": {
+  "p01": {
+   "title": "Aerial view west along Čaršija / Racina towards the lake (Am, 2026-11-21)",
+   "camera": [
+    218.69,
+    -145.37,
+    35.53,
+    279.98,
+    -10.42,
+    65.82
+   ],
+   "size": [
+    1000,
+    666
+   ]
+  }
+ },
+ "b": {
+  "93bc9e4b-ab1d-4873-9e4d-b4e640ca776e": {
+   "photo": "p01",
+   "label": "Opština Plav",
+   "rc": "#bb6f6c",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#d3d1cf",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "red sheet metal",
+   "matC": "V",
+   "fl": 4,
+   "flC": "E",
+   "flNote": "3 window rows above a ground floor hidden by the buildings in front; OSM says 3 levels",
+   "roof": "hip",
+   "roofC": "V",
+   "roofNote": "red sheet hip roof with a cross wing towards the street",
+   "eave": 12.2
+  },
+  "4674a8c3-0b52-44e2-9467-951f927a7254": {
+   "photo": "p01",
+   "label": "Pošta Plav",
+   "rc": "#b6776d",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#d5d1cd",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "red sheet metal",
+   "matC": "V",
+   "fl": 2,
+   "flC": "E",
+   "roof": "hip",
+   "roofC": "V",
+   "roofNote": "red sheet roof, hipped with several facets",
+   "eave": 6.4
+  },
+  "2923140d-6f08-4853-8ea2-78bd6614e902#far": {
+   "photo": "p01",
+   "label": "grey house on the street (north part of OSM outline 2923)",
+   "rc": "#635344",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#998d8c",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "dark grey sheet / slate",
+   "matC": "V",
+   "fl": 4,
+   "flC": "E",
+   "flNote": "attic row plus 3 window rows; lowest floor hidden by the house in front",
+   "roof": "gable",
+   "roofC": "V",
+   "roofNote": "dark grey roof, gable end with attic windows facing the street",
+   "splitNote": "OSM outline covers two buildings seen in photo p01; split at the middle of its long axis (split position ESTIMATED)",
+   "eave": 12.2
+  },
+  "2923140d-6f08-4853-8ea2-78bd6614e902#near": {
+   "photo": "p01",
+   "label": "old ochre house with shop awning (south part of OSM outline 2923)",
+   "rc": "#9d5449",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#947049",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "clay tile",
+   "matC": "V",
+   "fl": 2,
+   "flC": "E",
+   "roof": "hip",
+   "roofC": "E",
+   "roofNote": "clay tile roof, hipped with a gable",
+   "splitNote": "OSM outline covers two buildings seen in photo p01; split at the middle of its long axis (split position ESTIMATED)",
+   "eave": 6.4
+  },
+  "c8f1ba86-b823-4812-b683-8335cfb18dd6": {
+   "photo": "p01",
+   "label": "long building with green sheet roof (east side of the street)",
+   "rc": "#696861",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "mat": "green-grey sheet metal",
+   "matC": "V",
+   "roof": "gable",
+   "roofC": "V",
+   "roofNote": "steep green-grey sheet gable roof with roof windows and cut-in balconies along the street",
+   "pitch": 48
+  },
+  "bc5f0b13-3bfd-4a1e-aa9b-d51fa4364054": {
+   "photo": "p01",
+   "label": "white block with flat roof and stacked balconies",
+   "rc": "#f7f7f1",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#d3d0cf",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "flat membrane",
+   "matC": "V",
+   "fl": 4,
+   "flC": "V",
+   "flNote": "4 window rows visible on the south-east face",
+   "roof": "flat",
+   "roofC": "V",
+   "roofNote": "flat roof with light membrane and roof plant",
+   "bal": true,
+   "balC": "V",
+   "balNote": "three stacked balconies on the south-east face",
+   "eave": 12.2
+  },
+  "ebd9fb74-fd0b-4104-9c42-af36d35bc389": {
+   "photo": "p01",
+   "label": "grey annex between the Opština and the white block",
+   "fc": "#d4d1ce",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "fl": 3,
+   "flC": "E",
+   "roof": "flat",
+   "roofC": "V",
+   "roofNote": "flat roof terrace",
+   "eave": 9.3
+  },
+  "67d9b26d-b73a-45d7-8117-87aaee1870c3": {
+   "photo": "p01",
+   "label": "Osnovni sud",
+   "rc": "#6c3632",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#d5d3cd",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "red tile or sheet",
+   "matC": "E",
+   "fl": 2,
+   "flC": "E",
+   "roof": "hip",
+   "roofC": "V",
+   "eave": 6.4
+  },
+  "d06b09eb-3eff-430e-ad0a-57295593438c": {
+   "photo": "p01",
+   "label": "house with orange tile roof behind the court",
+   "rc": "#c68966",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "mat": "clay tile (orange)",
+   "matC": "V",
+   "roof": "hip",
+   "roofC": "V"
+  },
+  "37e24e79-957b-4069-bb0a-95b1168ef29f": {
+   "photo": "p01",
+   "label": "house with orange tile roof west of Sultanija",
+   "rc": "#b77758",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "mat": "clay tile (orange)",
+   "matC": "V",
+   "roof": "hip",
+   "roofC": "V"
+  },
+  "628a8bbc-8fca-47ac-a29c-2e97bba2b33a": {
+   "photo": "p01",
+   "label": "pink house (south of the street, near the camera)",
+   "rc": "#734438",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#b99386",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "clay tile",
+   "matC": "V",
+   "fl": 2,
+   "flC": "E",
+   "roof": "hip",
+   "roofC": "V",
+   "eave": 6.4
+  },
+  "cce20748-dfaf-4bdb-bc94-a9413428064c": {
+   "photo": "p01",
+   "label": "house with dark brown roof west of Stara džamija",
+   "rc": "#321f18",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "mat": "dark brown sheet or tile",
+   "matC": "E",
+   "roof": "hip",
+   "roofC": "E"
+  },
+  "24171ec7-f8a0-4e47-a2f6-e2267f7378be": {
+   "photo": "p01",
+   "label": "small garage with red door",
+   "rc": "#60352d",
+   "rcC": "V",
+   "rcSrc": "photo p01",
+   "fc": "#d4d1ce",
+   "facC": "V",
+   "facSrc": "photo p01",
+   "mat": "red sheet",
+   "matC": "V",
+   "fl": 1,
+   "flC": "V",
+   "roof": "gable",
+   "roofC": "V",
+   "eave": 3.5
+  },
+  "718d5153-4514-44a8-ae22-4fb4d580a025": {
+   "photo": "p01",
+   "rc": "#90837f",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 96 px visible, 55 m away"
+  },
+  "51a7f34a-8128-47c1-ad92-6a8c833ae5ee": {
+   "photo": "p01",
+   "rc": "#514535",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 2391 px visible, 56 m away"
+  },
+  "4bfa6782-d016-4595-8486-db64f7298ec7": {
+   "photo": "p01",
+   "rc": "#67312a",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 1376 px visible, 72 m away"
+  },
+  "7af6419e-90a9-49a3-be93-b617de4270d2": {
+   "photo": "p01",
+   "rc": "#af765b",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 240 px visible, 96 m away"
+  },
+  "7ab32b00-f4fc-4c90-b77b-ef344f97e8bc": {
+   "photo": "p01",
+   "rc": "#b16f6d",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 1950 px visible, 116 m away"
+  },
+  "ce2b2ba6-12c0-43fc-9d2a-4fc4faae5b6c": {
+   "photo": "p01",
+   "rc": "#35301f",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 1100 px visible, 112 m away"
+  },
+  "f958e19e-12f6-454f-a3c5-1a40e5ad3634": {
+   "photo": "p01",
+   "rc": "#856f61",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 461 px visible, 109 m away"
+  },
+  "25ff0dbc-2304-4733-9149-929f166df13e": {
+   "photo": "p01",
+   "rc": "#94654a",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 419 px visible, 132 m away"
+  },
+  "a696ee0a-fd5b-475e-9fbf-3545c53745d7": {
+   "photo": "p01",
+   "rc": "#5f3b31",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 328 px visible, 149 m away"
+  },
+  "bc8a29f6-fdcb-45a5-b4a1-84684feb804e": {
+   "photo": "p01",
+   "rc": "#9f6856",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 320 px visible, 144 m away"
+  },
+  "7a4a059f-2f54-404c-a8cf-9bd42ab7c13c": {
+   "photo": "p01",
+   "rc": "#292319",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 305 px visible, 164 m away"
+  },
+  "3c1bea44-43c0-4633-a0dc-72ff39cbd8cc": {
+   "photo": "p01",
+   "rc": "#504a3e",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 225 px visible, 141 m away"
+  },
+  "118a8520-063c-4fe0-9d74-7d742a37ee56": {
+   "photo": "p01",
+   "rc": "#6c5e56",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 445 px visible, 134 m away"
+  },
+  "7c6fac13-047f-47b9-8f5e-4fc0f7efa8f2": {
+   "photo": "p01",
+   "rc": "#393536",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 163 px visible, 165 m away"
+  },
+  "91bb823c-c804-49b9-93ee-89eb6dcdf5f7": {
+   "photo": "p01",
+   "rc": "#572f2a",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 202 px visible, 156 m away"
+  },
+  "a321ab12-6681-4db6-b51e-7acd8e804007": {
+   "photo": "p01",
+   "rc": "#814a3a",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 294 px visible, 169 m away"
+  },
+  "943e8e47-21e9-48de-a028-089732ed45a8": {
+   "photo": "p01",
+   "rc": "#6a3330",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 429 px visible, 149 m away"
+  },
+  "26477621-9f36-4be8-9af1-e5b9d557a0c5": {
+   "photo": "p01",
+   "rc": "#64544d",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 180 px visible, 149 m away"
+  },
+  "e0fe8cdf-3259-434a-ad46-7678c6ad6c1b": {
+   "photo": "p01",
+   "rc": "#492d27",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 183 px visible, 167 m away"
+  },
+  "6cf923d5-393d-4fed-9ac9-cd774f8f9b06": {
+   "photo": "p01",
+   "rc": "#b37b61",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 87 px visible, 208 m away"
+  },
+  "d65be83f-d1d1-49dd-a30d-b90f7c41b96a": {
+   "photo": "p01",
+   "rc": "#513c35",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 242 px visible, 210 m away"
+  },
+  "78c2aa2d-9223-4a56-a117-3bb9ff3fc75c": {
+   "photo": "p01",
+   "rc": "#726363",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 90 px visible, 169 m away"
+  },
+  "48868f05-aaba-41ba-b271-88bf4cb56be8": {
+   "photo": "p01",
+   "rc": "#5e4f4c",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 159 px visible, 166 m away"
+  },
+  "5a109102-72e4-4c8e-b3d2-c414a741fe81": {
+   "photo": "p01",
+   "rc": "#54362f",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 283 px visible, 193 m away"
+  },
+  "6ba88c3e-115b-41d9-a721-e79a7d1fcc30": {
+   "photo": "p01",
+   "rc": "#79493d",
+   "rcC": "V",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 315 px visible, 178 m away"
+  },
+  "f6c6a5d6-2a10-48a8-80d8-63a6c9ad702f": {
+   "photo": "p01",
+   "rc": "#6c5038",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 199 px visible, 174 m away"
+  },
+  "138757a7-bc37-4317-8853-165ccf5b8192": {
+   "photo": "p01",
+   "rc": "#877b7a",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 99 px visible, 190 m away"
+  },
+  "90599a43-d6d0-4277-bbc5-ff62043c7460": {
+   "photo": "p01",
+   "rc": "#52302b",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 179 px visible, 226 m away"
+  },
+  "01acea43-3a37-4bb9-9de5-dafeda463e61": {
+   "photo": "p01",
+   "rc": "#3f2416",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 85 px visible, 199 m away"
+  },
+  "76819fee-12ae-4a27-9a8a-3f5abae11620": {
+   "photo": "p01",
+   "rc": "#988c83",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 82 px visible, 257 m away"
+  },
+  "f5acd19a-de96-4883-a818-f84bfd9fdb2c": {
+   "photo": "p01",
+   "rc": "#5c4d4c",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 170 px visible, 200 m away"
+  },
+  "a986e7ba-7acb-412b-a518-46ce681ebaaa": {
+   "photo": "p01",
+   "rc": "#bda184",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 121 px visible, 225 m away"
+  },
+  "2d56678a-127a-42fa-af43-51c85dd32980": {
+   "photo": "p01",
+   "rc": "#796b6f",
+   "rcC": "E",
+   "rcSrc": "photo p01, automatic: roof projected with the solved camera, 89 px visible, 226 m away"
+  }
+ },
+ "splits": {
+  "2923140d-6f08-4853-8ea2-78bd6614e902": {
+   "far": {
+    "fp": [
+     [
+      167.85,
+      -148.13
+     ],
+     [
+      159.1,
+      -144.9
+     ],
+     [
+      160.6,
+      -132.9
+     ],
+     [
+      171.98,
+      -137.19
+     ]
+    ],
+    "obb": [
+     164.22,
+     -140.55,
+     -0.3607,
+     12.16,
+     11.76
+    ]
+   },
+   "near": {
+    "fp": [
+     [
+      171.98,
+      -137.19
+     ],
+     [
+      183.4,
+      -141.5
+     ],
+     [
+      177.5,
+      -151.7
+     ],
+     [
+      167.85,
+      -148.13
+     ]
+    ],
+    "obb": [
+     175.62,
+     -144.82,
+     -0.3607,
+     12.21,
+     11.69
+    ]
+   }
+  }
+ },
+ "minarets": [
+  {
+   "near": [
+    126.2,
+    -64.4
+   ],
+   "height": 41.5,
+   "src": "adrialine.me (41.5 m) and photo p01 (minaret tip fits the camera within 5 px)"
+  }
+ ]
+}

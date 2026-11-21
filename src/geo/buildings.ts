@@ -148,14 +148,14 @@ export function variation(b: Building, style: StyleConfig, est = false) {
   const ev = est && !sacred && !!b.recon && inDetailArea(b);
   if (ev) {
     const r = b.recon!;
-    pitch = base + (block ? 4 : 9); overhang = Math.max(overhang, block ? 0.6 : 0.75);
+    pitch = r.pitch ?? base + (block ? 4 : 9); overhang = Math.max(overhang, block ? 0.6 : 0.75);
     roofPick = r.rc ?? NEUTRAL.roof;
     roofMat = !r.mat ? ROOF_MAT.concrete : r.mat.startsWith("clay") ? ROOF_MAT.tile : ROOF_MAT.metal;
-    wallPick = outb ? NEUTRAL.outb : NEUTRAL.wall;
+    wallPick = r.fc ?? (outb ? NEUTRAL.outb : NEUTRAL.wall);
     return {
       p4: true, ev, frameKind: 0, stone: false, porch: false, dormers: 0, cross: false, stair: false, shrubs: false,
       fascia: NEUTRAL.fascia, soffit: NEUTRAL.soffit, chimCol: null, pitch, overhang, facade, shop, bay: style.window.bayWidth,
-      chimney: false, roof, trad: false, block, balcony: false, entrance, wallPick, roofPick, rail, outb, roofMat, finish: 0, est, barn: false,
+      chimney: false, roof, trad: false, block, balcony: !!r.bal, entrance, wallPick, roofPick, rail, outb, roofMat, finish: 0, est, barn: false,
       seed: h("seed"), light: 0, roofLight: 0,
     };
   }

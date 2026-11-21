@@ -59,7 +59,7 @@ const CONF_TEXT = { V: "VERIFIED", E: "ESTIMATED", U: "UNKNOWN" } as const;
 const RECON_ATTRS: [ReconAttr, string][] = [["fpC", "footprint"], ["rcC", "roof colour"], ["matC", "roof covering"], ["flC", "storeys / height"], ["roofC", "roof shape"], ["useC", "use"], ["facC", "facade"]];
 
 /** Phase 5.1 building inspector: what is known about the picked building, attribute by attribute, and from where. */
-function ReconInspector({ b, meta, attr, setAttr, overview, onClose }: { b: Building | null; meta: AreaData["reconMeta"]; attr: ReconAttr; setAttr: (a: ReconAttr) => void; overview: boolean; onClose: () => void }) {
+function ReconInspector({ b, meta, counts, attr, setAttr, overview, onClose }: { b: Building | null; meta: AreaData["reconMeta"]; counts: Record<string, Record<"V" | "E" | "U", number>>; attr: ReconAttr; setAttr: (a: ReconAttr) => void; overview: boolean; onClose: () => void }) {
   const r = b?.recon;
   const chip = (c: "V" | "E" | "U") => <span style={{ display: "inline-block", minWidth: 74, padding: "0 4px", marginRight: 6, borderRadius: 3, fontSize: 10, fontWeight: 600, textAlign: "center", background: RECON_COLORS[c], color: c === "E" ? "#222" : "#fff" }}>{CONF_TEXT[c]}</span>;
   const line = (c: "V" | "E" | "U", label: string, val: React.ReactNode, src?: string) => (
@@ -73,24 +73,25 @@ function ReconInspector({ b, meta, attr, setAttr, overview, onClose }: { b: Buil
       {overview && meta && <>
         <div style={{ fontSize: 11, opacity: 0.8 }}>Colour by confidence of:</div>
         {RECON_ATTRS.map(([k, t]) => {
-          const c = meta.confidence[k] ?? { V: 0, E: 0, U: 0 };
+          const c = counts[k] ?? { V: 0, E: 0, U: 0 };
           return <div key={k} onClick={() => setAttr(k)} style={{ cursor: "pointer", fontWeight: attr === k ? 700 : 400, fontSize: 12 }}>
             {attr === k ? "▸ " : "  "}{t}: <span style={{ color: RECON_COLORS.V }}>{c.V} verified</span> · <span style={{ color: RECON_COLORS.E }}>{c.E} estimated</span> · <span style={{ color: "#bbb" }}>{c.U} unknown</span>
           </div>;
         })}
-        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>{meta.n} buildings. Unknown attributes are drawn neutral: light plaster walls, grey roof, no balconies or extras.</div>
+        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>{meta.n} buildings; {Object.keys(counts._photo ?? {}).length ? counts._photo.V : 0} reconstructed from reference photos. Unknown attributes are drawn neutral: light plaster walls, grey roof, no balconies or extras.</div>
       </>}
       {!b ? <div style={{ marginTop: 6, opacity: 0.8 }}>Tap a building in the pilot area.</div> : !r ? <div style={{ marginTop: 6 }}>Outside the pilot: not yet reconstructed from evidence.</div> : (
         <div style={{ marginTop: 6, padding: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
-          <b>{r.name ?? "Building"}</b><br />
-          {line(r.fpC, "footprint", `${r.L} × ${r.W} m, ${r.area} m², axis ${r.az}°`, `${r.fpSrc} outline; ${r.fpC === "V" ? "confirmed by a second source" : r.fpC === "E" ? "a second source shows a building, outline not confirmed" : "no independent confirmation"}`)}
-          {line(r.rcC, "roof colour", r.rc ? <>{sw(r.rc)}{r.rc}</> : (r.rcNote ?? "not measurable"), r.rc ? `median of ${r.rcN} roof pixels, Satellogic 1 m, 31 Aug 2022${r.rcC === "E" ? " (few pixels or halves disagree)" : ""}` : "drawn neutral grey")}
-          {line(r.matC, "roof covering", r.mat ?? "unknown", r.mat ? "inferred from the roof colour" : undefined)}
-          {line(r.flC, "storeys", r.flC === "U" ? `unknown (drawn as ${r.fl})` : `${r.fl}`, r.flC === "U" ? "no height source for this building; placeholder " + r.flSrc : r.flSrc)}
-          {line(r.roofC, "roof shape", r.roofC === "U" ? `unknown (drawn ${r.roof})` : r.roof, r.roofSrc)}
+          <b>{r.name ?? r.label ?? "Building"}</b>{r.photo && <span style={{ marginLeft: 6, fontSize: 11, color: "#9fd3ff" }}>reconstructed from photo {r.photo}</span>}<br />
+          {r.splitNote && <div style={{ fontSize: 11, opacity: 0.75 }}>{r.splitNote}</div>}
+          {line(r.fpC, "footprint", `${r.L} × ${r.W} m, ${r.area} m², axis ${r.az ?? "–"}°`, `${r.fpSrc} outline; ${r.fpC === "V" ? "confirmed by a second source" : r.fpC === "E" ? "a second source shows a building, outline not confirmed" : "no independent confirmation"}`)}
+          {line(r.rcC, "roof colour", r.rc ? <>{sw(r.rc)}{r.rc}</> : (r.rcNote ?? "not measurable"), r.rcSrc ? `read from ${r.rcSrc}` : r.rc ? `median of ${r.rcN} roof pixels, Satellogic 1 m, 31 Aug 2022 — approximate: agrees with photos for about half of the buildings checked` : "drawn neutral grey")}
+          {line(r.matC, "roof covering", r.mat ?? "unknown", r.photo && r.matC !== "U" ? "seen in the photo" : r.mat ? "inferred from the roof colour" : undefined)}
+          {line(r.flC, "storeys", r.flC === "U" ? `unknown (drawn as ${r.fl})` : `${r.fl}`, r.flNote ?? (r.flC === "U" ? "no height source for this building; placeholder " + r.flSrc : r.flSrc))}
+          {line(r.roofC, "roof shape", r.roofC === "U" ? `unknown (drawn ${r.roof})` : `${r.roof}${r.pitch ? `, ~${r.pitch}°` : ""}`, r.roofNote ?? r.roofSrc)}
           {line(r.useC, "use", r.use, r.useSrc)}
-          {line(r.facC, "facade colour", "unknown (neutral plaster)", "no street-level imagery available")}
-          {line(r.balC, "balconies, extensions", "unknown (none drawn)")}
+          {line(r.facC, "facade colour", r.fc ? <>{sw(r.fc)}{r.fc}</> : "unknown (neutral plaster)", r.fc ? `read from ${r.facSrc}` : "no photo of this facade yet")}
+          {line(r.balC, "balconies, extensions", r.bal ? "yes" : r.balC === "U" ? "unknown (none drawn)" : "none", r.balNote)}
           <div style={{ opacity: 0.55, fontSize: 10, marginTop: 4 }}>id {b.id}</div>
         </div>
       )}
@@ -216,6 +217,15 @@ export default function Viewer() {
   // #osm: only human-mapped OpenStreetMap footprints (Microsoft ML detections hidden); #audit: geographic audit view
   const osmOnly = q.has("osm"), audit = q.has("audit"), verify = q.has("verify"), recon = q.has("recon");
   const [reconAttr, setReconAttr] = useState<ReconAttr>("rcC");
+  const reconCounts = useMemo(() => {
+    const c: Record<string, Record<"V" | "E" | "U", number>> = { _photo: { V: 0, E: 0, U: 0 } };
+    for (const b of data?.buildings ?? []) {
+      const r = b.recon; if (!r) continue;
+      if (r.photo) c._photo.V++;
+      for (const k of ["fpC", "rcC", "matC", "flC", "roofC", "useC", "facC"] as const) { (c[k] ??= { V: 0, E: 0, U: 0 })[r[k] ?? "U"]++; }
+    }
+    return c;
+  }, [data]);
   const [verifyInfo, setVerifyInfo] = useState<VerifyInfo | null>(null);
   const [auditInfo, setAuditInfo] = useState<AuditInfo | null>(null);
   const [picked, setPicked] = useState<Building | null>(null);
@@ -370,7 +380,7 @@ export default function Viewer() {
         />
       )}
       {showStats && <div className="stats" ref={statsEl} />}
-      {!audit && !verify && data?.reconMeta && (recon || picked) && <ReconInspector b={picked} meta={data.reconMeta} attr={reconAttr} setAttr={setReconAttr} overview={recon} onClose={() => setPicked(null)} />}
+      {!audit && !verify && data?.reconMeta && (recon || picked) && <ReconInspector b={picked} meta={data.reconMeta} counts={reconCounts} attr={reconAttr} setAttr={setReconAttr} overview={recon} onClose={() => setPicked(null)} />}
       {verify && <VerifyPanel info={verifyInfo} picked={picked} onNext={nextVerify} />}
       {audit && !verify && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} picked={picked} onNext={nextReview} />}
       {bench && <div className="stats bench">{formatBench(bench)}{"\n"}first frame {firstFrameMs ? (firstFrameMs / 1000).toFixed(1) : "?"} s</div>}

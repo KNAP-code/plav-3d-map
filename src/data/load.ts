@@ -37,7 +37,11 @@ export type Recon = {
   fl: number; eave: number; flC: Conf; flSrc: string;
   roof: string; roofC: Conf; roofSrc: string;
   use: string; useC: Conf; useSrc?: string; name?: string; facC: Conf; balC: Conf;
+  /** photo batch (photo.json): which photo, what it shows, and the values read from it */
+  photo?: string; label?: string; fc?: string; facSrc?: string; rcSrc?: string; flNote?: string; roofNote?: string;
+  bal?: boolean; balNote?: string; pitch?: number; splitNote?: string;
 };
+export type PhotoInfo = { title: string; camera: [number, number, number, number, number, number]; size: [number, number] };
 export type ReconMeta = { pilot: [number, number, number]; n: number; imagery: string; confidence: Record<string, Record<Conf, number>>; rejected: Record<string, string> };
 export type Minaret = { x: number; y: number; g: number; height: number };
 export type Road = {
@@ -99,6 +103,8 @@ export type AreaData = {
   meta: AreaMeta;
   /** Phase 5.1 pilot evidence summary (recon.json), null when absent */
   reconMeta: ReconMeta | null;
+  /** reference photos used for building reconstruction (photo.json) */
+  photos: Record<string, PhotoInfo>;
   datum: number; // elevation subtracted from every height in the scene
   core: Heightfield;
   /** ground outside the core: the real-terrain level stack when baked, else the legacy 60 m context grid */
@@ -183,6 +189,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const streetsP = fetch(`${base}/streets.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const gardensP = fetch(`${base}/gardens.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const waterP = fetch(`${base}/water.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const photoP = fetch(`${base}/photo.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const reconP = fetch(`${base}/recon.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const terrainInfo: TerrainInfo | null = await fetch(`${base}/terrain/terrain.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -215,6 +222,27 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const b = JSON.parse(bjs);
   const recon = (await reconP) as { meta: ReconMeta; b: Record<string, Recon> } | null;
   if (recon) for (const bb of b.buildings as Building[]) { const r = recon.b[bb.id]; if (r) bb.recon = r; }
+  // photo batches (pipeline/photo_recon.py): values read from reference photos override the Phase 5.1 evidence
+  const photo = (await photoP) as { photos: Record<string, PhotoInfo>; b: Record<string, Partial<Recon> & { eave?: number; fl?: number; roof?: string }>;
+    splits: Record<string, Record<string, { fp: [number, number][]; obb: [number, number, number, number, number] }>>; minarets: { near: [number, number]; height: number }[] } | null;
+  if (photo) {
+    const list: Building[] = [];
+    for (const bb of b.buildings as Building[]) {
+      const parts = photo.splits[bb.id];
+      if (parts) for (const [k, pt] of Object.entries(parts)) list.push({ ...bb, id: `${bb.id}#${k}`, fp: pt.fp, obb: pt.obb, recon: bb.recon ? { ...bb.recon } : undefined });
+      else list.push(bb);
+    }
+    for (const bb of list) {
+      const p = photo.b[bb.id];
+      if (!p) continue;
+      bb.recon = { ...(bb.recon ?? ({} as Recon)), ...(p as Partial<Recon>) } as Recon;
+      if (p.fl) { bb.floors = p.fl; bb.eave = p.eave ?? bb.eave; }
+      if (p.roof === "flat" || p.roof === "hip" || p.roof === "gable") bb.roof = p.roof;
+      if (bb.id.includes("#")) { const r = bb.recon; r.L = bb.obb[3]; r.W = bb.obb[4]; r.area = Math.round(bb.obb[3] * bb.obb[4]); }
+    }
+    b.buildings = list;
+    for (const m of photo.minarets ?? []) for (const mm of b.minarets as Minaret[]) if (Math.hypot(mm.x - m.near[0], mm.y - m.near[1]) < 3) mm.height = m.height;
+  }
   const v = JSON.parse(vjs);
   // trees in a thinning band just outside the core (pipeline/terrain.py), appended to the city's WorldCover trees
   const band = await bandP;
@@ -229,7 +257,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
     furniture, streets, gardens: (await gardensP) as Gardens | null,
     meta, core, context, levels, terrainInfo, coverCore, coverContext,
     datum: meta.core.base,
-    reconMeta: recon?.meta ?? null,
+    reconMeta: recon?.meta ?? null, photos: photo?.photos ?? {},
     buildings: b.buildings, removed: b.removed ?? [], minarets: b.minarets,
     roads: v.roads, crossings: v.crossings ?? [], water: v.water, streams: v.streams, overlays: v.overlays,
     trees,

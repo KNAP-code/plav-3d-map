@@ -264,7 +264,10 @@ def main(area_id="plav-town"):
         if fam.startswith("painted sheet (green)"):
             # green almost always means garden or tree pixels inside a ~1-2 m misplaced outline, not a green roof
             r["rcC"] = "U"; r["matC"] = "U"; r["rcNote"] = "mixed with vegetation"; r.pop("rc"); continue
-        r["rcC"] = "V" if n >= 12 and dt >= 1 and same and not cast else "E"
+        # Cross-check against Am's photo p01 (2026-11-21, 10 buildings seen in both): the colour family agreed for only
+        # about half of them (a white flat roof read as grey-olive). Satellite roof colours are therefore ESTIMATED;
+        # the split-half test result is kept as rcQ (1 = stable measurement).
+        r["rcC"] = "E"; r["rcQ"] = int(n >= 12 and dt >= 1 and same and not cast)
         if cast: r["rcNote"] = "green cast removed (vegetation in the pixels)"
         r["mat"] = fam; r["matC"] = "E"
 
