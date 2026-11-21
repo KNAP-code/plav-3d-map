@@ -64,7 +64,17 @@ const arch = [
   "sunset|q=high&off=tilt&sunset=1&cam=120,-330,70,215,60",
   "night|q=high&off=tilt&night=1&cam=120,-330,70,215,60",
 ];
-const views = process.env.CAMS ? process.env.CAMS.split(";") : process.env.VIEWS === "arch" ? arch : process.env.VIEWS === "fix" ? fix : process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
+// VIEWS=p5: Phase 5 realism pilot (central Plav): the six required comparisons, same cameras before and after
+const p5 = [
+  "1-neighbourhood|q=high&off=tilt&cam=150,-280,300,200,52",
+  "2-street-eye|q=high&off=tilt&closeup=1&cam=120,-330,26,215,82",
+  "3-facades|q=high&off=tilt&closeup=1&cam=283,-240,24,320,74",
+  "4-roofs-windows|q=high&off=tilt&cam=200,-200,70,-120,58",
+  "5-courtyard|q=high&off=tilt&closeup=1&cam=40,-380,40,150,66",
+  "6a-daylight|q=high&off=tilt&cam=120,-330,90,215,62",
+  "6b-golden-hour|q=high&off=tilt&sunset=1&cam=120,-330,90,215,62",
+];
+const views = process.env.CAMS ? process.env.CAMS.split(";") : process.env.VIEWS === "p5" ? p5 : process.env.VIEWS === "arch" ? arch : process.env.VIEWS === "fix" ? fix : process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",

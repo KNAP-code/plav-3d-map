@@ -77,7 +77,7 @@ export function surroundingsGeometry(d: AreaData, road: Road) {
   const gravel = new THREE.Color("#c9bfae"), flags = new THREE.Color("#b5ada2"), conc = new THREE.Color("#a9a59e");
   const hedgeC = ["#3f6a32", "#4a7638", "#3a5f2f"].map((c) => new THREE.Color(c));
   const shrubC = ["#4f7a3a", "#5d8a42", "#46703a", "#6b8f45", "#7a8f3f"].map((c) => new THREE.Color(c));
-  const bloom = ["#d9475a", "#f0c94a", "#e48bb0", "#f4f1ea", "#9a6fd0"].map((c) => new THREE.Color(c));
+  const bloom = ["#b85a5a", "#d8b45a", "#c99aa6", "#e6e2d6", "#c07a62"].map((c) => new THREE.Color(c));
 
   // ---- paths and parking pads, per house in the detail districts
   for (const b of d.buildings) {
