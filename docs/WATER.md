@@ -105,6 +105,9 @@ unmeasured (run `#stats` / `#bench` on a device).
 
 ## Remaining uncertainties
 
+Status: conditionally approved 2026-11-21; water frozen at 18e5cfd. Full register with evidence and what would settle
+each point: `docs/water/UNCERTAINTIES.md` (lake elevation, shoreline vegetation, raft construction first).
+
 1. **Water level:** 904.5 m (GLO-30) vs 907 m published; relative heights are consistent, absolute value is not.
 2. **Seasonal shoreline:** Sentinel-2 is a summer 2025 snapshot; spring high water and the winter ice are not modelled.
 3. **Vegetation type and height:** reed vs sedge vs floating plants (water lilies) and real reed height are unknown;
