@@ -145,9 +145,11 @@ export function variation(b: Building, style: StyleConfig, est = false) {
   let rail = "#efeeea";
   let roofMat: number = ROOF_MAT.tile;
   let finish = 0; // 0 plaster, 1 exposed brick, 2 grey block (unfinished facades)
-  const ev = est && !sacred && !!b.recon && inDetailArea(b);
+  // 2026-11-22 (Am: no invented geometry anywhere): evidence mode for every ordinary building, with or without a recon
+  // record: measured or neutral colours, no random balconies, chimneys, porches, stairs, finishes or roof variants
+  const ev = est && !sacred;
   if (ev) {
-    const r = b.recon!;
+    const r = b.recon ?? ({} as NonNullable<Building["recon"]>);
     pitch = r.pitch ?? base + (block ? 4 : 9); overhang = Math.max(overhang, block ? 0.6 : 0.75);
     roofPick = r.rc ?? NEUTRAL.roof;
     roofMat = !r.mat ? ROOF_MAT.concrete : r.mat.startsWith("clay") ? ROOF_MAT.tile : ROOF_MAT.metal;

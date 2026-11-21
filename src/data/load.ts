@@ -204,6 +204,7 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const photoP = fetch(`${base}/photo.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const routeP = fetch(`${base}/route.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const reconP = fetch(`${base}/recon.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const archP = fetch(`${base}/arch.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const furnP = fetch(`${base}/furniture.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const terrainInfo: TerrainInfo | null = await fetch(`${base}/terrain/terrain.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   const bandP = terrainInfo?.treesBand ? bin(`${base}/terrain/${terrainInfo.treesBand.file}`).catch(() => null) : Promise.resolve(null);
@@ -235,6 +236,16 @@ export async function loadArea(base: string, onProgress?: (p: number) => void): 
   const b = JSON.parse(bjs);
   const recon = (await reconP) as { meta: ReconMeta; b: Record<string, Recon> } | null;
   if (recon) for (const bb of b.buildings as Building[]) { const r = recon.b[bb.id]; if (r) bb.recon = r; }
+  // automatic facade pipeline (pipeline/arch_pipeline.py): only values that passed its validation gate carry fc / fl;
+  // the raw readings (fcAuto / flAuto) are kept for the inspector. Hand-read photo values below still win.
+  const arch = (await archP) as { b: Record<string, { fc?: string; facC?: string; fl?: number; flC?: string; flNote?: string; src?: string }> } | null;
+  if (arch) for (const bb of b.buildings as Building[]) {
+    const a = arch.b[bb.id];
+    if (!a) continue;
+    const r = (bb.recon = { ...(bb.recon ?? ({} as Recon)) } as Recon);
+    if (a.fc) { r.fc = a.fc; r.facSrc = a.src; r.facC = (a.facC ?? "E") as Conf; }
+    if (a.fl && a.flC) { bb.floors = a.fl; r.fl = a.fl; r.flC = a.flC as Conf; r.flNote = a.flNote; }
+  }
   // photo batches (pipeline/photo_recon.py): values read from reference photos override the Phase 5.1 evidence
   const photo = (await photoP) as { photos: Record<string, PhotoInfo>; b: Record<string, Partial<Recon> & { eave?: number; fl?: number; roof?: string }>;
     splits: Record<string, Record<string, { fp: [number, number][]; obb: [number, number, number, number, number] }>>; minarets: { near: [number, number]; height: number }[] } | null;

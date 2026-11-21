@@ -986,7 +986,7 @@ const TIMM: LandmarkDef = {
   ],
   build(B) {
     const red = C("#8c2a34"), white = C("#f3f1ec"), cream = C("#eadfcc"), side = C("#e3ded5"), glass = C("#2c3136"),
-      dark = C("#2a2b2d"), post = C("#3b3c3e"), screen = C("#d9d6cf"), carpet = C("#8e2a2a"), roof = C("#99625c"), board = C("#18221d"), tglass = C("#5a666e");
+      dark = C("#2a2b2d"), post = C("#232426"), screen = C("#d9d6cf"), carpet = C("#8e2a2a"), roof = C("#99625c"), board = C("#18221d"), tglass = C("#8a979e");
     const hs = 6.8, ht = 6.55, F = [3.8, 6.7, 9.6], eave = 12.2, bal = ht + 1.3;
     // body: plain walls (sides/back not seen), front wall cream
     B.walls([[-hs, -ht], [hs, -ht], [hs, ht], [-hs, ht]], -1, eave, side);
@@ -1046,13 +1046,16 @@ const TIMM: LandmarkDef = {
     B.panel(ts1, tf + 0.02, ts0, tf + 0.02, th - 0.2, th + 0.35, dark);
     B.flat([[ts0, ht], [ts1, ht], [ts1, tf], [ts0, tf]], 0.04, C("#b9b2a6"));
     const door0 = -3.5, door1 = -1.2;
+    // photo: the decorated screen is a low parapet (about a quarter of the terrace height, ~0.8 m); above it the terrace
+    // is glazed to the fascia, so nothing in front of the cafe reads as a fence (v30 had a 1.2 m grey screen)
+    const SCR = 0.8;
     for (let x = ts0; x <= ts1 + 1e-3; x += (ts1 - ts0) / 9) B.box(x - 0.08, x + 0.08, tf - 0.16, tf, 0, th, post);
     for (const [a, b] of [[ts0, door0], [door1, ts1]] as const) {
-      B.panel(b, tf, a, tf, 0, 1.2, screen, K.plain, 0.01);
-      B.panel(b, tf, a, tf, 1.2, th - 0.2, tglass, K.glass, 0.0);
+      B.panel(b, tf, a, tf, 0, SCR, screen, K.plain, 0.01);
+      B.panel(b, tf, a, tf, SCR, th - 0.2, tglass, K.glass, 0.0);
     }
     B.flat([[door0, tf - 1.2], [door1, tf - 1.2], [door1, tf + 1.0], [door0, tf + 1.0]], 0.06, carpet);
-    for (const x of [ts0, ts1]) { B.panel(x, ht, x, tf, 0, 1.2, screen); B.panel(x, ht, x, tf, 1.2, th - 0.2, tglass, K.glass); }
+    for (const x of [ts0, ts1]) { B.panel(x, ht, x, tf, 0, SCR, screen); B.panel(x, ht, x, tf, SCR, th - 0.2, tglass, K.glass); }
   },
 };
 

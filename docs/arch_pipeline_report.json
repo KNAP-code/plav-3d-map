@@ -1,0 +1,300 @@
+{
+ "sources": [
+  {
+   "name": "OpenStreetMap API / Overpass",
+   "url": "https://overpass-api.de/api/status",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "ODbL",
+   "use": "tags: levels, height, roof shape, names"
+  },
+  {
+   "name": "Overture Maps (S3)",
+   "url": "https://overturemaps-us-west-2.s3.amazonaws.com",
+   "http": "200",
+   "reachable": true,
+   "status": "reachable",
+   "licence": "ODbL / CDLA",
+   "use": "footprints, OSM tags, places"
+  },
+  {
+   "name": "Satellogic EarthView 1 m (S3)",
+   "url": "https://satellogic-earthview.s3.us-west-2.amazonaws.com",
+   "http": "200",
+   "reachable": true,
+   "status": "reachable",
+   "licence": "CC BY 4.0",
+   "use": "roof colour, terraces, trees"
+  },
+  {
+   "name": "Copernicus DEM GLO-30 (S3)",
+   "url": "https://copernicus-dem-30m.s3.amazonaws.com",
+   "http": "200",
+   "reachable": true,
+   "status": "reachable",
+   "licence": "Copernicus licence",
+   "use": "terrain (tested: no building heights)"
+  },
+  {
+   "name": "Mapillary API",
+   "url": "https://graph.mapillary.com/images",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "CC BY-SA, token needed",
+   "use": "street-level photos with camera pose"
+  },
+  {
+   "name": "Panoramax",
+   "url": "https://api.panoramax.xyz/api",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "open licences",
+   "use": "street-level photos with camera pose"
+  },
+  {
+   "name": "KartaView",
+   "url": "https://api.kartaview.org",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "CC BY-SA",
+   "use": "street-level photos"
+  },
+  {
+   "name": "Wikimedia Commons API",
+   "url": "https://commons.wikimedia.org/w/api.php",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "free licences",
+   "use": "geotagged photos"
+  },
+  {
+   "name": "Flickr API",
+   "url": "https://api.flickr.com/services/rest/",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "per-photo licence, key needed",
+   "use": "geotagged photos"
+  },
+  {
+   "name": "Geoportal Crne Gore (WMS)",
+   "url": "https://www.geoportal.co.me/geoserver/ows?service=WMS&request=GetCapabilities",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "official, terms to confirm",
+   "use": "orthophoto, cadastre outlines, heights"
+  },
+  {
+   "name": "OpenAerialMap",
+   "url": "https://api.openaerialmap.org/meta",
+   "http": "000",
+   "reachable": false,
+   "status": "refused by this environment's network",
+   "licence": "CC BY 4.0",
+   "use": "drone orthophotos"
+  },
+  {
+   "name": "Google Street View API",
+   "url": "https://maps.googleapis.com/maps/api/streetview/metadata?location=42.596,19.94",
+   "http": "200",
+   "reachable": true,
+   "status": "reachable, but REQUEST_DENIED without an API key",
+   "licence": "key needed; terms forbid deriving 3D models",
+   "use": "not usable"
+  },
+  {
+   "name": "plavto.me (approved site)",
+   "url": "https://www.plavto.me/",
+   "http": "200",
+   "reachable": true,
+   "status": "reachable",
+   "licence": "view only, not copied",
+   "use": "photos without location or direction"
+  }
+ ],
+ "photos": {
+  "p01": {
+   "file": "p01-main-street-aerial.jpg",
+   "status": "solved on landmarks",
+   "matched_walls": 257,
+   "analysed_walls": 7
+  }
+ },
+ "stages": {
+  "buildings": 3535,
+  "with_any_photo": 170,
+  "walls_analysed": 7,
+  "buildings_analysed": 4,
+  "storeys_read": 2,
+  "storeys_applied": 0,
+  "facade_read": 4,
+  "facade_applied": 0,
+  "checks": {
+   "agree_bands_eave": 2,
+   "disagree": 2,
+   "storey_h_out_of_range": 2,
+   "two_walls_agree": 2,
+   "two_walls_disagree": 0
+  },
+  "inventory": {
+   "osm_levels": 8,
+   "satellite_roof": 2910,
+   "outline_verified_or_confirmed": 1810
+  }
+ },
+ "validation_vs_manual": {
+  "storeys": {
+   "n": 1,
+   "exact": 1,
+   "passed": false,
+   "rows": [
+    {
+     "id": "24171ec7",
+     "label": "small garage with red door",
+     "manual": 1,
+     "auto": 1
+    }
+   ],
+   "rule": ">= 3 buildings and >= 80 % exact"
+  },
+  "facade_colour": {
+   "n": 2,
+   "median_rgb_dist": 119.5,
+   "passed": false,
+   "rows": [
+    {
+     "id": "93bc9e4b",
+     "label": "Opština Plav",
+     "manual": "#d3d1cf",
+     "auto": "#948c86",
+     "dist": 119
+    },
+    {
+     "id": "24171ec7",
+     "label": "small garage with red door",
+     "manual": "#d4d1ce",
+     "auto": "#8d8a8d",
+     "dist": 120
+    }
+   ],
+   "rule": ">= 3 buildings and median sRGB distance <= 40"
+  }
+ },
+ "walls": {
+  "6ee229b9-a568-4928-969c-de08e34c3f7b": [
+   {
+    "photo": "p01",
+    "wall": 3,
+    "len": 8.4,
+    "dist": 56,
+    "ppm": 8.8,
+    "eave": 3.5,
+    "bands": [
+     1.6
+    ],
+    "rgb": "#44403b",
+    "cols": 0.6470588235294118,
+    "veg": 0.1
+   }
+  ],
+  "93bc9e4b-ab1d-4873-9e4d-b4e640ca776e": [
+   {
+    "photo": "p01",
+    "wall": 3,
+    "len": 13.2,
+    "dist": 80,
+    "ppm": 6.2,
+    "eave": 9.3,
+    "bands": [
+     2.0,
+     4.6
+    ],
+    "rgb": "#948c86",
+    "cols": 1.0,
+    "veg": 0.0
+   },
+   {
+    "photo": "p01",
+    "wall": 0,
+    "len": 13.2,
+    "dist": 75,
+    "ppm": 6.2,
+    "eave": 9.3,
+    "bands": [
+     2.9,
+     8.6
+    ],
+    "rgb": "#f5f5e7",
+    "cols": 0.8679245283018868,
+    "veg": 0.0
+   },
+   {
+    "photo": "p01",
+    "wall": 1,
+    "len": 8.9,
+    "dist": 71,
+    "ppm": 6.7,
+    "eave": 9.3,
+    "bands": [
+     4.0,
+     8.9
+    ],
+    "rgb": "#988d85",
+    "cols": 0.5555555555555556,
+    "veg": 0.03
+   }
+  ],
+  "d8f69ad5-7153-4d6e-955e-b92a1d3e95f6": [
+   {
+    "photo": "p01",
+    "wall": 2,
+    "len": 17.5,
+    "dist": 70,
+    "ppm": 7.3,
+    "eave": 6.4,
+    "bands": [
+     3.9
+    ],
+    "rgb": "#8a837a",
+    "cols": 1.0,
+    "veg": 0.08
+   }
+  ],
+  "24171ec7-f8a0-4e47-a2f6-e2267f7378be": [
+   {
+    "photo": "p01",
+    "wall": 0,
+    "len": 4.5,
+    "dist": 76,
+    "ppm": 7.9,
+    "eave": 2.6,
+    "bands": [
+     1.2
+    ],
+    "rgb": "#8d8a8d",
+    "cols": 1.0,
+    "veg": 0.21
+   },
+   {
+    "photo": "p01",
+    "wall": 1,
+    "len": 6.0,
+    "dist": 78,
+    "ppm": 7.5,
+    "eave": 2.6,
+    "bands": [
+     1.2
+    ],
+    "rgb": "#908c4d",
+    "cols": 1.0,
+    "veg": 0.27
+   }
+  ]
+ }
+}

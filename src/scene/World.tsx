@@ -534,9 +534,11 @@ export const shadowSync = { full: false };
  * from the camera keep every 2nd tree. The buffer is rewritten only when that visible set changes.
  */
 export function Trees({ data, style, quality, estimates = false }: { data: AreaData; style: StyleConfig; quality: Quality; estimates?: boolean }) {
+  // fruit trees in yards are not mapped: only with ?decor=1
+  const decor = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("decor");
   const T = TIERS[quality];
   const geo = useMemo(() => treeGeometries(style.trees.trunk), [style.trees.trunk]);
-  const sets = useMemo(() => treeSets(data, style.trees.leaf, style.trees.conifer, style.trees.size, 256, estimates ? fruitTrees(data) : undefined), [data, style.trees, estimates]);
+  const sets = useMemo(() => treeSets(data, style.trees.leaf, style.trees.conifer, style.trees.size, 256, estimates && decor ? fruitTrees(data) : undefined), [data, style.trees, estimates, decor]);
   const mat = useMemo(() => treeMaterial(), []);
   const meshes = useMemo(() => {
     const mk = (g: THREE.BufferGeometry, s: TreeSet) => {
@@ -762,7 +764,7 @@ export function Traffic({ data, style, count }: { data: AreaData; style: StyleCo
  * ESTIMATED gardens (only with estimates on): yard lawns and vegetable plots (one draw), street-side fences (one draw,
  * medium/high only) and haystacks on mapped meadows (one instanced draw, medium/high only).
  */
-export function Gardens({ data, quality }: { data: AreaData; quality: Quality }) {
+export function Gardens({ data, quality, decor = false }: { data: AreaData; quality: Quality; decor?: boolean }) {
   const yards = useMemo(() => yardGeometry(data), [data]);
   const fences = useMemo(() => fenceGeometry(data), [data]);
   const surround = useMemo(() => surroundingsGeometry(data, roadLookup(data)), [data]);
@@ -787,9 +789,11 @@ export function Gardens({ data, quality }: { data: AreaData; quality: Quality })
     <group>
       <mesh geometry={yards} material={yardM} receiveShadow />
       <mesh geometry={contact} material={contactM} renderOrder={1} />
-      {quality !== "low" && <mesh geometry={fences} material={fenceM} castShadow receiveShadow />}
-      {quality !== "low" && <mesh geometry={surround} material={surroundM} castShadow receiveShadow />}
-      {quality !== "low" && hay && <primitive object={hay} />}
+      {/* 2026-11-22: fences, paths, parking pads, hedges, shrubs and haystacks are not mapped anywhere (gardens.py,
+          surroundings.ts): hidden unless ?decor=1 asks for the old estimated decoration */}
+      {decor && quality !== "low" && <mesh geometry={fences} material={fenceM} castShadow receiveShadow />}
+      {decor && quality !== "low" && <mesh geometry={surround} material={surroundM} castShadow receiveShadow />}
+      {decor && quality !== "low" && hay && <primitive object={hay} />}
     </group>
   );
 }

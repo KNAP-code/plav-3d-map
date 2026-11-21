@@ -49,7 +49,8 @@ RNG = np.random.default_rng(0)
 PHOTO_GAIN = np.array([1.485, 1.0, 0.733])
 LOCAL_WB_SIGMA = 80.0  # m, local asphalt white balance window
 ROOF_NDVI = 0.0  # haze-corrected NDVI of bare roofs (confirmed roofs >120 m² in the pilot: p25 0.01, median 0.07)
-PILOT = (170.0, -230.0, 520.0)  # same circle as DETAIL_AREAS in src/geo/buildings.ts
+PILOT = (170.0, -230.0, 520.0)  # the first pilot circle (kept for reference)
+TOWN = (0.0, 0.0, 1e9)  # 2026-11-22: evidence for every building in the area (Am: no per-building prompts)
 TIER_CONF = {"verified": "V", "confirmed": "V", "present": "E", "unconfirmed": "U", "disputed": "U"}
 USE = {
     "house": "residential", "detached": "residential", "apartments": "residential", "residential": "residential",
@@ -185,7 +186,7 @@ def main(area_id="plav-town"):
     st = json.loads((out_dir / "streets.json").read_text())
     lin, ndvi, cal = display_colour(Lr, Vm, T, [Polygon(c["outer"]).buffer(-1.5) for c in st["carriage"]])
 
-    cx, cy, cr = PILOT
+    cx, cy, cr = TOWN
     vm = Vm & (ndvi > 0.55)  # town-wide vegetation endmember, used where a building's ring has too little vegetation
     veg_g, vveg_g = np.median(lin[:, vm], axis=1), float(np.median(ndvi[vm]))
     rec = {}

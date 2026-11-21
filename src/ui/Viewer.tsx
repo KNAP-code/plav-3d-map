@@ -364,7 +364,7 @@ export default function Viewer() {
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
             {!off.has("landmarks") && <Landmarks data={data} provisional={review} />}
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} estimates={estimates} />}
-            {estimates && !off.has("gardens") && <Gardens data={data} quality={quality} />}
+            {estimates && !off.has("gardens") && <Gardens data={data} quality={quality} decor={q.has("decor")} />}
           </Suspense>
           <Sun data={data} style={style} quality={quality} controls={controls} follow={!off.has("shadowfollow")} enabled={!off.has("shadows")} tod={tod} />
           <Controls data={data} controlsRef={controls} hud={hudRefs} onReady={onControlsReady} />
