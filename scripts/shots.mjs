@@ -41,7 +41,13 @@ const water = [
   "night-lake|q=high&off=tilt&night=1&cam=-1300,-350,1100,100,70",
   "medium-lake|q=medium&off=tilt&cam=-1300,-350,1100,100,74",
 ];
-const views = process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
+// VIEWS=verify: Phase 3 city geometry: each camera as the normal map and as the #verify evidence view
+const verifyCams = [
+  "town|cam=-150,0,3600,15,48", "centre|cam=200,-150,420,-120,60", "north|cam=-1150,1300,700,200,52",
+  "northeast|cam=250,950,520,205,55", "south|cam=250,-1450,620,25,52", "skic|cam=-250,1150,520,180,55",
+];
+const verify = verifyCams.flatMap((v) => { const [n, c] = v.split("|"); return [`${n}|q=high&off=tilt&${c}`, `${n}-verify|q=high&off=tilt&verify=1&${c}`]; });
+const views = process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",

@@ -163,9 +163,20 @@ const auditTint = (b: Building, e?: AuditEntry) =>
   : b.src === "osm" ? ((b.onStreet ?? 0) >= 0.15 ? AUDIT_COLORS.osmOnStreet : AUDIT_COLORS.osm)
   : b.kind === "outbuilding" ? AUDIT_COLORS.outbuilding : AUDIT_COLORS.ms;
 
-export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, onPick, estimates = false }: {
+/**
+ * Phase 3 geometry-evidence view (#verify, public/data/<area>/verify.json from pipeline/verify_city.py):
+ * verified = OSM and Microsoft (two independent producers) agree on the outline; confirmed = the 1 m imagery shows
+ * the roof at the mapped position within the measured tolerance; present = an independent source shows a
+ * building there but outline/position is not confirmed; unconfirmed = nothing confirms or contradicts it;
+ * disputed = Microsoft ML only and two independent sources show vegetation there.
+ */
+export const VERIFY_COLORS = { verified: "#2f9e57", confirmed: "#7fcf8a", present: "#d9c94a", unconfirmed: "#9aa0a6", disputed: "#e0453a", missing: "#d6338f", street: "#f29d38" };
+export type VerifyEntry = { tier: keyof typeof VERIFY_COLORS; why?: string; area?: string; ms_iou?: number; res?: number; img?: number; chm?: number; obsc?: boolean };
+const verifyTint = (e?: VerifyEntry) => VERIFY_COLORS[e?.tier ?? "unconfirmed"] ?? VERIFY_COLORS.unconfirmed;
+
+export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, verifyMap, onPick, estimates = false }: {
   data: AreaData; style: StyleConfig; quality: Quality; provisional?: boolean; audit?: boolean; estimates?: boolean;
-  auditMap?: Map<string, AuditEntry>; onPick?: (b: Building) => void;
+  auditMap?: Map<string, AuditEntry>; verifyMap?: Map<string, VerifyEntry>; onPick?: (b: Building) => void;
 }) {
   const near = TIERS[quality].buildingNear;
   const skip = useMemo(() => landmarkReplacements(data, { provisional }).ids, [data, provisional]);
@@ -183,8 +194,9 @@ export function Buildings({ data, style, quality, provisional = true, audit = fa
     }
     bump("geometryBuilds");
     const road = roadLookup(data);
-    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, audit ? (bb) => auditTint(bb, auditMap?.get(bb.id)) : undefined, estimates && !audit));
-  }, [data, skip, audit, auditMap, estimates, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+    const tint = verifyMap ? (bb: Building) => verifyTint(verifyMap.get(bb.id)) : audit ? (bb: Building) => auditTint(bb, auditMap?.get(bb.id)) : undefined;
+    return buckets.filter((b) => b.length).map((b) => buildBuildingTile(b, data.datum, style, road, tint, estimates && !tint));
+  }, [data, skip, audit, auditMap, verifyMap, estimates, style.roof.pitchDeg, style.roof.overhang, style.walls, style.roofs, style.window.bayWidth, style.window.floorHeight]); // eslint-disable-line react-hooks/exhaustive-deps
   const mNear = useMemo(() => buildingMaterial(style, true), [style]);
   const mFar = useMemo(() => buildingMaterial(style, false), [style]);
   useDispose(useMemo(() => geos.flatMap((g) => [g.main, g.details]), [geos]));
@@ -281,6 +293,32 @@ export function AuditLayer({ data, gaps }: { data: AreaData; gaps: { x: number; 
     return geo;
   }, [data, gaps]);
   const m = useMemo(() => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }), []);
+  useDispose(useMemo(() => [g, m], [g, m]));
+  return <mesh geometry={g} material={m} renderOrder={5} />;
+}
+
+/**
+ * #verify overlay: Microsoft 2024 footprints (GlobalBuildingAtlas) that are missing from the model but whose roof the
+ * 1 m imagery shows (magenta, listed only, nothing added) and car roads whose imagery road line lies >= 5 m from the OSM centreline (orange).
+ */
+export function VerifyLayer({ data, missing, streets }: { data: AreaData; missing: number[][]; streets: { x: number; y: number }[] }) {
+  const g = useMemo(() => {
+    const pos: number[] = [], col: number[] = [];
+    const h = (x: number, y: number) => (d => d.core.contains(x, y) ? d.core.atTri(x, y) : d.context.at(x, y))(data) - data.datum + 0.8;
+    const quad = (x: number, y: number, s: number, c: THREE.Color) => {
+      const q = [[x - s, y - s], [x + s, y - s], [x + s, y + s], [x - s, y + s]];
+      for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) for (const n of [i, j, k]) { pos.push(q[n][0], h(q[n][0], q[n][1]), -q[n][1]); col.push(c.r, c.g, c.b); }
+    };
+    const mag = new THREE.Color(VERIFY_COLORS.missing), org = new THREE.Color(VERIFY_COLORS.street);
+    for (const m of missing) quad(m[0], m[1], Math.max(3, Math.sqrt(m[2] ?? 40) / 2), mag);
+    for (const s of streets) quad(s.x, s.y, 7, org);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    geo.computeBoundingSphere();
+    return geo;
+  }, [data, missing, streets]);
+  const m = useMemo(() => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false }), []);
   useDispose(useMemo(() => [g, m], [g, m]));
   return <mesh geometry={g} material={m} renderOrder={5} />;
 }

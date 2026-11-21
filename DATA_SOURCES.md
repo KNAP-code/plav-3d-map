@@ -44,3 +44,14 @@ Every baked building carries flags (`hSrc`, `roofSrc`) so estimates stay disting
 - Narrow summits are lower in a 30 m DEM than their surveyed heights (Visitor 2,211 m → 2,162 m in GLO-30, Zla Kolata 2,535 → 2,488 m). The terrain shows the DEM values unchanged; see `docs/TERRAIN.md`.
 - Gardens and street trees are mostly classed as "built-up" by WorldCover, so the town has fewer trees than in reality. No trees are invented.
 - Geofabrik and the OSM API were not reachable from the build environment, so OSM data comes from the Overture Maps copy (release pinned in `pipeline/areas.json`).
+
+## Phase 3 verification evidence (used only to check geometry, never drawn or copied into the map)
+
+| Source | Use | Licence / attribution |
+|---|---|---|
+| Satellogic EarthView, 1 m RGB+NIR, pass 2022-08-31 (s3://satellogic-earthview) | roof presence and relative position per building, road lines, public spaces (`pipeline/verify_city.py`) | CC BY 4.0, © Satellogic |
+| Microsoft Global ML Building Footprints, raw, via VIDA (source.coop `vida/google-microsoft-open-buildings`) | outline-by-outline comparison with OSM | ODbL |
+| Meta / WRI DINOv3 Global Canopy Height Map v2 (source.coop `tge-labs/meta-chm-v2`) | tree canopy over footprints | CC BY 4.0, Meta Data for Good, Tolan et al. 2024 |
+| GlobalBuildingAtlas LoD1 (source.coop `tge-labs/globalbuildingatlas-lod1`, Zhu et al. 2025, doi 10.14459/2025mp1782307) | list of Microsoft 2024 footprints missing from the map (nothing added) | comparison only |
+
+Results: `docs/CITY_GEOMETRY.md`, `public/data/plav-town/verify.json`, map view `#verify`.

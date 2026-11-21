@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type CameraControlsImpl from "camera-controls";
 import { loadArea, type AreaData, type Building } from "@/data/load";
 import { PRESETS, type StyleConfig } from "@/style/presets";
-import { AUDIT_COLORS, AuditLayer, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
+import { AUDIT_COLORS, AuditLayer, VERIFY_COLORS, VerifyLayer, type VerifyEntry, Buildings, Gardens, needsReview, type AuditEntry, Landmarks, Minarets, Roads, StreetDetails, Streetlights, Terrain, Traffic, Trees, Water, type Quality } from "@/scene/World";
 import { Controls, Effects, PlainRender, Sun, eyeAt, flyTo, type TimeOfDay } from "@/scene/Rig";
 import { Hud, type Chip } from "./Hud";
 import { LANDMARKS, landmarkFocus, placeStandIn } from "@/geo/landmarks";
@@ -22,7 +22,7 @@ function params() {
   // Hosts that only pass a plain #name (e.g. the preview link) can use #stats, #tune, #sample, #en, #low, #medium, #high.
   // several flags can be combined: #audit,osm or #night&high
   for (const h of window.location.hash.replace(/^#/, "").split(/[,&+]/).filter(Boolean)) {
-    if (h === "stats" || h === "tune" || h === "audit" || h === "osm") p.set(h, "1");
+    if (h === "stats" || h === "tune" || h === "audit" || h === "osm" || h === "verify") p.set(h, "1");
     else if (h === "sample") p.set("area", "plav-sample");
     else if (h === "centre") p.set("area", "plav-centre");
     else if (h === "en") p.set("lang", "en");
@@ -45,6 +45,49 @@ const FLAG_TEXT: Record<string, string> = {
 };
 const IMG_TEXT: Record<string, string> = { supported: "built surface visible", not_resolved: "too small or mixed to tell at 10 m", disagrees: "looks like vegetation" };
 const STATUS_TEXT: Record<string, string> = { osm_mapped: "OpenStreetMap (human-mapped)", ml_unverified: "Microsoft ML detection: unverified", landmark_verified: "landmark: position verified" };
+
+type VerifyInfo = { summary: Record<string, any>; map: Map<string, VerifyEntry>; missing: number[][]; streets: { x: number; y: number; c: string; n?: string; off: number }[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
+const TIER_TEXT: Record<string, string> = {
+  verified: "verified: OSM and Microsoft outlines agree (two independent producers)",
+  confirmed: "confirmed: roof seen in 1 m imagery at the mapped position",
+  present: "present: an independent source shows a building, outline or position unconfirmed",
+  unconfirmed: "unconfirmed: no independent source confirms or contradicts it",
+  disputed: "disputed: ML only, two independent sources show vegetation",
+};
+
+/** Phase 3 geometry-evidence panel (#verify): tiers per building and per area from verify.json. */
+function VerifyPanel({ info, picked, onNext }: { info: VerifyInfo | null; picked: Building | null; onNext: (tier: string) => void }) {
+  const s = info?.summary;
+  const e = picked ? info?.map.get(picked.id) : undefined;
+  const row = (c: string, t: string) => <div key={t}><span style={{ display: "inline-block", width: 12, height: 12, background: c, marginRight: 6, borderRadius: 2, verticalAlign: -1 }} />{t}</div>;
+  const pct = (a: number, b: number) => b ? Math.round((100 * a) / b) : 0;
+  return (
+    <div className="stats" style={{ top: 96, left: 12, right: "auto", maxWidth: 360, maxHeight: "calc(100% - 200px)", overflowY: "auto", pointerEvents: "auto", whiteSpace: "normal", lineHeight: 1.45 }}>
+      <b>City geometry evidence</b> (Phase 3)<br />
+      {s ? <>
+        {(["verified", "confirmed", "present", "unconfirmed", "disputed"] as const).map((t) => row(VERIFY_COLORS[t], `${s.total.tiers[t] ?? 0} ${TIER_TEXT[t]}`))}
+        {row(VERIFY_COLORS.missing, `${info!.missing.length} Microsoft 2024 footprints missing from the model, roof seen in 1 m imagery (not added)`)}
+        {row(VERIFY_COLORS.street, `${info!.streets.length} roads ≥ 5 m off the imagery road line`)}
+        <div style={{ marginTop: 4, opacity: 0.8, fontSize: 11 }}>Sources: OSM vs raw Microsoft outlines; Satellogic 1 m 2022-08-31 (re-registered, ±{s.registration.loo_err_m.p50} m; {s.obscured} buildings under cloud); Meta canopy height (Maxar 2011-19); Sentinel-2 2025.</div>
+        <table style={{ marginTop: 6, fontSize: 11, borderCollapse: "collapse" }}><tbody>
+          <tr><th style={{ textAlign: "left" }}>area</th><th>n</th><th>verif.+conf.</th><th>disp.</th></tr>
+          {Object.entries(s.areas as Record<string, { n: number; tiers: Record<string, number> }>).map(([k, v]) => (
+            <tr key={k}><td>{k}</td><td style={{ textAlign: "right" }}>{v.n}</td><td style={{ textAlign: "right" }}>{pct((v.tiers.verified ?? 0) + (v.tiers.confirmed ?? 0), v.n)}%</td><td style={{ textAlign: "right" }}>{v.tiers.disputed ?? 0}</td></tr>
+          ))}
+        </tbody></table>
+        <button onClick={() => onNext("disputed")} style={{ marginTop: 4, pointerEvents: "auto" }}>Next disputed →</button>{" "}
+        <button onClick={() => onNext("present")} style={{ marginTop: 4, pointerEvents: "auto" }}>Next "present" →</button>
+      </> : "loading verify.json…"}
+      {picked && (
+        <div style={{ marginTop: 6, padding: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
+          <b>{picked.name ?? "Building"}</b> · {picked.src === "osm" ? "OpenStreetMap" : "Microsoft ML"}{e?.area ? ` · ${e.area}` : ""}<br />
+          {e ? <>{TIER_TEXT[e.tier]}<br />{e.why && <div>{e.why}</div>}</> : "no verification record"}
+          <div style={{ opacity: 0.6, fontSize: 11 }}>id {picked.id}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Developer audit panel: legend and counts from public/data/<area>/audit.json (pipeline/audit_buildings.py). */
 function AuditPanel({ info, osmOnly, shown, picked, onNext }: { info: AuditInfo | null; osmOnly: boolean; shown: number; picked: Building | null; onNext: () => void }) {
@@ -126,7 +169,8 @@ export default function Viewer() {
   const [firstFrameMs, setFirstFrameMs] = useState<number | null>(null);
 
   // #osm: only human-mapped OpenStreetMap footprints (Microsoft ML detections hidden); #audit: geographic audit view
-  const osmOnly = q.has("osm"), audit = q.has("audit");
+  const osmOnly = q.has("osm"), audit = q.has("audit"), verify = q.has("verify");
+  const [verifyInfo, setVerifyInfo] = useState<VerifyInfo | null>(null);
   const [auditInfo, setAuditInfo] = useState<AuditInfo | null>(null);
   const [picked, setPicked] = useState<Building | null>(null);
   const reviewIdx = useRef(-1);
@@ -136,7 +180,20 @@ export default function Viewer() {
       .catch((e) => setError(String(e)));
     if (audit) fetch(`./data/${areaId}/audit.json`).then((r) => r.json()).then((a) => setAuditInfo({ summary: a.summary, gaps: a.gaps ?? [],
       map: new Map((a.buildings as { id: string; shown: boolean; flags: string[]; status: string; osmRecord: string | null; area: number; img?: string }[]).filter((b) => b.shown).map((b) => [b.id, { flags: b.flags, status: b.status, osm: b.osmRecord, area: b.area, img: b.img }])) })).catch(() => {});
-  }, [areaId, osmOnly, audit]);
+    if (verify) fetch(`./data/${areaId}/verify.json`).then((r) => r.json()).then((v) => setVerifyInfo({ summary: v.summary, missing: v.missing ?? [], streets: v.streets ?? [],
+      map: new Map((v.buildings as (VerifyEntry & { id: string })[]).map((b) => [b.id, b])) })).catch(() => {});
+  }, [areaId, osmOnly, audit, verify]);
+
+  // #verify: fly to the next building of a tier
+  const verifyIdx = useRef<Record<string, number>>({});
+  const nextVerify = useCallback((tier: string) => {
+    if (!data || !verifyInfo || !controls.current) return;
+    const list = data.buildings.filter((b) => verifyInfo.map.get(b.id)?.tier === tier);
+    if (!list.length) return;
+    const i = verifyIdx.current[tier] = ((verifyIdx.current[tier] ?? -1) + 1) % list.length;
+    setPicked(list[i]);
+    flyTo(controls.current, data, style, list[i].obb[0], list[i].obb[1], { distance: 90, polarDeg: 55 });
+  }, [data, verifyInfo, style]);
 
   // fly to the next building flagged for manual review (audit mode)
   const nextReview = useCallback(() => {
@@ -240,8 +297,9 @@ export default function Viewer() {
             {!off.has("roads") && !off.has("lights") && <Streetlights data={data} style={style} />}
             {!off.has("roads") && !off.has("street") && <StreetDetails data={data} style={style} estimates={estimates} quality={quality} />}
             {!off.has("roads") && carCount > 0 && <Traffic data={data} style={style} count={carCount} />}
-            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} onPick={audit ? setPicked : undefined} estimates={estimates} />}
+            {!off.has("buildings") && <Buildings data={data} style={style} quality={quality} provisional={review} audit={audit && !!auditInfo} auditMap={auditInfo?.map} verifyMap={verify ? verifyInfo?.map : undefined} onPick={audit || verify ? setPicked : undefined} estimates={estimates} />}
             {audit && auditInfo && <AuditLayer data={data} gaps={auditInfo.gaps} />}
+            {verify && verifyInfo && <VerifyLayer data={data} missing={verifyInfo.missing} streets={verifyInfo.streets} />}
             {!off.has("buildings") && <Minarets data={data} style={style} provisional={review} />}
             {!off.has("landmarks") && <Landmarks data={data} provisional={review} />}
             {!off.has("trees") && <Trees data={data} style={style} quality={quality} estimates={estimates} />}
@@ -266,7 +324,8 @@ export default function Viewer() {
         />
       )}
       {showStats && <div className="stats" ref={statsEl} />}
-      {audit && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} picked={picked} onNext={nextReview} />}
+      {verify && <VerifyPanel info={verifyInfo} picked={picked} onNext={nextVerify} />}
+      {audit && !verify && <AuditPanel info={auditInfo} osmOnly={osmOnly} shown={data?.buildings.length ?? 0} picked={picked} onNext={nextReview} />}
       {bench && <div className="stats bench">{formatBench(bench)}{"\n"}first frame {firstFrameMs ? (firstFrameMs / 1000).toFixed(1) : "?"} s</div>}
       {q.has("tune") && <Tune style={style} setStyle={setStyle} />}
     </div>
