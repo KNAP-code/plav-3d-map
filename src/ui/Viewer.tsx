@@ -49,7 +49,7 @@ const STATUS_TEXT: Record<string, string> = { osm_mapped: "OpenStreetMap (human-
 type VerifyInfo = { summary: Record<string, any>; map: Map<string, VerifyEntry>; missing: number[][]; streets: { x: number; y: number; c: string; n?: string; off: number }[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
 const TIER_TEXT: Record<string, string> = {
   verified: "verified: OSM and Microsoft outlines agree (two independent producers)",
-  confirmed: "confirmed: roof seen in 1 m imagery at the mapped position",
+  confirmed: "confirmed: roof seen in 1 m imagery at the mapped position (contrast test, or both roof-detector tests)",
   present: "present: an independent source shows a building, outline or position unconfirmed",
   unconfirmed: "unconfirmed: no independent source confirms or contradicts it",
   disputed: "disputed: ML only, two independent sources show vegetation",
@@ -66,7 +66,8 @@ function VerifyPanel({ info, picked, onNext }: { info: VerifyInfo | null; picked
       <b>City geometry evidence</b> (Phase 3)<br />
       {s ? <>
         {(["verified", "confirmed", "present", "unconfirmed", "disputed"] as const).map((t) => row(VERIFY_COLORS[t], `${s.total.tiers[t] ?? 0} ${TIER_TEXT[t]}`))}
-        {row(VERIFY_COLORS.missing, `${info!.missing.length} Microsoft 2024 footprints missing from the model, roof seen in 1 m imagery (not added)`)}
+        {row(VERIFY_COLORS.missing, `${info!.missing.length} Microsoft 2024 footprints missing from the model, roof seen in 1 m imagery (listed, not added)`)}
+        {(() => { const n = [...info!.map.values()].filter((v) => v.corr).length; return n ? <div style={{ marginTop: 2 }}>{n} buildings ADDED in Phase 3b (Microsoft 2024 outline + roof detector + a second source)</div> : null; })()}
         {row(VERIFY_COLORS.street, `${info!.streets.length} roads ≥ 5 m off the imagery road line`)}
         <div style={{ marginTop: 4, opacity: 0.8, fontSize: 11 }}>Sources: OSM vs raw Microsoft outlines; Satellogic 1 m 2022-08-31 (re-registered, ±{s.registration.loo_err_m.p50} m; {s.obscured} buildings under cloud); Meta canopy height (Maxar 2011-19); Sentinel-2 2025.</div>
         <table style={{ marginTop: 6, fontSize: 11, borderCollapse: "collapse" }}><tbody>
@@ -76,12 +77,13 @@ function VerifyPanel({ info, picked, onNext }: { info: VerifyInfo | null; picked
           ))}
         </tbody></table>
         <button onClick={() => onNext("disputed")} style={{ marginTop: 4, pointerEvents: "auto" }}>Next disputed →</button>{" "}
-        <button onClick={() => onNext("present")} style={{ marginTop: 4, pointerEvents: "auto" }}>Next "present" →</button>
+        <button onClick={() => onNext("present")} style={{ marginTop: 4, pointerEvents: "auto" }}>Next "present" →</button>{" "}
+        <button onClick={() => onNext("added")} style={{ marginTop: 4, pointerEvents: "auto" }}>Next added →</button>
       </> : "loading verify.json…"}
       {picked && (
         <div style={{ marginTop: 6, padding: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4 }}>
           <b>{picked.name ?? "Building"}</b> · {picked.src === "osm" ? "OpenStreetMap" : "Microsoft ML"}{e?.area ? ` · ${e.area}` : ""}<br />
-          {e ? <>{TIER_TEXT[e.tier]}<br />{e.why && <div>{e.why}</div>}</> : "no verification record"}
+          {e ? <>{e.corr && <div style={{ color: "#f5c66b" }}>Added in Phase 3b ({e.corr.confidence} confidence)</div>}{TIER_TEXT[e.tier]}<br />{e.why && <div>{e.why}</div>}</> : "no verification record"}
           <div style={{ opacity: 0.6, fontSize: 11 }}>id {picked.id}</div>
         </div>
       )}
@@ -188,7 +190,7 @@ export default function Viewer() {
   const verifyIdx = useRef<Record<string, number>>({});
   const nextVerify = useCallback((tier: string) => {
     if (!data || !verifyInfo || !controls.current) return;
-    const list = data.buildings.filter((b) => verifyInfo.map.get(b.id)?.tier === tier);
+    const list = data.buildings.filter((b) => tier === "added" ? !!verifyInfo.map.get(b.id)?.corr : verifyInfo.map.get(b.id)?.tier === tier);
     if (!list.length) return;
     const i = verifyIdx.current[tier] = ((verifyIdx.current[tier] ?? -1) + 1) % list.length;
     setPicked(list[i]);

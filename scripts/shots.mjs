@@ -47,7 +47,13 @@ const verifyCams = [
   "northeast|cam=250,950,520,205,55", "south|cam=250,-1450,620,25,52", "skic|cam=-250,1150,520,180,55",
 ];
 const verify = verifyCams.flatMap((v) => { const [n, c] = v.split("|"); return [`${n}|q=high&off=tilt&${c}`, `${n}-verify|q=high&off=tilt&verify=1&${c}`]; });
-const views = process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
+// VIEWS=fix: Phase 3b corrections: road surface cut back from footprints, Microsoft 2024 buildings added
+const fixCams = [
+  "cut-centre|cam=80,-160,140,200,55", "add-ravni|cam=-550,745,170,180,55", "add-east|cam=690,-40,130,200,55",
+  "add-3785|cam=750,-138,100,200,55", "add-2431|cam=160,-652,100,200,55", "add-3035|cam=137,899,100,200,55",
+];
+const fix = fixCams.flatMap((v) => { const [n, c] = v.split("|"); return [`${n}|q=high&off=tilt&${c}`, `${n}-verify|q=high&off=tilt&verify=1&${c}`]; });
+const views = process.env.VIEWS === "fix" ? fix : process.env.VIEWS === "verify" ? verify : process.env.VIEWS === "water" ? water : process.env.VIEWS === "atmos" ? atmos : process.env.VIEWS === "town" ? town : process.env.VIEWS === "landmarks" ? [
   "sultanija|q=high&off=tilt&cam=133.2,-66.4,110,-127,64,14",
   "redzepagica|q=high&off=tilt&cam=304.2,-206.1,95,-114,62,9",
   "sabovica|q=high&off=tilt&cam=123.1,-345.2,70,-109,64,6",

@@ -19,6 +19,8 @@ from them. Everything here is read from anonymous public S3 buckets with HTTP ra
                    pass of 2022-08-31 (newsat20, 3.9 deg off-nadir), 384 m regions mosaicked. Product level L1: it is
                    NOT orthorectified to survey accuracy (as delivered it sits ~38 m north of Sentinel-2 / OSM, see
                    verify_city.py), so it is used for presence, outline, orientation and *relative* position only.
+  satellogic_toa_0829.tif  second EarthView pass, 2022-08-29 (newsat23, 17.5 deg off-nadir), east third of the area
+                   only: an independent second look for correct_city.py.
                    s3://satellogic-earthview/data/tif/zone=34N/...
 
 Usage: python pipeline/fetch_evidence.py plav-town
@@ -103,8 +105,8 @@ def s3_keys(base, prefix):
         tok = m.group(1)
 
 
-def satellogic(area, out):
-    """Mosaic every 384 m EarthView region of the SAT_DATE pass that overlaps the area (+400 m)."""
+def satellogic(area, out, date=SAT_DATE, name="satellogic_toa.tif"):
+    """Mosaic every 384 m EarthView region of one pass (default SAT_DATE) that overlaps the area (+400 m)."""
     import urllib.request
     from pyproj import Transformer
     from rasterio.merge import merge
@@ -116,7 +118,7 @@ def satellogic(area, out):
     files, meta = [], []
     for e3 in range(int(x0 // 1000) - 1, int(x1 // 1000) + 1):
         for k in s3_keys(SAT, f"data/tif/zone=34N/region={e3}"):
-            if f"date={SAT_DATE}" not in k or not k.endswith("_TOA.tif"):
+            if f"date={date}" not in k or not k.endswith("_TOA.tif"):
                 continue
             e, n = (int(v) for v in k.split("region=")[1].split("/")[0].split("_"))
             if e + 384 < x0 or e > x1 or n < y0 or n - 384 > y1:
@@ -136,10 +138,10 @@ def satellogic(area, out):
     a, t = merge(srcs)
     prof = srcs[0].profile
     prof.update(width=a.shape[2], height=a.shape[1], transform=t, compress="deflate", tiled=True)
-    with rasterio.open(out / "satellogic_toa.tif", "w", **prof) as d:
+    with rasterio.open(out / name, "w", **prof) as d:
         d.write(a)
     off = sorted({round(m["off_nadir"], 1) for m in meta if m.get("off_nadir") is not None})
-    return {"date": SAT_DATE, "regions": len(files), "off_nadir": off, "platforms": sorted({m["platform"] for m in meta}),
+    return {"date": date, "regions": len(files), "off_nadir": off, "platforms": sorted({m["platform"] for m in meta}),
             "product": sorted({m["product"] for m in meta if m.get("product")}), "shape": list(a.shape)}
 
 
@@ -183,6 +185,9 @@ def main(area_id):
     print("chm", meta["chm"])
     meta["satellogic"] = satellogic(area, out)
     print("satellogic", meta["satellogic"])
+    # second, independent pass (newsat23, 17.5 deg off-nadir) over the east third of the town only
+    meta["satellogic_2"] = satellogic(area, out, "2022-08-29", "satellogic_toa_0829.tif")
+    print("satellogic_2", meta["satellogic_2"])
     (out / "evidence.json").write_text(json.dumps(meta, indent=1))
 
 

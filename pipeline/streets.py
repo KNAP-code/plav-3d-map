@@ -83,10 +83,32 @@ def main(area_id="plav-town"):
     carriage = carriage.buffer(FILLET, join_style="round", quad_segs=4).buffer(-FILLET, join_style="round", quad_segs=4)
     carriage = carriage.intersection(core)
 
-    # ---------------- sidewalks (estimate)
     fps = [Polygon(x["fp"]) for x in b["buildings"]]
     fps = [p if p.is_valid else p.buffer(0) for p in fps]
     tree = shapely.STRtree(fps)
+
+    # Phase 3: the ESTIMATED width yields to footprints. Where a road ribbon of estimated width runs under a building,
+    # the width (or the footprint) is wrong, and the footprint is data; 275 footprints were overlapped (1,678 m2).
+    # The asphalt is cut back to 0.3 m from every footprint, except buildings that a car-road centreline really runs
+    # through (canopies/roofs over a road, OSM building=roof), where the road is data too.
+    lines = [LineString(r["pts"]) for r in car]
+    ltree = shapely.STRtree(lines)
+    cut, kept_over = [], 0
+    for x, p in zip(b["buildings"], fps):
+        if not p.intersects(carriage):
+            continue
+        inner = p.buffer(-1.0)
+        if x.get("cls") == "roof" or (not inner.is_empty and any(lines[k].intersects(inner) for k in ltree.query(inner))):
+            kept_over += 1
+            continue
+        cut.append(p.buffer(0.3, join_style="mitre"))
+    before = carriage.area
+    if cut:
+        carriage = carriage.difference(unary_union(cut))
+        carriage = unary_union([q for q in polys_of(carriage) if q.area > 4])
+    width_cut = {"footprints": len(cut), "m2": round(before - carriage.area), "kept_roof_over_road": kept_over}
+
+    # ---------------- sidewalks (estimate)
     zone = []
     lined = 0
     for r in car:
@@ -158,7 +180,7 @@ def main(area_id="plav-town"):
         "bridges": bridges, "towers": towers, "lines": lines, "piers": piers, "pitches": pitches, "cemeteries": cemeteries,
         "stats": {"carriage_m2": round(carriage.area), "sidewalk_m2": round(sidewalk.area) if not sidewalk.is_empty else 0,
                   "sidewalk_streets": lined, "bridges": len(bridges), "towers": len(towers), "lines": len(lines),
-                  "piers": len(piers), "pitches": len(pitches), "cemeteries": len(cemeteries)},
+                  "piers": len(piers), "pitches": len(pitches), "cemeteries": len(cemeteries), "width_cut_by_footprints": width_cut},
     }
     (out_dir / "streets.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")))
     print(area_id, data["stats"], f"{(out_dir / 'streets.json').stat().st_size // 1024} KB")

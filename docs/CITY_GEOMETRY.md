@@ -174,3 +174,114 @@ python pipeline/audit_geo.py plav-town        # only if audit_geo.json is missin
 python pipeline/fetch_evidence.py plav-town   # Microsoft raw, GBA, Meta CHM, Satellogic (~250 MB)
 python pipeline/verify_city.py plav-town      # ~10 min
 ```
+
+
+## Phase 3b: corrections (2026-11-21)
+
+**What was reviewed:** all 3,535 buildings, including the 1,365 with uncertain outlines, the 520 unconfirmed buildings and the open Microsoft 2024 cases (237 footprints that are not in the model).
+
+**What changed in the geometry:**
+
+1. **Road surfaces no longer run under buildings.** The estimated road width now yields to footprints. Asphalt is cut back to 0.3 m from 346 buildings, removing 1,813 m² of overlap (`pipeline/streets.py`). The one exception is a roof built over a road, which stays as mapped. Centrelines are unchanged.
+2. **9 Microsoft 2024 buildings added** (`pipeline/correct_city.py`, rule R2). Each has:
+   - a Microsoft 2024 outline;
+   - both roof-detector tests firing at that outline (0.9 % false rate on empty ground);
+   - a second signal: the pass A contrast test, Sentinel-2 built-up, or pass B.
+
+   No OSM road centreline runs through the 1 m inset of any of them. All 9 were checked by eye on 1 m chips. Confidence is *medium* when the second signal is a different satellite or pass, and *low* otherwise. Each added building carries `corr` in buildings.json and is labelled in `#verify` ("Next added").
+3. **No building was moved, rotated, reshaped or removed.** The calibration below shows the open imagery cannot justify it.
+
+**Why there are no shifts or rotations:** these tests were run on the gold set (OSM and Microsoft agree), against the same outline rotated or shifted as a decoy.
+
+| test | true outline wins | needed |
+|---|---|---|
+| 3 m shift (pass A contrast) | 67 % | ≥ 90 % |
+| 12° rotation (roof detector) | 53–58 % | ≥ 90 % |
+| 12° rotation (NDVI) | 70 % | ≥ 90 % |
+| OSM vs Microsoft outline choice (R3) | 69.8 % | ≥ 90 % |
+
+R1 (shift) also needs a second source that agrees within 2 m. The only second 1 m pass (2022-08-29, 17.5° off-nadir) covers just the eastern edge of town and registers in 2 windows. R1 found nothing.
+
+**Roof detector** (`pipeline/roof_detector.py`): a quadratic discriminant on pass A (R, G, B, NIR and ratios), trained on half the gold set and tested on the other half.
+
+- Detection rate on held-out buildings: 88 % for either test (9.1 % on empty ground), 29 % for both tests (0.9 % on empty ground).
+- It is used only as evidence that a roof is present at the mapped outline.
+- Both tests firing makes a building *confirmed*. One test firing makes it *present*.
+
+**Tiers before → after:**
+
+| tier | before | after |
+|---|---|---|
+| verified | 484 | 484 |
+| confirmed | 1,136 | 1,326 |
+| present | 1,365 | 1,219 |
+| unconfirmed | 520 | 489 |
+| disputed | 21 | 17 |
+
+Changes: 176 present → confirmed, 31 unconfirmed → present or confirmed, 5 disputed → present, 1 present → disputed, and 9 new buildings (all confirmed).
+
+**Per area** (road cut = buildings with estimated asphalt under them before; obscured = under cloud or shadow in pass A):
+
+| area | n | road cut | added | present→conf. | unconf.→up | disputed cleared | verified | confirmed | present | unconfirmed | disputed | obscured |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Plav | 788 | 109 (608 m²) | 0 | 34 | 7 | 0 | 159 | 327 | 288 | 14 | 0 | 0 |
+| Rudo polje | 604 | 54 (343 m²) | 4 | 31 | 5 | 1 | 76 | 225 | 239 | 64 | 0 | 80 |
+| Skić | 345 | 36 (195 m²) | 1 | 25 | 2 | 0 | 35 | 204 | 101 | 4 | 1 | 0 |
+| Ribare | 292 | 25 (157 m²) | 1 | 15 | 6 | 1 | 53 | 104 | 91 | 42 | 2 | 48 |
+| Prnjavor | 271 | 27 (160 m²) | 2 | 14 | 5 | 0 | 33 | 125 | 91 | 18 | 4 | 0 |
+| Korita | 257 | 22 (69 m²) | 0 | 18 | 1 | 0 | 55 | 118 | 79 | 4 | 1 | 0 |
+| Malo selo | 232 | 31 (148 m²) | 1 | 16 | 2 | 2 | 10 | 120 | 92 | 7 | 3 | 0 |
+| Završ | 197 | 16 (74 m²) | 0 | 3 | 0 | 1 | 13 | 16 | 54 | 113 | 1 | 132 |
+| Bogajiće | 172 | 13 (20 m²) | 0 | 10 | 2 | 0 | 1 | 67 | 94 | 8 | 2 | 0 |
+| Nadgrad | 152 | 8 (31 m²) | 0 | 0 | 0 | 0 | 13 | 0 | 18 | 121 | 0 | 152 |
+| Vardište | 79 | 1 (0 m²) | 0 | 0 | 0 | 0 | 20 | 0 | 13 | 46 | 0 | 79 |
+| Brezojevice | 61 | 2 (1 m²) | 0 | 0 | 1 | 0 | 9 | 1 | 21 | 29 | 1 | 44 |
+| Ravna njiva | 36 | 1 (4 m²) | 0 | 5 | 0 | 0 | 0 | 7 | 26 | 3 | 0 | 0 |
+| Šiljkaci | 24 | 0 (0 m²) | 0 | 4 | 0 | 0 | 5 | 11 | 7 | 1 | 0 | 0 |
+| Đurička rijeka | 14 | 1 (1 m²) | 0 | 0 | 0 | 0 | 0 | 0 | 2 | 12 | 0 | 14 |
+| Redžov do | 7 | 0 (0 m²) | 0 | 1 | 0 | 0 | 0 | 1 | 2 | 2 | 2 | 0 |
+| Šarkinovići | 2 | 0 (0 m²) | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 | 2 |
+| Komarača | 1 | 0 (0 m²) | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| Vojno Selo | 1 | 0 (0 m²) | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 1 |
+
+**Added buildings:**
+
+| id | confidence | evidence |
+|---|---|---|
+| ms2024-695 | low | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (2.2 / 0.17; 0.9 % false rate on empty ground); pass A roof contrast at its position (9.1, 1.7 m) |
+| ms2024-710 | low | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (2.4 / 0.91; 0.9 % false rate on empty ground); pass A roof contrast at its position (9.2, 3.4 m) |
+| ms2024-939 | medium | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (2.1 / 1.61; 0.9 % false rate on empty ground); pass A roof contrast at its position (8.8, 2.3 m); Sentinel-2 built signal |
+| ms2024-954 | medium | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (3.0 / 2.15; 0.9 % false rate on empty ground); pass A roof contrast at its position (15.4, 1.9 m); Sentinel-2 built signal |
+| ms2024-1285 | low | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (2.7 / 0.20; 0.9 % false rate on empty ground); pass A roof contrast at its position (8.3, 0.6 m) |
+| ms2024-2431 | low | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (3.4 / 1.64; 0.9 % false rate on empty ground); pass A roof contrast at its position (16.0, 1.9 m) |
+| ms2024-3035 | medium | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (2.6 / 0.21; 0.9 % false rate on empty ground); pass A roof contrast at its position (10.4, 1.8 m); Sentinel-2 built signal |
+| ms2024-3785 | low | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (4.0 / 2.27; 0.9 % false rate on empty ground); pass A roof contrast at its position (8.2, 3.9 m) |
+| ms2024-3837 | medium | Microsoft 2024 footprint (GlobalBuildingAtlas); roof detector: both tests fire at the outline (5.0 / 5.14; 0.9 % false rate on empty ground); Sentinel-2 built signal |
+
+**Not added (listed in `#verify`):** 228 Microsoft 2024 footprints are still absent from the model.
+
+| reason | count |
+|---|---|
+| tiny (< 12 m²) | 46 |
+| imagery obscured or no clean ring | 26 |
+| OSM road centreline through the interior | 42 |
+| evidence below the rule | 114 |
+
+A chip check showed that cases backed only by the contrast test and Sentinel-2 were mostly dark patches with no roof visible.
+
+**Intersections and road alignment:** 1,492 car-road ends were checked. Every junction connects, except one service-road end that stops 3.6 m short at (-1087, -1223), which is left as mapped. Road centrelines were not moved: 82 % are within 3 m of the road seen in the imagery, and the 2 flagged roads stay flagged.
+
+**Spacing and orientation:**
+
+- Spacing (gap to the nearest building) is now p50 3.91 m. The raw Microsoft layer gives 3.56 m.
+- OSM vs Microsoft orientation differs by p50 1.7°, and by more than 10° for 5.6 %. No change was made, because the imagery cannot pick the right one.
+- The "Microsoft 2024" outlines in GlobalBuildingAtlas are identical to the shown Microsoft outlines (IoU p50 0.99, 0.1°), so they are not a second opinion on orientation.
+
+**Remaining uncertainties:**
+
+- *South-west (Završ, Nadgrad, Vardište, Đurička rijeka, Brezojevice):* 552 buildings are under cloud in the only clear 1 m pass, so their tiers could not improve.
+- *1,219 present:* the building exists, but its outline or position is unconfirmed.
+- *489 unconfirmed:* mostly under cloud.
+- *Imagery accuracy:* every outline, rotation and shift remains as published by OSM or Microsoft. Correcting them needs aligned imagery sharper than 1 m. The national orthophoto on geoportal.co.me (WMS) is blocked from this environment, and a scan of 19,123 OpenAerialMap records found no imagery over Plav.
+
+Before/after images: `/mnt/project-files/plav-3d/phase3-city/3b/`.

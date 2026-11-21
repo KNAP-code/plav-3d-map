@@ -124,7 +124,7 @@ class Sat:
         X = np.asarray(x) + self.o[0]; Y = np.asarray(y) + self.o[1]
         return (self.T.f - Y) / -self.T.e, (X - self.T.c) / self.T.a
 
-    def register(self, polys, win=448, step=128, S=60):
+    def register(self, polys, win=448, step=128, S=60, min_clear=0.9, min_mask=1500):
         mask = rasterize([(shapely.affinity.translate(p, *self.o), 1) for p in polys], out_shape=self.ndvi.shape,
                          transform=self.T, dtype="uint8").astype(np.float32)
         z = -np.nan_to_num(np.where(self.obscured, np.nan, self.ndvi), nan=float(np.nanmean(self.ndvi[~self.obscured])))
@@ -132,10 +132,10 @@ class Sat:
         pts = []
         for r0 in range(0, self.H - win + 1, step):
             for c0 in range(0, self.W - win + 1, step):
-                if not (self.valid[r0:r0 + win, c0:c0 + win] & ~self.obscured[r0:r0 + win, c0:c0 + win]).mean() > 0.9:
+                if not (self.valid[r0:r0 + win, c0:c0 + win] & ~self.obscured[r0:r0 + win, c0:c0 + win]).mean() > min_clear:
                     continue
                 mm = mask[r0 + S:r0 + win - S, c0 + S:c0 + win - S]
-                if mm.sum() < 1500:
+                if mm.sum() < min_mask:
                     continue
                 g = fftconvolve(z[r0:r0 + win, c0:c0 + win], mm[::-1, ::-1], mode="valid") / mm.sum()
                 iy, ix = np.unravel_index(np.argmax(g), g.shape)
@@ -351,6 +351,8 @@ def main(area_id="plav-town"):
     for i, (b, g) in enumerate(zip(B, P)):
         c = g.centroid
         rec = {"id": b["id"], "src": b["src"], "a": round(g.area, 1)}
+        if b.get("corr"):
+            rec["corr"] = b["corr"]
         rec["area"] = locs[int(np.argmin(((lp - [c.x, c.y]) ** 2).sum(1)))][0]
         # OSM vs raw Microsoft
         if b["src"] == "osm":
@@ -394,7 +396,16 @@ def main(area_id="plav-town"):
                      and (r["img"] or -9) > T_PRES and not r.get("res_edge")])
     RES_TOL = float(np.percentile(gold, 90))
     calib["position_tolerance_m"] = {"gold_n": int(len(gold)), "p50": r1(np.median(gold)), "p90": r1(RES_TOL), "p95": r1(np.percentile(gold, 95))}
+    # Phase 3b roof detector (roof_detector.py), scored at the mapped outline: det = number of its two tests that
+    # fire (each 5 % false rate on empty ground; both together 0.9 %). Presence evidence only, never position.
+    rdp = cache / "roof-detector.json"
+    RD = json.loads(rdp.read_text())["buildings"] if rdp.exists() else {}
+    if RD:  # footprints added in Phase 3b were scored as Microsoft 2024 extras
+        RD |= {f"ms2024-{j}": v for j, v in json.loads(rdp.read_text())["extras"].items()}
+    if RD:
+        calib["roof_detector"] = json.loads(rdp.read_text())["calibration"]
     for r in per:
+        r["det"] = (RD.get(r["id"]) or [0, 0, 0])[2] if not r["obsc"] else 0
         img_present = r["img"] is not None and r["img"] > T_PRES
         img_best_present = r.get("img_best") is not None and r["img_best"] > T_PRES
         pos_ok = r.get("res") is not None and r["res"] <= RES_TOL and not r.get("res_edge")
@@ -406,7 +417,9 @@ def main(area_id="plav-town"):
             t = "verified"
         elif img_present and (pos_ok or r.get("res") is None):
             t = "confirmed"
-        elif img_present or img_best_present or r["s2"] == "supported" or (r["src"] == "osm" and (r.get("ms_iou") or 0) > 0):
+        elif r["det"] >= 2:
+            t = "confirmed"
+        elif img_present or img_best_present or r["s2"] == "supported" or (r["src"] == "osm" and (r.get("ms_iou") or 0) > 0) or r["det"] >= 1:
             t = "present"
         elif r["src"] == "ms" and not r["obsc"] and veg and (canopy or s2veg):
             t = "disputed"
@@ -424,8 +437,14 @@ def main(area_id="plav-town"):
             why.append("roof visible in 1 m imagery" + (f", fits {r['res']} m from mapped position" if r.get("res") is not None else ""))
         elif img_best_present:
             why.append(f"roof-like signal in 1 m imagery {r['res']} m away")
+        if r["det"] >= 2:
+            why.append("roof detector: both tests fire at the mapped outline")
+        elif r["det"] == 1:
+            why.append("roof detector: one test fires at the mapped outline")
         if r["s2"] == "supported":
             why.append("Sentinel-2 built signal")
+        if r.get("corr"):
+            why.append("ADDED in Phase 3b (%s confidence): %s" % (r["corr"]["confidence"], ", ".join(r["corr"]["evidence"])))
         if t == "disputed":
             why.append("1 m imagery shows vegetation inside" + (", Meta canopy >= 3 m over " + str(int(100 * r["chm"])) + " %" if canopy else "") + (", Sentinel-2 vegetation" if s2veg else ""))
         r["why"] = "; ".join(why)
@@ -521,7 +540,7 @@ def main(area_id="plav-town"):
         "removed_check": removed_check(sat, removed, ring_of, T_PRES, chm),
     }
     (cache / "verify-city.json").write_text(json.dumps(report, indent=1, ensure_ascii=False))
-    slim = [{k: r[k] for k in ("id", "tier", "why", "area") if k in r} | {k: r[k] for k in ("ms_iou", "res", "img", "chm", "obsc") if r.get(k)} for r in per]
+    slim = [{k: r[k] for k in ("id", "tier", "why", "area") if k in r} | {k: r[k] for k in ("ms_iou", "res", "img", "chm", "obsc", "det", "corr") if r.get(k)} for r in per]
     (out_dir / "verify.json").write_text(json.dumps({"summary": {k: report[k] for k in ("sources", "registration", "calibration", "total", "areas", "osm_vs_ms", "obscured")},
                                                       "buildings": slim, "missing": [p[:3] for p in cand["gba_not_in_model"]["points"] if p[4] is not None and p[4] > T_PRES and p[5] is not None and p[5] <= RES_TOL], "streets": streets["flagged"]},
                                                      separators=(",", ":"), ensure_ascii=False))

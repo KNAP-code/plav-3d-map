@@ -171,7 +171,7 @@ const auditTint = (b: Building, e?: AuditEntry) =>
  * disputed = Microsoft ML only and two independent sources show vegetation there.
  */
 export const VERIFY_COLORS = { verified: "#2f9e57", confirmed: "#7fcf8a", present: "#d9c94a", unconfirmed: "#9aa0a6", disputed: "#e0453a", missing: "#d6338f", street: "#f29d38" };
-export type VerifyEntry = { tier: keyof typeof VERIFY_COLORS; why?: string; area?: string; ms_iou?: number; res?: number; img?: number; chm?: number; obsc?: boolean };
+export type VerifyEntry = { tier: keyof typeof VERIFY_COLORS; why?: string; area?: string; ms_iou?: number; res?: number; img?: number; chm?: number; obsc?: boolean; det?: number; corr?: { kind: string; confidence: string; evidence: string[] } };
 const verifyTint = (e?: VerifyEntry) => VERIFY_COLORS[e?.tier ?? "unconfirmed"] ?? VERIFY_COLORS.unconfirmed;
 
 export function Buildings({ data, style, quality, provisional = true, audit = false, auditMap, verifyMap, onPick, estimates = false }: {

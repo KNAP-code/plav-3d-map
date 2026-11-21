@@ -1,0 +1,336 @@
+{
+ "area": "plav-town",
+ "calibration": {
+  "tA": 7.0,
+  "tB": 7.19,
+  "tol_m": 4.74,
+  "gold_n": 484,
+  "gold_res_n": 335,
+  "R1_gold_false_shift_pct": 0.0,
+  "R3_decoy_n": 417,
+  "R3_pick_true_pct": 69.78,
+  "R3_margin": 5.76,
+  "roof_detector": {
+   "null_rate": {
+    "contrast": 0.05,
+    "absolute": 0.05,
+    "either": 0.091,
+    "both": 0.009
+   },
+   "heldout_detect": {
+    "either": 0.877,
+    "both": 0.288,
+    "n": 212
+   },
+   "t_contrast": 2.071,
+   "t_absolute": 0.036
+  },
+  "R2_skipped": {
+   "tiny": 46,
+   "no clear imagery": 26,
+   "evidence below rule": 114,
+   "road centreline through it": 42
+  }
+ },
+ "counts": {
+  "add": 9
+ },
+ "corrections": [
+  {
+   "kind": "add",
+   "id": "ms2024-695",
+   "src": "ms2024",
+   "fp": [
+    [
+     -1271.08,
+     1312.58
+    ],
+    [
+     -1276.96,
+     1313.21
+    ],
+    [
+     -1276.4,
+     1318.42
+    ],
+    [
+     -1270.52,
+     1317.79
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (2.2 / 0.17; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (9.1, 1.7 m)"
+   ],
+   "confidence": "low"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-710",
+   "src": "ms2024",
+   "fp": [
+    [
+     -1230.97,
+     1439.25
+    ],
+    [
+     -1231.58,
+     1430.07
+    ],
+    [
+     -1244.87,
+     1430.96
+    ],
+    [
+     -1244.5,
+     1436.42
+    ],
+    [
+     -1248.45,
+     1436.68
+    ],
+    [
+     -1248.2,
+     1440.39
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (2.4 / 0.91; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (9.2, 3.4 m)"
+   ],
+   "confidence": "low"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-939",
+   "src": "ms2024",
+   "fp": [
+    [
+     -514.13,
+     740.95
+    ],
+    [
+     -500.29,
+     741.39
+    ],
+    [
+     -499.94,
+     730.67
+    ],
+    [
+     -513.78,
+     730.22
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (2.1 / 1.61; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (8.8, 2.3 m)",
+    "Sentinel-2 built signal"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-954",
+   "src": "ms2024",
+   "fp": [
+    [
+     -603.98,
+     752.51
+    ],
+    [
+     -603.91,
+     754.48
+    ],
+    [
+     -609.84,
+     754.7
+    ],
+    [
+     -609.66,
+     759.52
+    ],
+    [
+     -604.39,
+     759.33
+    ],
+    [
+     -604.13,
+     766.33
+    ],
+    [
+     -590.5,
+     765.84
+    ],
+    [
+     -590.81,
+     757.51
+    ],
+    [
+     -587.73,
+     757.4
+    ],
+    [
+     -587.93,
+     751.92
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (3.0 / 2.15; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (15.4, 1.9 m)",
+    "Sentinel-2 built signal"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-1285",
+   "src": "ms2024",
+   "fp": [
+    [
+     -501.51,
+     235.01
+    ],
+    [
+     -501.61,
+     239.61
+    ],
+    [
+     -494.13,
+     239.77
+    ],
+    [
+     -494.03,
+     235.17
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (2.7 / 0.20; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (8.3, 0.6 m)"
+   ],
+   "confidence": "low"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-2431",
+   "src": "ms2024",
+   "fp": [
+    [
+     167.86,
+     -649.07
+    ],
+    [
+     164.24,
+     -659.74
+    ],
+    [
+     151.94,
+     -655.6
+    ],
+    [
+     155.57,
+     -644.93
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (3.4 / 1.64; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (16.0, 1.9 m)"
+   ],
+   "confidence": "low"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-3035",
+   "src": "ms2024",
+   "fp": [
+    [
+     137.04,
+     892.28
+    ],
+    [
+     130.13,
+     901.21
+    ],
+    [
+     136.49,
+     906.09
+    ],
+    [
+     143.39,
+     897.16
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (2.6 / 0.21; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (10.4, 1.8 m)",
+    "Sentinel-2 built signal"
+   ],
+   "confidence": "medium"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-3785",
+   "src": "ms2024",
+   "fp": [
+    [
+     743.41,
+     -141.3
+    ],
+    [
+     746.46,
+     -130.98
+    ],
+    [
+     756.22,
+     -133.84
+    ],
+    [
+     753.16,
+     -144.17
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (4.0 / 2.27; 0.9 % false rate on empty ground)",
+    "pass A roof contrast at its position (8.2, 3.9 m)"
+   ],
+   "confidence": "low"
+  },
+  {
+   "kind": "add",
+   "id": "ms2024-3837",
+   "src": "ms2024",
+   "fp": [
+    [
+     684.79,
+     -13.09
+    ],
+    [
+     676.78,
+     -18.16
+    ],
+    [
+     671.58,
+     -10.01
+    ],
+    [
+     679.58,
+     -4.94
+    ]
+   ],
+   "evidence": [
+    "Microsoft 2024 footprint (GlobalBuildingAtlas)",
+    "roof detector: both tests fire at the outline (5.0 / 5.14; 0.9 % false rate on empty ground)",
+    "Sentinel-2 built signal"
+   ],
+   "confidence": "medium"
+  }
+ ]
+}
